@@ -1,0 +1,31 @@
+#!/bin/bash
+
+delay=0.5s
+printUsage()
+{
+    cat <<HELPTEXT
+Print file contents on standard output line per line with delay.
+Usage: "$(basename "$1")" [--delay NUMBER[SUFFIX]] FILE, ... [-?|-h|--help]
+HELPTEXT
+}
+case "$1" in
+    --help|-h|-\?)	shift; printUsage "$0"; exit 0;;
+    --delay)		shift; delay=$1; shift;;
+esac
+
+cat "$@" | while IFS=$'\r' read -ra lines
+do
+    let cnt=0
+    for line in "${lines[@]}"
+    do
+	let cnt+=1
+	if [[ $cnt = ${#lines[@]} ]]; then
+	    # Conclude the last line fragment with a newline.
+	    printf '%s\n' "$line"
+	else
+	    # Return to the first column after each internal line fragment.
+	    printf '%s\r' "$line"
+	fi
+	sleep "$delay"
+    done
+done
