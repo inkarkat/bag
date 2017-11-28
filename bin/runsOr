@@ -1,0 +1,38 @@
+#!/bin/bash
+
+printUsage()
+{
+    cat <<HELPTEXT
+Tests whether the passed pgrep [OPTIONS] PATTERN is running as (at least one)
+process. If not, it asks the user whether to start it. If confirmed, this will
+execute the shell COMMANDS read from stdin.
+HELPTEXT
+printf 'Usage: echo COMMANDS | %q %s\n' "$(basename "$1")" '[OPTIONS] PATTERN [-?|-h|--help]'
+printf 'Usage: %q %s <<EOF\n  COMMANDS\nEOF\n' "$(basename "$1")" '[OPTIONS] PATTERN'
+}
+case "$1" in
+    --help|-h|-\?)	shift; printUsage "$0"; exit 0;;
+esac
+if [ $# -eq 0 ]; then
+    printUsage "$0" >&2
+    exit 2
+fi
+
+pgrep --count "$@" >/dev/null && exit 0
+
+MARKER_FILESPEC="$(echo "${TEMP:-/tmp}/$(basename -- "$0").$PPID")"
+
+if [ -e "$MARKER_FILESPEC" ]; then
+    CHOICE=y
+else
+    lastArg=${!#}
+    < /dev/tty read -p "$lastArg does not run. Start it? (y/n/a) " CHOICE
+fi
+if [ "$CHOICE" = 'a' ]; then
+    touch "$MARKER_FILESPEC"
+    CHOICE=y
+fi
+
+[ "$CHOICE" = 'y' ] || exit 2
+
+cat | bash -
