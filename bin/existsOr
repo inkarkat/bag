@@ -23,6 +23,7 @@ fi
 MARKER_FILESPEC="$(echo "${TEMP:-/tmp}/$(basename -- "$0").$PPID")"
 
 if [ -e "$MARKER_FILESPEC" ]; then
+    printf '%s does not exist. Defining it now.\n' "$1"
     CHOICE=y
 else
     < /dev/tty read -p "$1 does not exist. Define it? (y/n/a) " CHOICE
