@@ -7,14 +7,20 @@ Tests whether the passed TEST-COMMANDLINE succeeds with exit status 0 (any
 output is discarded). If not, it asks the user whether to make it work. If
 confirmed, this will execute the shell COMMANDS read from stdin.
 HELPTEXT
-printf 'Usage: echo COMMANDS | %q %s\n' "$(basename "$1")" '[--bare] TEST-COMMANDLINE [...] [-?|-h|--help]'
+printf 'Usage: echo COMMANDS | %q %s\n' "$(basename "$1")" '[--bare] [--recheck-at-end] TEST-COMMANDLINE [...] [-?|-h|--help]'
 printf 'Usage: %q %s <<EOF\n  COMMANDS\nEOF\n' "$(basename "$1")" '[...] TEST-COMMANDLINE [...]'
 }
 isBare=
-case "$1" in
-    --help|-h|-\?)	shift; printUsage "$0"; exit 0;;
-    --bare)		shift; isBare=t;;
-esac
+isRecheckAtEnd=
+while [ $# -ne 0 ]
+do
+    case "$1" in
+	--help|-h|-\?)	shift; printUsage "$0"; exit 0;;
+	--bare)		shift; isBare=t;;
+	--recheck-at-end)   shift; isRecheckAtEnd=t;;
+	*)		break;;
+    esac
+done
 if [ $# -eq 0 ]; then
     printUsage "$0" >&2
     exit 2
@@ -42,3 +48,17 @@ if [ "$isBare" ]; then
 else
     runWithPrompt --no-trailing-prompt
 fi
+status=$?
+
+if [ "$isRecheckAtEnd" ]; then
+    if ! eval "$@" >/dev/null 2>&1; then
+	printf 'ERROR: %s still does not succeed.\n' "$*"
+	if [ $status -eq 0 ]; then
+	    exit 1
+	else
+	    exit $status
+	fi
+    fi
+fi
+
+exit $status
