@@ -7,26 +7,30 @@ Tests whether the passed EXECUTABLE exists in PATH. If not, it asks the user
 whether to define it. If confirmed, this will execute the shell COMMANDS read
 from stdin.
 HELPTEXT
-printf 'Usage: echo COMMANDS | %q %s\n' "$(basename "$1")" 'EXECUTABLE [-?|-h|--help]'
-printf 'Usage: %q %s <<EOF\n  COMMANDS\nEOF\n' "$(basename "$1")" 'EXECUTABLE'
+printf 'Usage: echo COMMANDS | %q %s\n' "$(basename "$1")" '[--bare|[--trailing-prompt] [--emulate-prompt] [--worst-status] [-c|--comment COMMENT]] EXECUTABLE [-?|-h|--help]'
+printf 'Usage: %q %s <<EOF\n  COMMANDS\nEOF\n' "$(basename "$1")" '[...] EXECUTABLE'
 }
+isBare=
 case "$1" in
     --help|-h|-\?)	shift; printUsage "$0"; exit 0;;
+    --bare)		shift; isBare=t;;
 esac
-if [ $# -ne 1 ]; then
+if [ $# -lt 1 ]; then
     printUsage "$0" >&2
     exit 2
 fi
+EXECUTABLE=; [ $# -gt 0 ] && EXECUTABLE=${!#}
+typeset -a runWithPromptArgs=("${@:1:$(($#-1))}")
 
-'which' "${1:?}" >/dev/null 2>&1 && exit 0
+'which' "$EXECUTABLE" >/dev/null 2>&1 && exit 0
 
 MARKER_FILESPEC="$(echo "${TEMP:-/tmp}/$(basename -- "$0").$PPID")"
 
-if [ -e "$MARKER_FILESPEC" ]; then
-    printf '%s does not exist. Defining it now.\n' "$1"
+if [ -e "$MARKER_FILESPEC" ] && [ "$(find "$MARKER_FILESPEC" -mmin -15)" ]; then
+    printf '%s does not exist. Defining it now.\n' "$EXECUTABLE"
     CHOICE=y
 else
-    < /dev/tty read -p "$1 does not exist. Define it? (y/n/a) " CHOICE
+    < /dev/tty read -p "$EXECUTABLE does not exist. Define it? (y/n/a) " CHOICE
 fi
 if [ "$CHOICE" = 'a' ]; then
     touch "$MARKER_FILESPEC"
@@ -35,4 +39,8 @@ fi
 
 [ "$CHOICE" = 'y' ] || exit 2
 
-cat | bash -
+if [ "$isBare" ]; then
+    cat | bash -
+else
+    runWithPrompt "${runWithPromptArgs[@]}"
+fi
