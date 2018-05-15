@@ -6,18 +6,29 @@ printUsage()
 Tests whether the passed TEST-COMMANDLINE succeeds with exit status 0 (any
 output is discarded). If not, it asks the user whether to make it work. If
 confirmed, this will execute the shell COMMANDS read from stdin.
+--recheck-at-end    will perform a second check after all COMMANDS have been
+		    read; if it fails, an error is printed and this command will
+		    fail.
+--recheck-at-checkpoints    defines a custom "checkpoint" command that can be
+			    included anywhere in COMMANDS to do a check. A
+			    successful check will abort additional COMMANDS.
 HELPTEXT
-printf 'Usage: echo COMMANDS | %q %s\n' "$(basename "$1")" '[--bare] [--recheck-at-end] TEST-COMMANDLINE [...] [-?|-h|--help]'
+printf 'Usage: echo COMMANDS | %q %s\n' "$(basename "$1")" '[--bare] [--recheck-at-end] [--recheck-at-checkpoints] TEST-COMMANDLINE [...] [-?|-h|--help]'
 printf 'Usage: %q %s <<EOF\n  COMMANDS\nEOF\n' "$(basename "$1")" '[...] TEST-COMMANDLINE [...]'
 }
 isBare=
 isRecheckAtEnd=
+typeset -a checkpointPrePipeline=()
 while [ $# -ne 0 ]
 do
     case "$1" in
 	--help|-h|-\?)	shift; printUsage "$0"; exit 0;;
 	--bare)		shift; isBare=t;;
-	--recheck-at-end)   shift; isRecheckAtEnd=t;;
+	--recheck-at-end)	    shift; isRecheckAtEnd=t;;
+	--recheck-at-checkpoints)   shift
+				    printf -v quotedTestCommandLine '%q ' "$@"
+				    checkpointPrePipeline=(sed -e "1i\\checkpoint() { ${quotedTestCommandLine}>/dev/null 2>&1 && exit 0; }")
+				    ;;
 	*)		break;;
     esac
 done
@@ -43,11 +54,15 @@ fi
 
 [ "$CHOICE" = 'y' ] || exit 2
 
-if [ "$isBare" ]; then
-    cat | bash -
-else
-    runWithPrompt --no-trailing-prompt
-fi
+runInput()
+{
+    if [ "$isBare" ]; then
+	bash -
+    else
+	runWithPrompt --no-trailing-prompt
+    fi
+}
+eval '"${checkpointPrePipeline[@]}"' "${checkpointPrePipeline:+|}" runInput
 status=$?
 
 if [ "$isRecheckAtEnd" ]; then
