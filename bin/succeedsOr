@@ -37,7 +37,7 @@ if [ $# -eq 0 ]; then
     exit 2
 fi
 
-eval "$@" >/dev/null 2>&1 && exit 0
+eval "${@//[${IFS-$' \t\n'}]/\\ }" >/dev/null 2>&1 && exit 0
 
 MARKER_FILESPEC="$(echo "${TEMP:-/tmp}/$(basename -- "$0").$PPID")"
 
