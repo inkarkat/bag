@@ -37,7 +37,20 @@ if [ $# -eq 0 ]; then
     exit 2
 fi
 
-eval "${@//[${IFS-$' \t\n'}]/\\ }" >/dev/null 2>&1 && exit 0
+commandLineEscape()
+{
+    eval "typeset -a result=(\"\${${1:?}[@]}\")"
+    typeset escapeChars="\\${IFS-$' \t\n'}"
+    typeset escapeCharIdx
+    for ((escapeCharIdx = 0; escapeCharIdx < ${#escapeChars}; escapeCharIdx++))
+    do
+	result=("${result[@]//"${escapeChars:$escapeCharIdx:1}"/\\"${escapeChars:$escapeCharIdx:1}"}")
+    done
+    eval "${1}Escaped=(\"\${result[@]}\")"
+}
+typeset -a commandLine=("$@")
+commandLineEscape commandLine
+eval "${commandLineEscaped[@]}" >/dev/null 2>&1 && exit 0
 
 MARKER_FILESPEC="$(echo "${TEMP:-/tmp}/$(basename -- "$0").$PPID")"
 
