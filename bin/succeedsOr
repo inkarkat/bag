@@ -3,9 +3,11 @@
 printUsage()
 {
     cat <<HELPTEXT
-Tests whether the passed TEST-COMMANDLINE succeeds with exit status 0 (any
-output is discarded). If not, it asks the user whether to make it work. If
-confirmed, this will execute the shell COMMANDS read from stdin.
+Tests whether the passed TEST-COMMAND succeeds with exit status 0 (any output is
+discarded). If not, it asks the user whether to make it work. If confirmed, this
+will execute the shell COMMANDS read from stdin.
+--command|-c CMD	The command line to be tested. When this is a simple
+			command, it can also be passed as such.
 --recheck-at-end    will perform a second check after all COMMANDS have been
 		    read; if it fails, an error is printed and this command will
 		    fail.
@@ -13,9 +15,12 @@ confirmed, this will execute the shell COMMANDS read from stdin.
 			    included anywhere in COMMANDS to do a check. A
 			    successful check will abort additional COMMANDS.
 HELPTEXT
-printf 'Usage: echo COMMANDS | %q %s\n' "$(basename "$1")" '[--bare] [--recheck-at-end] [--recheck-at-checkpoints] TEST-COMMANDLINE [...] [-?|-h|--help]'
-printf 'Usage: %q %s <<EOF\n  COMMANDS\nEOF\n' "$(basename "$1")" '[...] TEST-COMMANDLINE [...]'
+printf 'Usage: echo COMMANDS | %q %s\n' "$(basename "$1")" '[--bare] [--recheck-at-end] [--recheck-at-checkpoints] (-c|--command "TEST-COMMANDLINE" | [--] SIMPLE-TEST-COMMAND [...]) [...] [-?|-h|--help]'
+printf 'Usage: %q %s <<EOF\n  COMMANDS\nEOF\n' "$(basename "$1")" '[...] (-c|--command "TEST-COMMANDLINE" | [--] SIMPLE-TEST-COMMAND [...]) [...]'
 }
+
+isNeedEval=
+typeset -a commands=()
 isBare=
 isRecheckAtEnd=
 typeset -a checkpointPrePipeline=()
@@ -29,28 +34,28 @@ do
 				    printf -v quotedTestCommandLine '%q ' "$@"
 				    checkpointPrePipeline=(sed -e "1i\\checkpoint() { ${quotedTestCommandLine}>/dev/null 2>&1 && exit 0; }")
 				    ;;
+	--command|-c)	shift; commands+=(${commands:+;} "$1"); isNeedEval=t; shift;;
+	--)		shift; break;;
 	*)		break;;
     esac
 done
-if [ $# -eq 0 ]; then
-    printUsage "$0" >&2
-    exit 2
+if [ $# -ne 0 ]; then
+    if [ "$isNeedEval" ]; then
+	# Combine --command and SIMPLECOMMAND; need to quote SIMPLECOMMAND to
+	# undo the effects of eval.
+	commands+=(${commands:+;} $(printf '%q ' "$@"))
+    else
+	commands=("$@")
+    fi
 fi
 
-commandLineEscape()
-{
-    eval "typeset -a result=(\"\${${1:?}[@]}\")"
-    typeset escapeChars="\\${IFS-$' \t\n'}"
-    typeset escapeCharIdx
-    for ((escapeCharIdx = 0; escapeCharIdx < ${#escapeChars}; escapeCharIdx++))
-    do
-	result=("${result[@]//"${escapeChars:$escapeCharIdx:1}"/\\"${escapeChars:$escapeCharIdx:1}"}")
-    done
-    eval "${1}Escaped=(\"\${result[@]}\")"
-}
-typeset -a commandLine=("$@")
-commandLineEscape commandLine
-eval "${commandLineEscaped[@]}" >/dev/null 2>&1 && exit 0
+(
+    if [ "$isNeedEval" ]; then
+	eval "${commands[@]}"
+    else
+	"${commands[@]}"
+    fi
+) >/dev/null 2>&1 && exit 0
 
 MARKER_FILESPEC="$(echo "${TEMP:-/tmp}/$(basename -- "$0").$PPID")"
 
