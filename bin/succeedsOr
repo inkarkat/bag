@@ -62,20 +62,7 @@ fi
     fi
 ) >/dev/null 2>&1 && exit 0
 
-MARKER_FILESPEC="$(echo "${TEMP:-/tmp}/$(basename -- "$0").$PPID")"
-
-if [ -e "$MARKER_FILESPEC" ] && [ "$(find "$MARKER_FILESPEC" -mmin -15)" ]; then
-    printf '%s does not succeed. Making it work.\n' "${commands[*]}"
-    CHOICE=y
-else
-    < /dev/tty read -p "${commands[*]} does not succeed. Make it work? (y/n/a) " CHOICE
-fi
-if [ "$CHOICE" = 'a' ]; then
-    touch "$MARKER_FILESPEC"
-    CHOICE=y
-fi
-
-[ "$CHOICE" = 'y' ] || exit 2
+memoizeDecision --memorize-group "$(basename -- "$0").$PPID" --subject "${commands[*]}" --state 'succeed' --action 'Mak[e] it work' || exit 2
 
 runInput()
 {
