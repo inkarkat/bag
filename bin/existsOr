@@ -24,7 +24,7 @@ typeset -a runWithPromptArgs=("${@:1:$(($#-1))}")
 
 'which' "$EXECUTABLE" >/dev/null 2>&1 && exit 0
 
-memoizeDecision --memorize-group "$(basename -- "$0").$PPID" --subject "$EXECUTABLE" --state 'exist' --action 'Defin[e] it' || exit 2
+memoizeDecision --memorize-group "$(basename -- "$0").$PPID" --subject "$EXECUTABLE" --state 'exist' --action 'Defin[e]' || exit 2
 
 if [ "$isBare" ]; then
     bash -
