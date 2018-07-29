@@ -22,21 +22,7 @@ fi
 
 pgrep --count "$@" >/dev/null && exit 0
 
-MARKER_FILESPEC="$(echo "${TEMP:-/tmp}/$(basename -- "$0").$PPID")"
-
-if [ -e "$MARKER_FILESPEC" ] && [ "$(find "$MARKER_FILESPEC" -mmin -15)" ]; then
-    printf '%s does not run. Starting it now.\n' "$EXECUTABLE"
-    CHOICE=y
-else
-    lastArg=${!#}
-    < /dev/tty read -p "$lastArg does not run. Start it? (y/n/a) " CHOICE
-fi
-if [ "$CHOICE" = 'a' ]; then
-    touch "$MARKER_FILESPEC"
-    CHOICE=y
-fi
-
-[ "$CHOICE" = 'y' ] || exit 2
+memoizeDecision --memorize-group "$(basename -- "$0").$PPID" --subject "$EXECUTABLE" --state 'run' --action 'Start it' || exit 2
 
 if [ "$isBare" ]; then
     bash -
