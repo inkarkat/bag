@@ -39,7 +39,7 @@ fi
 [ "$CHOICE" = 'y' ] || exit 2
 
 if [ "$isBare" ]; then
-    cat | bash -
+    bash -
 else
     runWithPrompt --no-trailing-prompt
 fi
