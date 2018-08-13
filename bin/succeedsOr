@@ -15,13 +15,14 @@ will execute the shell COMMANDS read from stdin.
 			    included anywhere in COMMANDS to do a check. A
 			    successful check will abort additional COMMANDS.
 HELPTEXT
-printf 'Usage: echo COMMANDS | %q %s\n' "$(basename "$1")" '[--bare] [--recheck-at-end] [--recheck-at-checkpoints] -c|--command "TEST-COMMANDLINE" [-c ...] | [--] SIMPLE-TEST-COMMAND [...] [-?|-h|--help]'
+printf 'Usage: echo COMMANDS | %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--bare] [--recheck-at-end] [--recheck-at-checkpoints] -c|--command "TEST-COMMANDLINE" [-c ...] | [--] SIMPLE-TEST-COMMAND [...] [-?|-h|--help]'
 printf 'Usage: %q %s <<EOF\n  COMMANDS\nEOF\n' "$(basename "$1")" '[...] -c|--command "TEST-COMMANDLINE" [-c ...] | [--] SIMPLE-TEST-COMMAND [...]'
 }
 
 isNeedEval=
 typeset -a commands=()
 isBare=
+typeset -a memoizeDecisionArgs=()
 isRecheckAtEnd=
 typeset -a checkpointPrePipeline=()
 while [ $# -ne 0 ]
@@ -29,6 +30,7 @@ do
     case "$1" in
 	--help|-h|-\?)	shift; printUsage "$0"; exit 0;;
 	--bare)		shift; isBare=t;;
+	--memoize-group|-g) memoizeDecisionArgs+=("$1" "$2"); shift; shift;;
 	--recheck-at-end)	    shift; isRecheckAtEnd=t;;
 	--recheck-at-checkpoints)   shift
 				    printf -v quotedTestCommandLine '%q ' "$@"
@@ -53,6 +55,7 @@ if [ ${#commands[@]} -eq 0 ]; then
     echo >&2 'ERROR: No COMMAND(s) specified; need to pass -c|--command "COMMANDLINE", or SIMPLECOMMAND.'
     exit 2
 fi
+[ "$memoizeDecisionArgs" ] || memoizeDecisionArgs=(--memoize-group "$(basename -- "$0").$PPID")
 
 (
     if [ "$isNeedEval" ]; then
@@ -62,7 +65,7 @@ fi
     fi
 ) >/dev/null 2>&1 && exit 0
 
-memoizeDecision --memorize-group "$(basename -- "$0").$PPID" --subject "${commands[*]}" --state 'succeed' --action 'Mak[e] it work' || exit 2
+memoizeDecision "${memoizeDecisionArgs[@]}" --subject "${commands[*]}" --state 'succeed' --action 'make it work' || exit 2
 
 runInput()
 {
