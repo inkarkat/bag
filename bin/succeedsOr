@@ -24,6 +24,7 @@ typeset -a commands=()
 isBare=
 typeset -a memoizeDecisionArgs=()
 isRecheckAtEnd=
+isRecheckAtCheckpoints=
 typeset -a checkpointPrePipeline=()
 while [ $# -ne 0 ]
 do
@@ -32,10 +33,7 @@ do
 	--bare)		shift; isBare=t;;
 	--memoize-group|-g) memoizeDecisionArgs+=("$1" "$2"); shift; shift;;
 	--recheck-at-end)	    shift; isRecheckAtEnd=t;;
-	--recheck-at-checkpoints)   shift
-				    printf -v quotedTestCommandLine '%q ' "$@"
-				    checkpointPrePipeline=(sed -e "1i\\checkpoint() { ${quotedTestCommandLine}>/dev/null 2>&1 && exit 0; }")
-				    ;;
+	--recheck-at-checkpoints)   shift; isRecheckAtCheckpoints=t;;
 	--command|-c)	shift; commands+=(${commands:+;} "$1"); isNeedEval=t; shift;;
 	--)		shift; break;;
 	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
@@ -54,6 +52,10 @@ fi
 if [ ${#commands[@]} -eq 0 ]; then
     echo >&2 'ERROR: No COMMAND(s) specified; need to pass -c|--command "COMMANDLINE", or SIMPLECOMMAND.'
     exit 2
+fi
+if [ "$isRecheckAtCheckpoints" ]; then
+    printf -v quotedTestCommandLine '%q ' "${commands[@]}"
+    checkpointPrePipeline=(sed -e "1i\\checkpoint() { ${isNeedEval:+eval }${quotedTestCommandLine//\\/\\\\}>/dev/null 2>&1 && exit 0; }")
 fi
 [ "$memoizeDecisionArgs" ] || memoizeDecisionArgs=(--memoize-group "$(basename -- "$0").$PPID")
 
