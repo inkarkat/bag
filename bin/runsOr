@@ -3,20 +3,31 @@
 printUsage()
 {
     cat <<HELPTEXT
-Tests whether the passed pgrep [OPTIONS] PATTERN is running as (at least one)
+Checks whether the passed pgrep [OPTIONS] PATTERN is running as (at least one)
 process. If not, it asks the user whether to start it. If confirmed, this will
 execute the shell COMMANDS read from stdin.
+--recheck-at-end    will perform a second check after all COMMANDS have been
+		    read; if it fails, an error is printed and this command will
+		    fail.
+--recheck-at-checkpoints    defines a custom "checkpoint" command that can be
+			    included anywhere in COMMANDS to do a check. A
+			    successful check will abort additional COMMANDS.
 HELPTEXT
-printf 'Usage: echo COMMANDS | %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--bare] [OPTIONS] [--] PATTERN [-?|-h|--help]'
+printf 'Usage: echo COMMANDS | %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--bare] [--recheck-at-end] [--recheck-at-checkpoints] [OPTIONS] [--] PATTERN [-?|-h|--help]'
 printf 'Usage: %q %s <<EOF\n  COMMANDS\nEOF\n' "$(basename "$1")" '[...] PATTERN'
 }
 isBare=
+isRecheckAtEnd=
+isRecheckAtCheckpoints=
+typeset -a checkpointPrePipeline=()
 typeset -a memoizeDecisionArgs=()
 while [ $# -ne 0 ]
 do
     case "$1" in
 	--bare)		shift; isBare=t;;
 	--memoize-group|-g) memoizeDecisionArgs+=("$1" "$2"); shift; shift;;
+	--recheck-at-end)	    shift; isRecheckAtEnd=t;;
+	--recheck-at-checkpoints)   shift; isRecheckAtCheckpoints=t;;
 	--help|-h|-\?)	shift; printUsage "$0"; exit 0;;
 	--)		memoizeDecisionArgs+=("$1"); break;;
 	*)		break;;
@@ -26,10 +37,19 @@ if [ $# -eq 0 ]; then
     printUsage "$0" >&2
     exit 2
 fi
-
+typeset -a pgrepArgs=("$@")
+readonly pattern=${!#}
+if [ "$isRecheckAtCheckpoints" ]; then
+    printf -v quotedPgrepArgs '%q ' "${pgrepArgs[@]}"
+    checkpointPrePipeline=(sed -e "1i\\checkpoint() { pgrep --count ${quotedPgrepArgs//\\/\\\\} >/dev/null && exit 0; }")
+fi
 [ "$memoizeDecisionArgs" ] || memoizeDecisionArgs=(--memoize-group "$(basename -- "$0").$PPID")
 
-pgrep --count "$@" >/dev/null && exit 0
+check()
+{
+    pgrep --count "${pgrepArgs[@]}" >/dev/null
+}
+check && exit 0
 case $? in
     1)	;; # No processes matched, continue.
     2)	echo >&2 "ERROR: Invalid pgrep OPTIONS"; exit 2;;
@@ -37,11 +57,28 @@ case $? in
     *)	echo >&2 "ERROR: Unknown pgrep error"; exit 3;;
 esac
 
-readonly pattern=${!#}
 memoizeDecision "${memoizeDecisionArgs[@]}" --subject "$pattern" --state 'run' --action 'start it' || exit 2
 
-if [ "$isBare" ]; then
-    bash -
-else
-    runWithPrompt --no-trailing-prompt
+runInput()
+{
+    if [ "$isBare" ]; then
+	bash -
+    else
+	runWithPrompt --no-trailing-prompt
+    fi
+}
+eval '"${checkpointPrePipeline[@]}"' "${checkpointPrePipeline:+|}" runInput
+status=$?
+
+if [ "$isRecheckAtEnd" ]; then
+    if ! check; then
+	printf 'ERROR: %s still does not run.\n' "$pattern"
+	if [ $status -eq 0 ]; then
+	    exit 1
+	else
+	    exit $status
+	fi
+    fi
 fi
+
+exit $status
