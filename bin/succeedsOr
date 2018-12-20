@@ -3,9 +3,9 @@
 printUsage()
 {
     cat <<HELPTEXT
-Tests whether the passed TEST-COMMAND succeeds with exit status 0 (any output is
-discarded). If not, it asks the user whether to make it work. If confirmed, this
-will execute the shell COMMANDS read from stdin.
+Checks whether the passed TEST-COMMAND succeeds with exit status 0 (any output
+is discarded). If not, it asks the user whether to make it work. If confirmed,
+this will execute the shell COMMANDS read from stdin.
 --command|-c CMD	The command line to be tested. When this is a simple
 			command, it can also be passed as such.
 --recheck-at-end    will perform a second check after all COMMANDS have been
@@ -59,13 +59,15 @@ if [ "$isRecheckAtCheckpoints" ]; then
 fi
 [ "$memoizeDecisionArgs" ] || memoizeDecisionArgs=(--memoize-group "$(basename -- "$0").$PPID")
 
+check()
 (
     if [ "$isNeedEval" ]; then
 	eval "${commands[@]}"
     else
 	"${commands[@]}"
-    fi
-) >/dev/null 2>&1 && exit 0
+    fi >/dev/null 2>&1
+)
+check && exit 0
 
 memoizeDecision "${memoizeDecisionArgs[@]}" --subject "${commands[*]}" --state 'succeed' --action 'make it work' || exit 2
 
@@ -81,8 +83,8 @@ eval '"${checkpointPrePipeline[@]}"' "${checkpointPrePipeline:+|}" runInput
 status=$?
 
 if [ "$isRecheckAtEnd" ]; then
-    if ! eval "$@" >/dev/null 2>&1; then
-	printf 'ERROR: %s still does not succeed.\n' "$*"
+    if ! check; then
+	printf 'ERROR: %s still does not succeed.\n' "${commands[*]}"
 	if [ $status -eq 0 ]; then
 	    exit 1
 	else
