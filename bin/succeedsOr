@@ -15,7 +15,7 @@ this will execute the shell COMMANDS read from stdin.
 			    included anywhere in COMMANDS to do a check. A
 			    successful check will abort additional COMMANDS.
 HELPTEXT
-printf 'Usage: echo COMMANDS | %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--bare] [--recheck-at-end] [--recheck-at-checkpoints] -c|--command "TEST-COMMANDLINE" [-c ...] | [--] SIMPLE-TEST-COMMAND [...] [-?|-h|--help]'
+printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--bare] [--recheck-at-end] [--recheck-at-checkpoints] -c|--command "TEST-COMMANDLINE" [-c ...] | [--] SIMPLE-TEST-COMMAND [...] [-?|-h|--help]'
 printf 'Usage: %q %s <<EOF\n  COMMANDS\nEOF\n' "$(basename "$1")" '[...] -c|--command "TEST-COMMANDLINE" [-c ...] | [--] SIMPLE-TEST-COMMAND [...]'
 }
 
