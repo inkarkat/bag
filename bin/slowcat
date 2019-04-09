@@ -19,13 +19,16 @@ do
     for line in "${lines[@]}"
     do
 	let cnt+=1
-	if [[ $cnt = ${#lines[@]} ]]; then
-	    # Conclude the last line fragment with a newline.
-	    printf '%s\n' "$line"
-	else
-	    # Return to the first column after each internal line fragment.
-	    printf '%s\r' "$line"
-	fi
+
+	# Return to the first column before printing a subsequent internal line
+	# fragment.
+	[[ $cnt > 1 ]] && prefix='\r' || prefix=
+
+	# Conclude the last line fragment with a newline.
+	[[ $cnt = ${#lines[@]} ]] && suffix='\n' || suffix=
+
+	printf "${prefix}%s${suffix}" "$line"
+
 	sleep "$delay"
     done
 done
