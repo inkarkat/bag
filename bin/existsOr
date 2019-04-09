@@ -13,7 +13,7 @@ from stdin.
 			    included anywhere in COMMANDS to do a check. A
 			    successful check will abort additional COMMANDS.
 HELPTEXT
-printf 'Usage: echo COMMANDS | %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--bare|[--trailing-prompt] [--emulate-prompt] [--worst-status] [-c|--comment COMMENT]] [--recheck-at-end] [--recheck-at-checkpoints] [--] EXECUTABLE [-?|-h|--help]'
+printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--bare|[--trailing-prompt] [--emulate-prompt] [--worst-status] [-c|--comment COMMENT]] [--recheck-at-end] [--recheck-at-checkpoints] [--] EXECUTABLE [-?|-h|--help]'
 printf 'Usage: %q %s <<EOF\n  COMMANDS\nEOF\n' "$(basename "$1")" '[...] EXECUTABLE'
 }
 isBare=
