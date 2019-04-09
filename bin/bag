@@ -1,20 +1,26 @@
-#!/bin/bash
+#!/bin/sh
 
-die() {
-  echo >&2 "$1"
-  exit 1
+printUsage()
+{
+    cat <<HELPTEXT
+Collect output in a file.
+Usage: "$(basename "$1")" [-a|--append|-d|--delete] [-?|-h|--help]
+HELPTEXT
 }
-
-#-------------------------------------------------
 
 BAG="$HOME/.bag"
 
-if [ -t 0 ]; then
-  if [ ! -f "$BAG" ]; then
-    die "$BAG does not exist"
-  fi
-  cat $BAG
-else
-  cat | tee $BAG
-fi
+case "$1" in
+    --help|-h|-\?)	shift; printUsage "$0"; exit 0;;
+    --delete|-d)	shift; rm "$BAG"; exit $?;;
+esac
 
+if [ -t 0 ]; then
+    if [ ! -f "$BAG" ]; then
+	echo >&2 "$BAG does not exist"
+	exit 1
+    fi
+    cat "$BAG"
+else
+    tee "$@" "$BAG"
+fi
