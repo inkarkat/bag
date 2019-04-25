@@ -1,34 +1,39 @@
 #!/bin/bash
 
-delay=0.5s
+lineDelay=0.5s
 printUsage()
 {
     cat <<HELPTEXT
 Print file contents on standard output line per line with delay.
 HELPTEXT
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[--delay NUMBER[SUFFIX]] FILE, ... [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[--line NUMBER[SUFFIX]] FILE, ... [-?|-h|--help]'
 }
 case "$1" in
     --help|-h|-\?)	shift; printUsage "$0"; exit 0;;
-    --delay)		shift; delay=$1; shift;;
+    --line)		shift; lineDelay="$1"; shift;;
 esac
 
-cat "$@" | while IFS=$'\r' read -ra lines || [ ${#lines[@]} -gt 0 ]
-do
-    let cnt=0
-    for line in "${lines[@]}"
+linePrint()
+{
+    while IFS=$'\r' read -ra lines || [ ${#lines[@]} -gt 0 ]
     do
-	let cnt+=1
+	let cnt=0
+	for line in "${lines[@]}"
+	do
+	    let cnt+=1
 
-	# Return to the first column before printing a subsequent internal line
-	# fragment.
-	[[ $cnt > 1 ]] && prefix='\r' || prefix=
+	    # Return to the first column before printing a subsequent internal line
+	    # fragment.
+	    [[ $cnt > 1 ]] && prefix='\r' || prefix=
 
-	# Conclude the last line fragment with a newline.
-	[[ $cnt = ${#lines[@]} ]] && suffix='\n' || suffix=
+	    # Conclude the last line fragment with a newline.
+	    [[ $cnt = ${#lines[@]} ]] && suffix='\n' || suffix=
 
-	printf "${prefix}%s${suffix}" "$line"
+	    printf "${prefix}%s${suffix}" "$line"
 
-	sleep "$delay"
+	    sleep "$lineDelay"
+	done
     done
-done
+}
+
+cat "$@" | linePrint
