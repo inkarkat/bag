@@ -1,0 +1,122 @@
+#!/bin/bash
+
+printShortUsage()
+{
+    # Note: short followed by long option; if the user knows the short one, she can
+    # skim the long one.
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[--with-header|--with-prompt] -c|--command "COMMANDLINE" | SIMPLECOMMAND [...] -- ARGUMENT [...] [-?|-h|--help]'
+}
+printUsage()
+{
+    # This is the short help when launched with no or incorrect arguments.
+    # It is printed to stderr to avoid accidental processing.
+    printShortUsage "$1" >&2
+    printf >&2 'Try %q --help for more information.\n' "$(basename "$1")"
+}
+printLongUsage()
+{
+    # This is the long "man page" when launched with the help argument.
+    # It is printed to stdout to allow paging with 'more'.
+    cat <<HELPDESCRIPTION
+Execute COMMAND with each supplied ARGUMENT (which either is appended or
+replaces any {} marker inside COMMANDLINE) individually. So one invocation of
+COMMAND per ARGUMENT.
+HELPDESCRIPTION
+    echo
+    printShortUsage "$1"
+    cat <<HELPTEXT
+    --with-header   Print a header (containing the current ARGUMENT) before each
+		    execution.
+    --with-prompt   Emulate a full prompt (as if invoking COMMAND) before each
+		    execution.
+EXIT STATUS:
+Overall exit status is the highest status of all.
+
+Example:
+HELPTEXT
+    printf '%q %s\n' "$(basename "$1")" 'ping -c1 -q -- google.com yahoo.com bing.com'
+}
+
+# In order to maintain the order of commands, we need to investigate beforehand
+# whether eval is needed.
+isNeedEval=
+for arg
+do
+    case "$arg" in
+	--command|-c)	isNeedEval=t;;
+	--)		break;;
+    esac
+done
+
+with=
+typeset -a commands=()
+typeset -a simpleCommands=()
+while [ $# -ne 0 ]
+do
+    case "$1" in
+	--help|-h|-\?)	shift; printLongUsage "$0"; exit 0;;
+	--command|-c)	shift; commands+=("$1"); isNeedEval=t; shift;;
+	--with-header)	shift; with=header;;
+	--with-prompt)	shift; with=prompt;;
+	--)		shift; break;;
+	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
+	*)		if [ "$isNeedEval" ]; then
+			    # Combine --command and SIMPLECOMMAND; need to quote SIMPLECOMMAND to
+			    # undo the effects of eval.
+			    printf -v quotedSimpleCommand '%q' "$1"
+			    commands+=("$quotedSimpleCommand")
+			else
+			    commands+=("$1")
+			fi
+			shift
+			;;
+    esac
+done
+if [ ${#commands[@]} -eq 0 ]; then
+    echo >&2 'ERROR: No COMMAND(s) specified; need to pass -c|--command "COMMANDLINE", or SIMPLECOMMAND.'
+    exit 2
+fi
+if [ $# -eq 0 ]; then
+    echo >&2 'ERROR: No ARGUMENT(s) passed.'
+    echo >&2
+    printShortUsage "$0" >&2
+    exit 2
+fi
+
+
+case "$with" in
+    prompt)
+	quoter='%q'; [ "$isNeedEval" ] && quoter='%s'
+	for arg
+	do
+	    typeset -a interpolatedCommands=("${commands[@]//\{\}/$arg}")
+	    typeset -a args=("$arg")
+	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || args=()
+
+	    printf "$quoter " "${interpolatedCommands[@]}" "${args[@]}"
+	    printf '\n'
+	done | runWithPrompt --worst-status
+	;;
+    *)
+	status=0
+	typeset -a firstArg=(--first)
+	for arg
+	do
+	    if [ "$with" = 'header' ]; then
+		header "${firstArg[@]}" "$arg"
+		firstArg=()
+	    fi
+
+	    typeset -a interpolatedCommands=("${commands[@]//\{\}/$arg}")
+	    typeset -a args=("$arg")
+	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || args=()
+
+	    if [ "$isNeedEval" ]; then
+		eval "${interpolatedCommands[@]}" '"${args[@]}"' || status=$?
+	    else
+		"${interpolatedCommands[@]}" "${args[@]}" || status=$?
+	    fi
+	done
+	exit $status
+	;;
+esac
