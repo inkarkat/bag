@@ -90,10 +90,10 @@ case "$with" in
 	for arg
 	do
 	    typeset -a interpolatedCommands=("${commands[@]//\{\}/$arg}")
-	    typeset -a args=("$arg")
-	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || args=()
+	    typeset -a a=("$arg")
+	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || a=()
 
-	    printf "$quoter " "${interpolatedCommands[@]}" "${args[@]}"
+	    printf "$quoter " "${interpolatedCommands[@]}" "${a[@]}"
 	    printf '\n'
 	done | runWithPrompt --worst-status
 	;;
@@ -108,13 +108,13 @@ case "$with" in
 	    fi
 
 	    typeset -a interpolatedCommands=("${commands[@]//\{\}/$arg}")
-	    typeset -a args=("$arg")
-	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || args=()
+	    typeset -a a=("$arg")
+	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || a=()
 
 	    if [ "$isNeedEval" ]; then
-		eval "${interpolatedCommands[@]}" '"${args[@]}"' || status=$?
+		eval "${interpolatedCommands[@]}" '"${a[@]}"' || status=$?
 	    else
-		"${interpolatedCommands[@]}" "${args[@]}" || status=$?
+		"${interpolatedCommands[@]}" "${a[@]}" || status=$?
 	    fi
 	done
 	exit $status
