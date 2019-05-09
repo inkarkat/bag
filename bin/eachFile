@@ -1,0 +1,153 @@
+#!/bin/bash
+
+printShortUsage()
+{
+    # Note: short followed by long option; if the user knows the short one, she can
+    # skim the long one.
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-l|--local-dir] [--with-header|--with-prompt] -c|--command "COMMANDLINE" | SIMPLECOMMAND [...] -- FILE [...] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-l|--local-dir] [--with-header|--with-prompt] -c|--command "COMMANDLINE" | SIMPLECOMMAND [...] -f|--find FIND-ARGS ... [-?|-h|--help]'
+}
+printUsage()
+{
+    # This is the short help when launched with no or incorrect arguments.
+    # It is printed to stderr to avoid accidental processing.
+    printShortUsage "$1" >&2
+    printf >&2 'Try %q --help for more information.\n' "$(basename "$1")"
+}
+printLongUsage()
+{
+    # This is the long "man page" when launched with the help argument.
+    # It is printed to stdout to allow paging with 'more'.
+    cat <<HELPDESCRIPTION
+Execute COMMAND on each FILE (which either is appended or replaces any {} marker
+inside COMMANDLINE) individually. So one invocation of COMMAND per FILE.
+HELPDESCRIPTION
+    echo
+    printShortUsage "$1"
+    cat <<HELPTEXT
+    --local-dir|-l  Change the directory to the one containing the current FILE
+		    before executing COMMAND, and only pass the filename itself.
+    --with-header   Print a header (containing the current FILE) before each
+		    execution.
+    --with-prompt   Emulate a full prompt (as if invoking COMMAND) before each
+		    execution.
+    --find|-f	    Execute find with the following FIND-ARGS to obtain the list
+		    of files instead of directly taking FILEs. This allows
+		    recursing into and filtering of subdirectories.
+		    (But you could alternatively directly use find --exec {} ;
+		    to do the same.)
+EXIT STATUS:
+Overall exit status is the highest status of all.
+
+Example:
+HELPTEXT
+    printf '%q %s\n' "$(basename "$1")" '--local-dir ping -c1 -q -- /var/htdocs/*.com'
+}
+
+# In order to maintain the order of commands, we need to investigate beforehand
+# whether eval is needed.
+isNeedEval=
+for arg
+do
+    case "$arg" in
+	--command|-c)	isNeedEval=t;;
+	--)		break;;
+    esac
+done
+
+isLocalDir=
+fileSource='printf %s\n'
+finder()
+{
+    find "${findArgs[@]}"
+}
+typeset -a findArgs=()
+with=
+typeset -a commands=()
+typeset -a simpleCommands=()
+while [ $# -ne 0 ]
+do
+    case "$1" in
+	--help|-h|-\?)	shift; printLongUsage "$0"; exit 0;;
+	--local-dir|-l)	shift; isLocalDir=t;;
+	--find|-f)	shift; findArgs=("$@"); fileSource='finder'; break;;
+	--command|-c)	shift; commands+=("$1"); isNeedEval=t; shift;;
+	--with-header)	shift; with=header;;
+	--with-prompt)	shift; with=prompt;;
+	--)		shift; break;;
+	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
+	*)		if [ "$isNeedEval" ]; then
+			    # Combine --command and SIMPLECOMMAND; need to quote SIMPLECOMMAND to
+			    # undo the effects of eval.
+			    printf -v quotedSimpleCommand '%q' "$1"
+			    commands+=("$quotedSimpleCommand")
+			else
+			    commands+=("$1")
+			fi
+			shift
+			;;
+    esac
+done
+if [ ${#commands[@]} -eq 0 ]; then
+    echo >&2 'ERROR: No COMMAND(s) specified; need to pass -c|--command "COMMANDLINE", or SIMPLECOMMAND.'
+    exit 2
+fi
+if [ $# -eq 0 -a ${#findArgs[@]} -eq 0 ]; then
+    echo >&2 'ERROR: No FILE(s) passed.'
+    echo >&2
+    printShortUsage "$0" >&2
+    exit 2
+fi
+
+
+case "$with" in
+    prompt)
+	quoter='%q'; [ "$isNeedEval" ] && quoter='%s'
+	$fileSource "$@" | while IFS=$'\n' read -r filespec || [ -n "$filespec" ]
+	do
+	    if [ "$isLocalDir" ]; then
+		dirspec="$(dirname -- "$filespec")"
+		filespec="$(basename -- "$filespec")"
+	    fi
+
+	    typeset -a interpolatedCommands=("${commands[@]//\{\}/$filespec}")
+	    typeset -a f=("$filespec")
+	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || f=()
+
+	    printf 'cd %q && ' "$dirspec"
+	    printf "$quoter " "${interpolatedCommands[@]}" "${f[@]}"
+	    printf '\n'
+	done | runWithPrompt --worst-status
+	;;
+    *)
+	status=0
+	typeset -a firstArg=(--first)
+	$fileSource "$@" | while IFS=$'\n' read -r filespec || [ -n "$filespec" ]
+	do
+	    if [ "$with" = 'header' ]; then
+		header "${firstArg[@]}" "$filespec"
+		firstArg=()
+	    fi
+
+	    if [ "$isLocalDir" ]; then
+		dirspec="$(dirname -- "$filespec")"
+		if ! cd "$dirspec" 2>/dev/null; then
+		    printf >&2 'ERROR: Cannot chdir to %s (for %s)!\n' "$dirspec" "$filespec"
+		    status=1; continue
+		fi
+		filespec="$(basename -- "$filespec")"
+	    fi
+
+	    typeset -a interpolatedCommands=("${commands[@]//\{\}/$filespec}")
+	    typeset -a f=("$filespec")
+	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || f=()
+
+	    if [ "$isNeedEval" ]; then
+		eval "${interpolatedCommands[@]}" '"${f[@]}"' || { exitStatus=$?; if [ $exitStatus -gt $status ]; then status=$exitStatus; fi; }
+	    else
+		"${interpolatedCommands[@]}" "${f[@]}" || { exitStatus=$?; if [ $exitStatus -gt $status ]; then status=$exitStatus; fi; }
+	    fi
+	done
+	exit $status
+	;;
+esac
