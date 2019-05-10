@@ -115,6 +115,7 @@ case "$with" in
 		filespec="$(basename -- "$filespec")"
 	    fi
 
+	    [ "$isNeedEval" ] && printf -v filespec '%q' "$filespec"
 	    typeset -a interpolatedCommands=("${commands[@]//\{\}/$filespec}")
 	    typeset -a f=("$filespec")
 	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || f=()
@@ -143,6 +144,7 @@ case "$with" in
 		filespec="$(basename -- "$filespec")"
 	    fi
 
+	    [ "$isNeedEval" ] && printf -v filespec '%q' "$filespec"
 	    typeset -a interpolatedCommands=("${commands[@]//\{\}/$filespec}")
 	    typeset -a f=("$filespec")
 	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || f=()
