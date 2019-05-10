@@ -94,6 +94,7 @@ case "$with" in
 	quoter='%q'; [ "$isNeedEval" ] && quoter='%s'
 	for arg
 	do
+	    [ "$isNeedEval" ] && printf -v arg '%q' "$arg"
 	    typeset -a interpolatedCommands=("${commands[@]//\{\}/$arg}")
 	    typeset -a a=("$arg")
 	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || a=()
@@ -112,6 +113,7 @@ case "$with" in
 		firstArg=()
 	    fi
 
+	    [ "$isNeedEval" ] && printf -v arg '%q' "$arg"
 	    typeset -a interpolatedCommands=("${commands[@]//\{\}/$arg}")
 	    typeset -a a=("$arg")
 	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || a=()
