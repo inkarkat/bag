@@ -76,15 +76,20 @@ do
 	--with-prompt)	shift; with=prompt;;
 	--)		shift; break;;
 	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
-	*)		if [ "$isNeedEval" ]; then
+	*)		typeset -a cmd=()
+			while [ $# -gt 0 -a "$1" != '--' ]
+			do
+			    cmd+=("$1")
+			    shift
+			done
+			if [ "$isNeedEval" ]; then
 			    # Combine --command and SIMPLECOMMAND; need to quote SIMPLECOMMAND to
 			    # undo the effects of eval.
-			    printf -v quotedSimpleCommand '%q' "$1"
-			    commands+=("$quotedSimpleCommand")
+			    printf -v quotedSimpleCommand '%q ' "${cmd[@]}"
+			    commands+=(${commands:+;} "${quotedSimpleCommand//\\\{\\\}/\{\}}")	# %q escapes {}, we don't want that to have it interpolated later.
 			else
-			    commands+=("$1")
+			    commands+=(${commands:+;} "$cmd")
 			fi
-			shift
 			;;
     esac
 done
