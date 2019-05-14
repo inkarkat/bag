@@ -1,20 +1,39 @@
 #!/bin/bash
 
+printShortUsage()
+{
+    # Note: short followed by long option; if the user knows the short one, she can
+    # skim the long one.
+    printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--bare|[--trailing-prompt] [--emulate-prompt] [--worst-status] [-c|--comment COMMENT]] [--recheck-at-end] [--recheck-at-checkpoints] [--] EXECUTABLE [-?|-h|--help]'
+    printf 'Usage: %q %s <<EOF\n  COMMANDS\nEOF\n' "$(basename "$1")" '[...] EXECUTABLE'
+}
 printUsage()
 {
-    cat <<HELPTEXT
+    # This is the short help when launched with no or incorrect arguments.
+    # It is printed to stderr to avoid accidental processing.
+    printShortUsage "$1" >&2
+    printf >&2 'Try %q --help for more information.\n' "$(basename "$1")"
+}
+printLongUsage()
+{
+    # This is the long "man page" when launched with the help argument.
+    # It is printed to stdout to allow paging with 'more'.
+    cat <<HELPDESCRIPTION
 Checks whether the passed EXECUTABLE exists in PATH. If not, it asks the user
 whether to define it. If confirmed, this will execute the shell COMMANDS read
 from stdin.
---recheck-at-end    will perform a second check after all COMMANDS have been
-		    read; if it fails, an error is printed and this command will
-		    fail.
---recheck-at-checkpoints    defines a custom "checkpoint" command that can be
-			    included anywhere in COMMANDS to do a check. A
-			    successful check will abort additional COMMANDS.
+HELPDESCRIPTION
+    echo
+    printShortUsage "$1"
+    cat <<HELPTEXT
+    --recheck-at-end	will perform a second check after all COMMANDS have been
+			read; if it fails, an error is printed and this command
+			will fail.
+    --recheck-at-checkpoints    defines a custom "checkpoint" command that can
+				be included anywhere in COMMANDS to do a check.
+				A successful check will abort additional
+				COMMANDS.
 HELPTEXT
-printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--bare|[--trailing-prompt] [--emulate-prompt] [--worst-status] [-c|--comment COMMENT]] [--recheck-at-end] [--recheck-at-checkpoints] [--] EXECUTABLE [-?|-h|--help]'
-printf 'Usage: %q %s <<EOF\n  COMMANDS\nEOF\n' "$(basename "$1")" '[...] EXECUTABLE'
 }
 isBare=
 isRecheckAtEnd=
@@ -24,13 +43,13 @@ typeset -a memoizeDecisionArgs=()
 while [ $# -ne 0 ]
 do
     case "$1" in
-	--bare)		shift; isBare=t;;
-	--memoize-group|-g) memoizeDecisionArgs+=("$1" "$2"); shift; shift;;
+	--help|-h|-\?)		    shift; printLongUsage "$0"; exit 0;;
+	--bare)			    shift; isBare=t;;
+	--memoize-group|-g)	    memoizeDecisionArgs+=("$1" "$2"); shift; shift;;
 	--recheck-at-end)	    shift; isRecheckAtEnd=t;;
 	--recheck-at-checkpoints)   shift; isRecheckAtCheckpoints=t;;
-	--help|-h|-\?)	shift; printUsage "$0"; exit 0;;
-	--)		memoizeDecisionArgs+=("$1"); break;;
-	*)		break;;
+	--)			    memoizeDecisionArgs+=("$1"); break;;
+	*)			    break;;
     esac
 done
 if [ $# -eq 0 ]; then
