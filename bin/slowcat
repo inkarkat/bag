@@ -8,7 +8,7 @@ Print file contents on standard output with delay(s)
 - after each complete line (line); this also considers inner carriage returns
 - after each individual character (char) other than newlines
 HELPTEXT
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[--initial NUMBER[SUFFIX]] [--line NUMBER[SUFFIX]] [--char NUMBER[SUFFIX]] FILE [...] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i|--initial NUMBER[SUFFIX]] [-l|--line NUMBER[SUFFIX]] [-c|--char NUMBER[SUFFIX]] FILE [...] [-?|-h|--help]'
     printf 'Usage: cat FILE [...] | %q %s\n' "$(basename "$1")" '[...] [-?|-h|--help]'
 }
 
@@ -21,9 +21,9 @@ while [ $# -ne 0 ]
 do
     case "$1" in
 	--help|-h|-\?)	shift; printUsage "$0"; exit 0;;
-	--initial)	shift; initialDelay="$1"; shift;;
-	--line)		shift; lineDelay="$1"; shift; consumer=lineDelay;;
-	--char)		shift; charDelay="$1"; shift; linePrinter=charDelay;;
+	--initial|-i)	shift; initialDelay="$1"; shift;;
+	--line|-l)	shift; lineDelay="$1"; shift; consumer=lineDelay;;
+	--char|-c)	shift; charDelay="$1"; shift; linePrinter=charDelay;;
 	--)		shift; break;;
 	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
 	*)		break;;
