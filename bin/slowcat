@@ -3,7 +3,10 @@
 printUsage()
 {
     cat <<HELPTEXT
-Print file contents on standard output line per line with delay.
+Print file contents on standard output with delay(s)
+- before doing any output at all (initial)
+- after each complete line (line); this also considers inner carriage returns
+- after each individual character (char) other than newlines
 HELPTEXT
     printf 'Usage: %q %s\n' "$(basename "$1")" '[--initial NUMBER[SUFFIX]] [--line NUMBER[SUFFIX]] [--char NUMBER[SUFFIX]] FILE [...] [-?|-h|--help]'
     printf 'Usage: cat FILE [...] | %q %s\n' "$(basename "$1")" '[...] [-?|-h|--help]'
@@ -32,16 +35,21 @@ done
 
 lineReader()
 {
-    while IFS=$'\n' read -r line || [ -n "$line" ]
+    isEOL=t
+    while IFS=$'\n' read -r line || { isEOL=; [ -n "$line" ]; }
     do
 	$linePrinter "$line"
-	printf '\n'
+
+	if [ "$isEOL" ]; then
+	    printf '\n'
+	fi
     done
 }
 
 lineDelay()
 {
-    while IFS=$'\r' read -ra lines || [ ${#lines[@]} -gt 0 ]
+    isEOL=t
+    while IFS=$'\r' read -ra lines || { isEOL=; [ ${#lines[@]} -gt 0 ]; }
     do
 	let cnt=0
 	for line in "${lines[@]}"
@@ -55,7 +63,14 @@ lineDelay()
 	    $linePrinter "$line"
 
 	    # Conclude the last line fragment with a newline.
-	    [[ $cnt = ${#lines[@]} ]] && printf '\n'
+	    if [[ $cnt = ${#lines[@]} ]]; then
+		if [ "$isEOL" ]; then
+		    printf '\n'
+		else
+		    # Don't delay when there's no trailing newline.
+		    continue
+		fi
+	    fi
 
 	    sleep "$lineDelay"
 	done
@@ -73,6 +88,7 @@ charDelay()
 	sleep "$charDelay"
     done
 }
+
 
 [ "$initialDelay" ] && sleep "$initialDelay"
 eval cat '"$@"' "${consumer:+|} $consumer"
