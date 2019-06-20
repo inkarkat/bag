@@ -114,19 +114,30 @@ process()
 {
     local filespec="$1"; shift
 
-    # If we find the pattern, duplicate its line into the hold space; this
-    # serves as a marker that we have done an update and also that we don't need
-    # to append the line at the end.
-    # On the last line, we check the hold space. If it's identical to the
-    # changed line, no processing actually has happened, and we indicate an
-    # error. If the hold space isn't empty, skip further processing (i.e.
-    # appending), as we've already done the update.
+    typeset -a sedProgram=(
+	# If there already has been a match (determined via the hold space, see
+	# next), don't update following lines.
+	-e "/${updateMatch//\//\\/}/{ x; /./{ x; b; }; x; }"
+
+	# If we find the pattern, duplicate its line into the hold space; this
+	# serves as a marker that we have done an update and also that we don't
+	# need to append the line at the end.
+	-e "/${updateMatch//\//\\/}/h"
+
+	# Do the update with LINE.
+	-e "/${updateMatch//\//\\/}/c${line//\\/\\\\}"
+
+	# On the last line, we check the hold space. If it's identical to the
+	# changed line, no processing actually has happened, and we indicate an
+	# error. If the hold space isn't empty, skip further processing (i.e.
+	# appending), as we've already done the update.
+	-e "\${ x; /${literalLine}/{ x; q 1 }; /./{ x; b; }; x; }"
+
+	# Else append LINE.
+	-e "\$a${line//\\/\\\\}"
+    )
     sed "${sedInplaceArgs[@]}" \
-	-e "/${updateMatch//\//\\/}/{ x; /./{ x; b; }; x; }" \
-	-e "/${updateMatch//\//\\/}/h" \
-	-e "/${updateMatch//\//\\/}/c${line//\\/\\\\}"  \
-	-e "\${ x; /${literalLine}/{ x; q 1 }; /./{ x; b; }; x; }" \
-	-e "\$a${line//\\/\\\\}" \
+	"${sedProgram[@]}" \
 	-- "$filespec" || return 1
 }
 
