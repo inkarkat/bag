@@ -1,0 +1,134 @@
+#!/bin/bash
+
+literalPattern()
+{
+    sed -e 's/[][\$*.^/]/\\&/g'
+}
+
+printShortUsage()
+{
+    # Note: short followed by long option; if the user knows the short one, she can
+    # skim the long one.
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i[SUFFIX]|--in-place[=SUFFIX]] [-t|--test-only] [--ignore-nonexisting|--create-nonexisting] [--only-after ADDRESS|--after-or-append ADDRESS] -l|--line LINE [-a|--accept-match PATTERN -u|--update-match PATTERN [--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
+}
+printUsage()
+{
+    # This is the short help when launched with no or incorrect arguments.
+    # It is printed to stderr to avoid accidental processing.
+    printShortUsage "$1" >&2
+    printf >&2 'Try %q --help for more information.\n' "$(basename "$1")"
+}
+printLongUsage()
+{
+    # This is the long "man page" when launched with the help argument.
+    # It is printed to stdout to allow paging with 'more'.
+    cat <<HELPDESCRIPTION
+Try to locate passed LINE / PATTERN in at least one (all with --all) of the
+passed FILE(s), update with REPLACEMENT (in the first to match), or append (in
+the last FILE) if it does not exist yet.
+HELPDESCRIPTION
+    echo
+    printShortUsage "$1"
+    cat <<HELPTEXT
+    --in-place[=SUFFIX]|-i[SUFFIX]
+			    Edit FILE(s) in place (makes backup if SUFFIX
+			    supplied).
+    --test-only|-t	    Just check whether an update would be made. Does not
+			    modify the FILE(s).
+    --all|-a		    Instead of just updating the first to match or
+			    appending to the last FILE, make sure that each FILE
+			    gets updated.
+    --ignore-nonexisting    Succeed instead of complaining if (none of the)
+			    FILE(s) does not exist yet.
+    --create-nonexisting    Create the first (each with --all) passed FILE if it
+			    does not exist yet, (and insert the LINE there).
+    --only-after ADDRESS    Do the update only ADDRESS exists, and then after it.
+			    Lines before ADDRESS are ignored.
+    --after-or-append ADDRESS
+			    Do the update after ADDRESS, or at the end of the
+			    FILE if there's no such ADDRESS.
+    --line|-l LINE	    Search for (literal, full) LINE and add LINE if that
+			    doesn't exist yet.
+    --accept-match|-a PATTERN
+			    Don't update if PATTERN already matches somewhere in
+			    the FILE.
+    --update-match|-u PATTERN
+			    Instead of searching for the literal LINE, accept
+			    the first line matching PATTERN (and replace it with
+			    LINE).
+    --replacement REPLACEMENT
+			    Replace with REPLACEMENT instead of the literal LINE
+			    when a matching one has been found. This allows the
+			    use of references like \1 and &.
+    --pre-line PRETEXT	    When a fresh LINE is added, put PRETEXT before it.
+			    This does not apply to the update of existing lines.
+			    (This is assumed to be for comments or headers that
+			    would already be there.)
+    --post-line POSTTEXT    When a fresh LINE is added, put POSTTEXT after it.
+EXIT STATUS:
+    0	An update has happened.
+    1	The LINE already existed, no modifications were made.
+    2	Bad invocation, wrong or missing command-line arguments.
+    3	Internal error or failed assertion.
+
+Example:
+HELPTEXT
+    printf '%q %s\n' "$(basename "$1")" '--foo bar /tmp/foobar'
+}
+
+isTestOnly=
+typeset -a sedInplaceArgs=()
+line=
+updateMatch=
+while [ $# -ne 0 ]
+do
+    case "$1" in
+	--help|-h|-\?)	    shift; printLongUsage "$0"; exit 0;;
+	--in-place|--inplace=*|-i*)
+			    sedInplaceArgs+=("$1"); shift;;
+	--test-only|-t)	    shift; isTestOnly=t;;
+	--line|-l)	    shift; line="$1"; shift;;
+	--update-match|-u)  shift; updateMatch="$1"; shift;;
+	--)		    shift; break;;
+	-*)		    { echo "ERROR: Unknown option \"$1\"!"; echo; printShortUsage "$0"; } >&2; exit 2;;
+	*)		    break;;
+    esac
+done
+if [ -z "$line" ]; then
+    echo >&2 'ERROR: No LINE passed.'
+    echo >&2
+    printShortUsage "$0" >&2
+    exit 2
+elif [ ${#sedInplaceArgs[@]} -gt 0 -a -n "$isTestOnly" ]; then
+    echo >&2 'ERROR: Cannot combine --in-place and --test-only.'
+    echo >&2
+    printShortUsage "\$1" >&2
+    exit 2
+fi
+
+literalLine="^$(printf %s "$line" | literalPattern)\$"
+[ "$updateMatch" ] || updateMatch="$literalLine"
+
+[ $# -eq 0 ] && set -- -    # Read from stdin if no FILE is passed.
+process()
+{
+    local filespec="$1"; shift
+
+    # If we find the pattern, duplicate its line into the hold space; this
+    # serves as a marker that we don't need to append the line at the end.
+    # On the last line, we check the hold space. If it's identical to the
+    # changed line, no processing actually has happened, and we indicate an
+    # error. If the hold space isn't empty, skip further processing (i.e.
+    # appending), as we've already done the update.
+    sed "${sedInplaceArgs[@]}" \
+	-e "/${updateMatch//\//\\/}/h" \
+	-e "/${updateMatch//\//\\/}/c${line//\\/\\\\}"  \
+	-e "\${ x; /${literalLine}/{ x; q 1 }; /./{ x; b; }; x; }" \
+	-e "\$a${line//\\/\\\\}" \
+	-- "$filespec" || return 1
+}
+
+for filespec
+do
+    eval 'process "$filespec"' "${isTestOnly:+>/dev/null}"
+done
