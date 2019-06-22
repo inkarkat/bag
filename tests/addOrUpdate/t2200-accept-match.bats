@@ -24,3 +24,10 @@ $UPDATE" ]
     [ $status -eq 1 ]
     [ "$output" = "$(cat "$INPUT")" ]
 }
+
+@test "update with pattern containing forward and backslash keeps contents and returns 1" {
+    init
+    run addOrUpdate --line 'foo=/e\' --accept-match "^.*/.=.*\\.*" "$FILE"
+    [ $status -eq 1 ]
+    [ "$output" = "$(cat "$INPUT")" ]
+}
