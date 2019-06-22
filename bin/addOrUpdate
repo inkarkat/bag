@@ -9,7 +9,7 @@ printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i[SUFFIX]|--in-place[=SUFFIX]] [-t|--test-only] [--ignore-nonexisting|--create-nonexisting] [--only-after ADDRESS|--after-or-append ADDRESS] -l|--line LINE [-a|--accept-match PATTERN -u|--update-match PATTERN [--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i[SUFFIX]|--in-place[=SUFFIX]] [-t|--test-only] [--ignore-nonexisting|--create-nonexisting] [--only-after ADDRESS|--after-or-append ADDRESS] -l|--line LINE [-a|--accept-match ACCEPT-PATTERN -u|--update-match PATTERN [--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -49,9 +49,9 @@ HELPDESCRIPTION
 			    FILE if there's no such ADDRESS.
     --line|-l LINE	    Search for (literal, full) LINE and add LINE if that
 			    doesn't exist yet.
-    --accept-match|-a PATTERN
-			    Don't update if PATTERN already matches somewhere in
-			    the FILE.
+    --accept-match|-a ACCEPT-PATTERN
+			    Don't update if ACCEPT-PATTERN already matches
+			    somewhere (previously) in the FILE.
     --update-match|-u PATTERN
 			    Instead of searching for the literal LINE, accept
 			    the first line matching PATTERN (and replace it with
@@ -79,6 +79,7 @@ HELPTEXT
 isTestOnly=
 typeset -a sedInplaceArgs=()
 line=
+acceptMatch=
 updateMatch=
 while [ $# -ne 0 ]
 do
@@ -88,6 +89,7 @@ do
 			    sedInplaceArgs+=("$1"); shift;;
 	--test-only|-t)	    shift; isTestOnly=t;;
 	--line|-l)	    shift; line="$1"; shift;;
+	--accept-match|-a)  shift; acceptMatch="$1"; shift;;
 	--update-match|-u)  shift; updateMatch="$1"; shift;;
 	--)		    shift; break;;
 	-*)		    { echo "ERROR: Unknown option \"$1\"!"; echo; printShortUsage "$0"; } >&2; exit 2;;
@@ -114,10 +116,20 @@ process()
 {
     local filespec="$1"; shift
 
-    typeset -a sedProgram=(
+    typeset -a sedProgram=()
+    if [ "$acceptMatch" ]; then
+	sedProgram+=(
+	    # If ACCEPT-PATTERN matches, put a newline (as that can never be
+	    # matched as PATTERN, and is easier to write than LINE) into the
+	    # hold space to signal that there's already a match.
+	    -e "/${acceptMatch//\//\\/}/{ x; s/.*/\\n/; x; b last; }"
+	)
+    fi
+
+    sedProgram+=(
 	# If there already has been a match (determined via the hold space, see
 	# next), don't update following lines.
-	-e "/${updateMatch//\//\\/}/{ x; /./{ x; b; }; x; }"
+	-e "/${updateMatch//\//\\/}/{ x; /./{ x; b last; }; x; }"
 
 	# If we find the pattern, duplicate its line into the hold space; this
 	# serves as a marker that we have done an update and also that we don't
@@ -127,11 +139,12 @@ process()
 	# Do the update with LINE.
 	-e "/${updateMatch//\//\\/}/c${line//\\/\\\\}"
 
+	-e ':last'
 	# On the last line, we check the hold space. If it's identical to the
 	# changed line, no processing actually has happened, and we indicate an
 	# error. If the hold space isn't empty, skip further processing (i.e.
 	# appending), as we've already done the update.
-	-e "\${ x; /${literalLine}/{ x; q 1 }; /./{ x; b; }; x; }"
+	-e "\${ x; /^\\n\$\\|${literalLine}/{ x; q 1 }; /./{ x; b; }; x; }"
 
 	# Else append LINE.
 	-e "\$a${line//\\/\\\\}"
