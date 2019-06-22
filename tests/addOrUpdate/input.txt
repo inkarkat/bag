@@ -1,4 +1,4 @@
-single=whatever
+sing/e=wha\ever
 foo=bar
 foo=hoo bar baz
 # SECTION
