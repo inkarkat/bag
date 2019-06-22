@@ -9,7 +9,7 @@ printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i[SUFFIX]|--in-place[=SUFFIX]] [-t|--test-only] [--ignore-nonexisting|--create-nonexisting] [--only-after ADDRESS|--after-or-append ADDRESS] -l|--line LINE [-a|--accept-match ACCEPT-PATTERN -u|--update-match PATTERN [--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i[SUFFIX]|--in-place[=SUFFIX]] [-t|--test-only] [--ignore-nonexisting|--create-nonexisting] [--only-after ADDRESS|--after-or-append ADDRESS] -l|--line LINE [-a|--accept-match ACCEPT-PATTERN -u|--update-match PATTERN [-r|--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -56,7 +56,7 @@ HELPDESCRIPTION
 			    Instead of searching for the literal LINE, accept
 			    the first line matching PATTERN (and replace it with
 			    LINE).
-    --replacement REPLACEMENT
+    --replacement|-r REPLACEMENT
 			    Replace with REPLACEMENT instead of the literal LINE
 			    when a matching one has been found. This allows the
 			    use of references like \1 and &.
@@ -81,6 +81,7 @@ typeset -a sedInplaceArgs=()
 line=
 acceptMatch=
 updateMatch=
+replacement=
 while [ $# -ne 0 ]
 do
     case "$1" in
@@ -91,6 +92,7 @@ do
 	--line|-l)	    shift; line="$1"; shift;;
 	--accept-match|-a)  shift; acceptMatch="$1"; shift;;
 	--update-match|-u)  shift; updateMatch="$1"; shift;;
+	--replacement|-r)   shift; replacement="$1"; shift;;
 	--)		    shift; break;;
 	-*)		    { echo "ERROR: Unknown option \"$1\"!"; echo; printShortUsage "$0"; } >&2; exit 2;;
 	*)		    break;;
@@ -135,10 +137,21 @@ process()
 	# serves as a marker that we have done an update and also that we don't
 	# need to append the line at the end.
 	-e "/${updateMatch//\//\\/}/h"
+    )
 
-	# Do the update with LINE.
-	-e "/${updateMatch//\//\\/}/c${line//\\/\\\\}"
+    if [ "$replacement" ]; then
+	sedProgram+=(
+	    # Do the update with REPLACEMENT.
+	    -e "s/${updateMatch//\//\\/}/${replacement//\//\\/}/"
+	)
+    else
+	sedProgram+=(
+	    # Do the update with LINE.
+	    -e "/${updateMatch//\//\\/}/c${line//\\/\\\\}"
+	)
+    fi
 
+    sedProgram+=(
 	-e ':last'
 	# On the last line, we check the hold space. If it's identical to the
 	# changed line, no processing actually has happened, and we indicate an
@@ -149,6 +162,7 @@ process()
 	# Else append LINE.
 	-e "\$a${line//\\/\\\\}"
     )
+# echo >&3 "****"  "${sedProgram[@]}"
     sed "${sedInplaceArgs[@]}" \
 	"${sedProgram[@]}" \
 	-- "$filespec" || return 1
