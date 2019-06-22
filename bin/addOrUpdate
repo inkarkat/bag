@@ -2,7 +2,7 @@
 
 literalPattern()
 {
-    sed -e 's/[][\$*.^/]/\\&/g'
+    sed -e 's/[][\$*.^]/\\&/g'
 }
 
 printShortUsage()
@@ -81,7 +81,7 @@ typeset -a sedInplaceArgs=()
 line=
 acceptMatch=
 updateMatch=
-replacement=
+unset replacement
 while [ $# -ne 0 ]
 do
     case "$1" in
@@ -139,7 +139,7 @@ process()
 	-e "/${updateMatch//\//\\/}/h"
     )
 
-    if [ "$replacement" ]; then
+    if [ -n "${replacement+t}" ]; then
 	sedProgram+=(
 	    # Do the update with REPLACEMENT.
 	    -e "s/${updateMatch//\//\\/}/${replacement//\//\\/}/"
@@ -157,12 +157,12 @@ process()
 	# changed line, no processing actually has happened, and we indicate an
 	# error. If the hold space isn't empty, skip further processing (i.e.
 	# appending), as we've already done the update.
-	-e "\${ x; /^\\n\$\\|${literalLine}/{ x; q 1 }; /./{ x; b; }; x; }"
+	-e "\${ x; /^\\n\$\\|${literalLine//\//\\/}/{ x; q 1 }; /./{ x; b; }; x; }"
 
 	# Else append LINE.
 	-e "\$a${line//\\/\\\\}"
     )
-# echo >&3 "****"  "${sedProgram[@]}"
+#echo >&3 "****"  "${sedProgram[@]}"
     sed "${sedInplaceArgs[@]}" \
 	"${sedProgram[@]}" \
 	-- "$filespec" || return 1
