@@ -76,12 +76,15 @@ HELPTEXT
     printf '%q %s\n' "$(basename "$1")" '--foo bar /tmp/foobar'
 }
 
+readonly NL=$'\n'
 isTestOnly=
 typeset -a sedInplaceArgs=()
 line=
 acceptMatch=
 updateMatch=
 unset replacement
+unset preLines
+unset postLines
 while [ $# -ne 0 ]
 do
     case "$1" in
@@ -93,6 +96,7 @@ do
 	--accept-match|-a)  shift; acceptMatch="$1"; shift;;
 	--update-match|-u)  shift; updateMatch="$1"; shift;;
 	--replacement|-r)   shift; replacement="$1"; shift;;
+	--pre-line)	    shift; escapedLine="${1//\//\\/}"; preLines="${preLines}${preLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
 	--)		    shift; break;;
 	-*)		    { echo "ERROR: Unknown option \"$1\"!"; echo; printShortUsage "$0"; } >&2; exit 2;;
 	*)		    break;;
@@ -147,7 +151,7 @@ process()
     else
 	sedProgram+=(
 	    # Do the update with LINE.
-	    -e "/${updateMatch//\//\\/}/c${line//\\/\\\\}"
+	    -e "/${updateMatch//\//\\/}/c\\${NL}${line//\\/\\\\}"
 	)
     fi
 
@@ -158,9 +162,16 @@ process()
 	# error. If the hold space isn't empty, skip further processing (i.e.
 	# appending), as we've already done the update.
 	-e "\${ x; /^\\n\$\\|${literalLine//\//\\/}/{ x; q 1 }; /./{ x; b; }; x; }"
+    )
 
+    if [ -n "${preLines+t}" ]; then
+	sedProgram+=(
+	    -e "\$a\\${NL}${preLines}"
+	)
+    fi
+    sedProgram+=(
 	# Else append LINE.
-	-e "\$a${line//\\/\\\\}"
+	-e "\$a\\${NL}${line//\\/\\\\}"
     )
 #echo >&3 "****"  "${sedProgram[@]}"
     sed "${sedInplaceArgs[@]}" \
