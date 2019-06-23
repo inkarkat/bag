@@ -121,6 +121,7 @@ literalLine="^$(printf %s "$line" | literalPattern)\$"
 [ $# -eq 0 ] && set -- -    # Read from stdin if no FILE is passed.
 process()
 {
+    local isAppend="$1"; shift
     local filespec="$1"; shift
 
     typeset -a sedProgram=()
@@ -165,27 +166,42 @@ process()
 	-e "${addAfterAddress}{ x; /^\\n\$\\|${literalLine//\//\\/}/{ x; q 1 }; /./{ x; b; }; x; }"
     )
 
-    if [ -n "${preLines+t}" ]; then
-	sedProgram+=(
-	    -e "${addAfterAddress}a\\${NL}${preLines}"
-	)
-    fi
-    sedProgram+=(
+    if [ "$isAppend" ]; then
 	# Else append LINE.
-	-e "${addAfterAddress}a\\${NL}${line//\\/\\\\}"
-    )
-    if [ -n "${postLines+t}" ]; then
+	if [ -n "${preLines+t}" ]; then
+	    sedProgram+=(
+		-e "${addAfterAddress}a\\${NL}${preLines}"
+	    )
+	fi
 	sedProgram+=(
-	    -e "${addAfterAddress}a\\${NL}${postLines}"
+	    -e "${addAfterAddress}a\\${NL}${line//\\/\\\\}"
+	)
+	if [ -n "${postLines+t}" ]; then
+	    sedProgram+=(
+		-e "${addAfterAddress}a\\${NL}${postLines}"
+	    )
+	fi
+    else
+	sedProgram+=(
+	    # Indicate no update via special exit status.
+	    -e '$q 99'
 	)
     fi
 #echo >&3 "****"  "${sedProgram[@]}"
     sed "${sedInplaceArgs[@]}" \
 	"${sedProgram[@]}" \
-	-- "$filespec" || return 1
+	-- "$filespec"
 }
 
-for filespec
+for ((i = 1; i <= $#; i++))
 do
-    eval 'process "$filespec"' "${isTestOnly:+>/dev/null}"
+    filespec="${@:$i:1}"
+    isAppend=; [ $i -eq $# ] && isAppend=t
+
+    eval 'process "$isAppend" "$filespec"' "${isTestOnly:+>/dev/null}"
+    status=$?
+    case $status in
+	0)  exit $status;;
+    esac
 done
+exit $status
