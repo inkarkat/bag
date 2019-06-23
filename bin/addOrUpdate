@@ -42,8 +42,8 @@ HELPDESCRIPTION
 			    FILE(s) does not exist yet.
     --create-nonexisting    Create the first (each with --all) passed FILE if it
 			    does not exist yet, (and insert the LINE there).
-    --only-after ADDRESS    Do the update only ADDRESS exists, and then after it.
-			    Lines before ADDRESS are ignored.
+    --only-after ADDRESS    Do the update only if ADDRESS exists, and then after
+			    it. Lines before ADDRESS are ignored.
     --after-or-append ADDRESS
 			    Do the update after ADDRESS, or at the end of the
 			    FILE if there's no such ADDRESS.
@@ -97,6 +97,7 @@ do
 	--update-match|-u)  shift; updateMatch="$1"; shift;;
 	--replacement|-r)   shift; replacement="$1"; shift;;
 	--pre-line)	    shift; escapedLine="${1//\//\\/}"; preLines="${preLines}${preLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
+	--post-line)	    shift; escapedLine="${1//\//\\/}"; postLines="${postLines}${postLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
 	--)		    shift; break;;
 	-*)		    { echo "ERROR: Unknown option \"$1\"!"; echo; printShortUsage "$0"; } >&2; exit 2;;
 	*)		    break;;
@@ -173,6 +174,11 @@ process()
 	# Else append LINE.
 	-e "\$a\\${NL}${line//\\/\\\\}"
     )
+    if [ -n "${postLines+t}" ]; then
+	sedProgram+=(
+	    -e "\$a\\${NL}${postLines}"
+	)
+    fi
 #echo >&3 "****"  "${sedProgram[@]}"
     sed "${sedInplaceArgs[@]}" \
 	"${sedProgram[@]}" \
