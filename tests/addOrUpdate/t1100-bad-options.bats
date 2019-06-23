@@ -15,3 +15,10 @@ load temp
     [ "${lines[0]}" = "ERROR: Cannot combine --in-place and --test-only." ]
     [ "${lines[1]%% *}" = "Usage:" ]
 }
+
+@test "error when combining --ignore-nonexisting and --create-nonexisting" {
+    run addOrUpdate --ignore-nonexisting --create-nonexisting --line new "$FILE"
+    [ $status -eq 2 ]
+    [ "${lines[0]}" = "ERROR: Cannot combine --ignore-nonexisting and --create-nonexisting." ]
+    [ "${lines[1]%% *}" = "Usage:" ]
+}
