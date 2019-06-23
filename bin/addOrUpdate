@@ -9,7 +9,7 @@ printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i[SUFFIX]|--in-place[=SUFFIX]] [-t|--test-only] [--ignore-nonexisting|--create-nonexisting] [--only-after ADDRESS|--after-or-append ADDRESS] -l|--line LINE [-a|--accept-match ACCEPT-PATTERN -u|--update-match PATTERN [-r|--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i[SUFFIX]|--in-place[=SUFFIX]] [-t|--test-only] [--ignore-nonexisting|--create-nonexisting] [--add-after ADDRESS] -l|--line LINE [-a|--accept-match ACCEPT-PATTERN -u|--update-match PATTERN [-r|--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -42,11 +42,9 @@ HELPDESCRIPTION
 			    FILE(s) does not exist yet.
     --create-nonexisting    Create the first (each with --all) passed FILE if it
 			    does not exist yet, (and insert the LINE there).
-    --only-after ADDRESS    Do the update only if ADDRESS exists, and then after
-			    it. Lines before ADDRESS are ignored.
-    --after-or-append ADDRESS
-			    Do the update after ADDRESS, or at the end of the
-			    FILE if there's no such ADDRESS.
+    --add-after ADDRESS
+			    Do the update after ADDRESS instead of at the end of
+			    the FILE.
     --line|-l LINE	    Search for (literal, full) LINE and add LINE if that
 			    doesn't exist yet.
     --accept-match|-a ACCEPT-PATTERN
@@ -85,6 +83,7 @@ updateMatch=
 unset replacement
 unset preLines
 unset postLines
+addAfterAddress='$'
 while [ $# -ne 0 ]
 do
     case "$1" in
@@ -98,6 +97,7 @@ do
 	--replacement|-r)   shift; replacement="$1"; shift;;
 	--pre-line)	    shift; escapedLine="${1//\//\\/}"; preLines="${preLines}${preLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
 	--post-line)	    shift; escapedLine="${1//\//\\/}"; postLines="${postLines}${postLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
+	--add-after)	    shift; addAfterAddress="$1"; shift;;
 	--)		    shift; break;;
 	-*)		    { echo "ERROR: Unknown option \"$1\"!"; echo; printShortUsage "$0"; } >&2; exit 2;;
 	*)		    break;;
@@ -162,21 +162,21 @@ process()
 	# changed line, no processing actually has happened, and we indicate an
 	# error. If the hold space isn't empty, skip further processing (i.e.
 	# appending), as we've already done the update.
-	-e "\${ x; /^\\n\$\\|${literalLine//\//\\/}/{ x; q 1 }; /./{ x; b; }; x; }"
+	-e "${addAfterAddress}{ x; /^\\n\$\\|${literalLine//\//\\/}/{ x; q 1 }; /./{ x; b; }; x; }"
     )
 
     if [ -n "${preLines+t}" ]; then
 	sedProgram+=(
-	    -e "\$a\\${NL}${preLines}"
+	    -e "${addAfterAddress}a\\${NL}${preLines}"
 	)
     fi
     sedProgram+=(
 	# Else append LINE.
-	-e "\$a\\${NL}${line//\\/\\\\}"
+	-e "${addAfterAddress}a\\${NL}${line//\\/\\\\}"
     )
     if [ -n "${postLines+t}" ]; then
 	sedProgram+=(
-	    -e "\$a\\${NL}${postLines}"
+	    -e "${addAfterAddress}a\\${NL}${postLines}"
 	)
     fi
 #echo >&3 "****"  "${sedProgram[@]}"
