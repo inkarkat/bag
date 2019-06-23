@@ -78,6 +78,7 @@ HELPTEXT
 readonly NL=$'\n'
 isTestOnly=
 isAll=
+isIgnoreNonexisting=
 typeset -a sedInplaceArgs=()
 line=
 acceptMatch=
@@ -94,6 +95,8 @@ do
 			    sedInplaceArgs+=("$1"); shift;;
 	--test-only|-t)	    shift; isTestOnly=t;;
 	--all|-a)	    shift; isAll=t;;
+	--ignore-nonexisting)
+			    shift; isIgnoreNonexisting=t;;
 	--line|-l)	    shift; line="$1"; shift;;
 	--accept-match|-a)  shift; acceptMatch="$1"; shift;;
 	--update-match|-u)  shift; updateMatch="$1"; shift;;
@@ -214,5 +217,12 @@ do
 	0)  [ "$isAll" ] || exit $status;;
     esac
 done
-[ $existingCount -eq 0 ] && status=4
+
+if [ $existingCount -eq 0 ]; then
+    if [ -n "$isIgnoreNonexisting" ]; then
+	status=0
+    else
+	status=4
+    fi
+fi
 exit $status
