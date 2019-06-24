@@ -69,6 +69,7 @@ EXIT STATUS:
     2	Bad invocation, wrong or missing command-line arguments.
     3	Internal error or failed assertion.
     4	None of the passed FILE(s) exist; no modifications could be made.
+    5	A FILE could not be created / modified (due to problems with sed).
 
 Example:
 HELPTEXT
@@ -79,6 +80,7 @@ readonly NL=$'\n'
 isTestOnly=
 isAll=
 isIgnoreNonexisting=
+isCreateNonexisting=
 typeset -a sedInplaceArgs=()
 line=
 acceptMatch=
@@ -97,6 +99,8 @@ do
 	--all|-a)	    shift; isAll=t;;
 	--ignore-nonexisting)
 			    shift; isIgnoreNonexisting=t;;
+	--create-nonexisting)
+			    shift; isCreateNonexisting=t;;
 	--line|-l)	    shift; line="$1"; shift;;
 	--accept-match|-a)  shift; acceptMatch="$1"; shift;;
 	--update-match|-u)  shift; updateMatch="$1"; shift;;
@@ -119,12 +123,37 @@ elif [ ${#sedInplaceArgs[@]} -gt 0 -a -n "$isTestOnly" ]; then
     echo >&2
     printShortUsage "\$1" >&2
     exit 2
+elif [ -n "$isIgnoreNonexisting" -a -n "$isCreateNonexisting" ]; then
+    echo >&2 'ERROR: Cannot combine --ignore-nonexisting and --create-nonexisting.'
+    echo >&2
+    printShortUsage "\$1" >&2
+    exit 2
 fi
 
 literalLine="^$(printf %s "$line" | literalPattern)\$"
 [ "$updateMatch" ] || updateMatch="$literalLine"
 
 [ $# -eq 0 ] && set -- -    # Read from stdin if no FILE is passed.
+create()
+{
+    local filespec="$1"; shift
+    # If the file is completely empty, sed treats this as zero lines, and no
+    # address (not 1, not $) will match; the whole invocation would be a no-op.
+    # Therefore, start with a single empty line, and change that one instead.
+    echo > "$filespec" || return 1
+
+    local content=
+    [ -n "${preLines+t}" ] && content="${content}${preLines}\\${NL}"
+    content="${content}${line//\\/\\\\}"
+    [ -n "${postLines+t}" ] && content="${content}\\${NL}${postLines}"
+    typeset -a sedProgram=(
+	-e "\$c\\${NL}${content}"
+    )
+
+    sed "${sedInplaceArgs[@]}" \
+	"${sedProgram[@]}" \
+	-- "$filespec"
+}
 process()
 {
     local isAppend="$1"; shift
@@ -169,7 +198,7 @@ process()
 	# changed line, no processing actually has happened, and we indicate an
 	# error. If the hold space isn't empty, skip further processing (i.e.
 	# appending), as we've already done the update.
-	-e "${addAfterAddress}{ x; /^\\n\$\\|${literalLine//\//\\/}/{ x; q 1 }; /./{ x; b; }; x; }"
+	-e "${addAfterAddress}{ x; /^\\n\$\\|${literalLine//\//\\/}/{ x; q 98 }; /./{ x; b; }; x; }"
     )
 
     if [ "$isAppend" ]; then
@@ -205,6 +234,15 @@ do
     filespec="${@:$i:1}"
     if [ "$filespec" = '-' -o -e "$filespec" ]; then
 	let existingCount+=1
+    elif [ "$isCreateNonexisting" ]; then
+	create "$filespec"
+	status=$?
+	case $status in
+	    0)	[ "$isAll" ] || exit $status;;
+	    *)	status=5;;
+	esac
+	let existingCount+=1
+	continue
     else
 	continue
     fi
@@ -214,7 +252,9 @@ do
     eval 'process "$isAppend" "$filespec"' "${isTestOnly:+>/dev/null}"
     status=$?
     case $status in
-	0)  [ "$isAll" ] || exit $status;;
+	0)	[ "$isAll" ] || exit $status;;
+	98|99)	status=1;;
+	*)	status=5;;
     esac
 done
 
