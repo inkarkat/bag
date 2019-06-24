@@ -23,8 +23,8 @@ printLongUsage()
     # This is the long "man page" when launched with the help argument.
     # It is printed to stdout to allow paging with 'more'.
     cat <<HELPDESCRIPTION
-Try to locate passed LINE / PATTERN in at least one (all with --all) of the
-passed FILE(s), update with REPLACEMENT (in the first to match), or append (in
+Tries to locate passed LINE / PATTERN in at least one (all with --all) of the
+passed FILE(s), updates with REPLACEMENT (in the first to match), or appends (in
 the last FILE) if it does not exist yet.
 HELPDESCRIPTION
     echo
