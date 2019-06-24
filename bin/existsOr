@@ -4,7 +4,7 @@ printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
-    printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--bare|[--trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--no-success-no-count] [--emulate-prompt] [--worst-status] [-c|--comment COMMENT]] [--recheck-at-end] [--recheck-at-checkpoints] [--] EXECUTABLE [-?|-h|--help]'
+    printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--bare|[--trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--no-success-no-count|--no-count-on N] [--emulate-prompt] [--worst-status] [-c|--comment COMMENT]] [--recheck-at-end] [--recheck-at-checkpoints] [--] EXECUTABLE [-?|-h|--help]'
     printf 'Usage: %q %s <<EOF\n  COMMANDS\nEOF\n' "$(basename "$1")" '[...] EXECUTABLE'
 }
 printUsage()
