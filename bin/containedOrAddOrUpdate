@@ -1,0 +1,100 @@
+#!/bin/bash
+
+printShortUsage()
+{
+    # Note: short followed by long option; if the user knows the short one, she can
+    # skim the long one.
+    printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--command-name NAME] [-i[SUFFIX]|--in-place[=SUFFIX]] [--ignore-nonexisting|--create-nonexisting] [--add-after ADDRESS] -l|--line LINE [-a|--accept-match ACCEPT-PATTERN -u|--update-match PATTERN [-r|--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
+}
+printUsage()
+{
+    # This is the short help when launched with no or incorrect arguments.
+    # It is printed to stderr to avoid accidental processing.
+    printShortUsage "$1" >&2
+    printf >&2 'Try %q --help for more information.\n' "$(basename "$1")"
+}
+printLongUsage()
+{
+    # This is the long "man page" when launched with the help argument.
+    # It is printed to stdout to allow paging with 'more'.
+    cat <<HELPDESCRIPTION
+If the passed LINE / PATTERN does not exist / match in at least one (all with
+--all) of the passed FILE(s), asks the user whether to update with REPLACEMENT
+(in the first to match), or append (in the last FILE).
+HELPDESCRIPTION
+    echo
+    printShortUsage "$1"
+    cat <<HELPTEXT
+    --memoize-group|-g GROUP
+			    Optional application / use case for this tool's use.
+			    Determines the configuration directory.
+    --command-name|-n NAME  Optional human-readable characterization of COMMAND
+			    that will be used for querying (and memoizing the
+			    decision).
+EXIT STATUS:
+    0	An update has happened.
+    1	The LINE already existed, no modifications were made.
+    2	Bad invocation, wrong or missing command-line arguments.
+    3	Internal error or failed assertion.
+    4	None of the passed FILE(s) exist; no modifications could be made.
+    5	A FILE could not be created / modified (due to problems with sed).
+    6	Update was declined by the user.
+
+Example:
+HELPTEXT
+    printf '%q %s\n' "$(basename "$1")" '-i.bak --line "AcceptEnv FOO" /etc/ssh/sshd_config && service ssh restart'
+}
+
+typeset -a addOrUpdateArgs=()
+typeset -a addOrUpdateInplaceArg=()
+typeset -a addOrUpdateTestOnlyArg=()
+typeset -a memoizeDecisionArgs=()
+commandName=
+isAll=
+line=
+while [ $# -ne 0 ]
+do
+    case "$1" in
+	--help|-h|-\?)		    shift; printLongUsage "$0"; exit 0;;
+	--memoize-group|-g)	    memoizeDecisionArgs+=("$1" "$2"); shift; shift;;
+	--command-name|-n)	    shift; commandName="$1"; shift;;
+	--in-place|--inplace=*|-i*) addOrUpdateInplaceArg+=("$1"); shift;;
+	--test-only|-t)		    addOrUpdateTestOnlyArg+=("$1"); shift;;
+	--all|-a)		    addOrUpdateArgs+=("$1"); shift; isAll=t;;
+	--line|-l)		    addOrUpdateArgs+=("$1" "$2"); line="$2"; shift; shift;;
+	--ignore-nonexisting|--create-nonexisting)
+				    addOrUpdateArgs+=("$1"); shift;;
+	--accept-match|-a|--update-match|-u|--replacement|-r|--pre-line|--post-line|--add-after)
+				    addOrUpdateArgs+=("$1" "$2"); shift; shift;;
+	--)			    addOrUpdateArgs+=("$1"); shift; break;;
+	*)			    break;;
+    esac
+done
+
+# TODO: handle stdin
+# Note: Omit addOrUpdateInplaceArg here, as that would conflict with
+# --test-only.
+addOrUpdate --test-only "${addOrUpdateArgs[@]}" "$@" || exit $?
+
+
+verb="does not"
+action="update it"
+if [ $# -gt 1 ]; then
+    if [ "$isAll" ]; then
+	subject="All of $*"
+	verb="do not"
+	action="update them"
+    else
+	subject="At least one of $*"
+    fi
+else
+    subject="$*"
+fi
+[ "$memoizeDecisionArgs" ] || memoizeDecisionArgs=(--memoize-group "$(basename -- "$0").$PPID")
+memoizeDecision "${memoizeDecisionArgs[@]}" --subject "${commandName:-$subject}" --verb "$verb" --state "yet contain '$line'" --action "$action"
+status=$?
+case $status in
+    0)	exec addOrUpdate "${addOrUpdateInplaceArg[@]}" "${addOrUpdateTestOnlyArg[@]}" "${addOrUpdateArgs[@]}" "$@";;
+    1)	exit 6;;
+    *)	exit $status;;
+esac
