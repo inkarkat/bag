@@ -12,12 +12,12 @@ BAG="$HOME/.bag"
 
 case "$1" in
     --help|-h|-\?)	shift; printUsage "$0"; exit 0;;
-    --delete|-d)	shift; rm "$BAG"; exit $?;;
+    --delete|-d)	shift; exec rm --force -- "$BAG";;
 esac
 
 if [ -t 0 ]; then
     if [ ! -f "$BAG" ]; then
-	echo >&2 "$BAG does not exist"
+	printf >&2 '%s does not exist\n' "$BAG"
 	exit 1
     fi
     cat "$BAG"
