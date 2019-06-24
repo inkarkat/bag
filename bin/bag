@@ -1,11 +1,11 @@
-#!/bin/sh
+#!/bin/bash
 
 printUsage()
 {
     cat <<HELPTEXT
 Collect output in a file.
-Usage: "$(basename "$1")" [-a|--append|-d|--delete] [-?|-h|--help]
 HELPTEXT
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-a|--append|-d|--delete] [-?|-h|--help]'
 }
 
 BAG="$HOME/.bag"
