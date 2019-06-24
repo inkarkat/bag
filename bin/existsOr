@@ -26,6 +26,9 @@ HELPDESCRIPTION
     echo
     printShortUsage "$1"
     cat <<HELPTEXT
+    --memoize-group|-g GROUP
+			Optional application / use case for this tool's use.
+			Determines the configuration directory.
     --recheck-at-end	will perform a second check after all COMMANDS have been
 			read; if it fails, an error is printed and this command
 			will fail.
