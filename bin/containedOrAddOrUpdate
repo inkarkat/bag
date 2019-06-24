@@ -71,7 +71,18 @@ do
     esac
 done
 
-# TODO: handle stdin
+# Copy stdin into temporary file, as we may need to iterate over it.
+if [ $# -eq 0 -o "$1" = '-' ]; then # Note: This doesn't handle a later - argument, but mixing files and stdin is rare.
+    TMPFILE="$(mktemp --tmpdir "$(basename -- "$0")-XXXXXX" 2>/dev/null || echo "${TEMP:-/tmp}/$(basename -- "$0").$$$RANDOM")"
+    cleanup()
+    {
+	rm -f "$TMPFILE" 2>/dev/null
+    }
+    [ "${DEBUG:-}" ] || trap 'cleanup' EXIT
+    cp /dev/stdin "$TMPFILE" || exit $?
+    set -- "$TMPFILE"	# Note: We trust that the user didn't erroneously passed --in-place. Normally, sed would complain ("no input files" or "can't read -: No such file or directory", but as we convert into a temporary file, this doesn't happen now.
+fi
+
 # Note: Omit addOrUpdateInplaceArg here, as that would conflict with
 # --test-only.
 addOrUpdate --test-only "${addOrUpdateArgs[@]}" "$@" || exit $?
