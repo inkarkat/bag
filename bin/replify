@@ -26,10 +26,10 @@ elif [ ! "$isWrapped" ] && type -t rlwrap >/dev/null; then
 fi
 
 prompt="${*}> "
-while read -p "$prompt" line; do
+while read -r -p "$prompt" line; do
     if [ "$line" = exit ]; then
 	echo "bye"
 	break
     fi
-    "$@" $line
+    eval '"$@"' "$line"
 done
