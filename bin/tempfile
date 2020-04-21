@@ -1,8 +1,23 @@
 #!/bin/bash
 
-readonly TMPFILE=$(mktemp --tmpdir "$(basename -- "$0")-XXXXXX" 2>/dev/null || echo "${TEMP:-/tmp}/$(basename -- "$0").$$$RANDOM")
+printUsage()
+{
+    cat <<HELPTEXT
+Capture output from stdin into a temp file whose name is then printed.
+Additionally, statistics about the amount of captured text is printed to stderr.
+HELPTEXT
+    printf 'Usage: cat FILE [...] | %q %s\n' "$(basename "$1")" '[--extension EXT] [-?|-h|--help]'
+}
+
+extension=
+case "$1" in
+    --help|-h|-\?)	shift; printUsage "$0"; exit 0;;
+    --extension)	shift; extension="$1"; shift;;
+esac
+
+readonly TMPFILE=$(mktemp --tmpdir "$(basename -- "$0")-XXXXXX${extension:+.}${extension}" 2>/dev/null || echo "${TEMP:-/tmp}/$(basename -- "$0").$$${RANDOM}${extension:+.}${extension}")
 
 cat > "$TMPFILE"
-read lineCnt wordCnt byteCnt remainder < <(wc -- "$TMPFILE")
+read lineCnt wordCnt byteCnt _ < <(wc -- "$TMPFILE")
 printf >&2 '%d line(s), %d word(s), %d byte(s) read\n' "$lineCnt" "$wordCnt" "$byteCnt"
 printf '%s\n' "$TMPFILE"
