@@ -1,0 +1,8 @@
+#!/bin/bash
+
+readonly TMPFILE=$(mktemp --tmpdir "$(basename -- "$0")-XXXXXX" 2>/dev/null || echo "${TEMP:-/tmp}/$(basename -- "$0").$$$RANDOM")
+
+cat > "$TMPFILE"
+read lineCnt wordCnt byteCnt remainder < <(wc -- "$TMPFILE")
+printf >&2 '%d line(s), %d word(s), %d byte(s) read\n' "$lineCnt" "$wordCnt" "$byteCnt"
+printf '%s\n' "$TMPFILE"
