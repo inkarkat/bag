@@ -1,0 +1,8 @@
+#!/bin/bash
+
+readonly TMPFILE=$(mktemp --tmpdir "$(basename -- "$0")-XXXXXX" 2>/dev/null || echo "${TEMP:-/tmp}/$(basename -- "$0").$$$RANDOM")
+
+cat > "$TMPFILE"
+exec </dev/tty	# Reconnect stdin to terminal, to avoid that Vim complains that input is not from a terminal.
+
+exec "${EDITOR:-vi}" "$TMPFILE"
