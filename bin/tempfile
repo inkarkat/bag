@@ -19,5 +19,9 @@ readonly TMPFILE=$(mktemp --tmpdir "$(basename -- "$0")-XXXXXX${extension:+.}${e
 
 cat > "$TMPFILE"
 read lineCnt wordCnt byteCnt _ < <(wc -- "$TMPFILE")
-printf >&2 '%d line(s), %d word(s), %d byte(s) read\n' "$lineCnt" "$wordCnt" "$byteCnt"
+lineCntPlural=s; [ $lineCnt -eq 1 ] && lineCntPlural=
+wordCntPlural=s; [ $wordCnt -eq 1 ] && wordCntPlural=
+byteCntPlural=s; [ $byteCnt -eq 1 ] && byteCntPlural=
+
+printf >&2 '%d line%s, %d word%s, %d byte%s read\n' "$lineCnt" "$lineCntPlural" "$wordCnt" "$wordCntPlural" "$byteCnt" "$byteCntPlural"
 printf '%s\n' "$TMPFILE"
