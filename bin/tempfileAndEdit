@@ -1,8 +1,25 @@
 #!/bin/bash
 
-readonly TMPFILE=$(mktemp --tmpdir "$(basename -- "$0")-XXXXXX" 2>/dev/null || echo "${TEMP:-/tmp}/$(basename -- "$0").$$$RANDOM")
+: ${EDITOR:=vi}
+
+printUsage()
+{
+    cat <<HELPTEXT
+Capture output from stdin into a temp file that is then opened in ${EDITOR}
+for editing.
+HELPTEXT
+    printf 'Usage: cat FILE [...] | %q %s\n' "$(basename "$1")" '[--extension EXT] [-?|-h|--help]'
+}
+
+extension=
+case "$1" in
+    --help|-h|-\?)	shift; printUsage "$0"; exit 0;;
+    --extension)	shift; extension="$1"; shift;;
+esac
+
+readonly TMPFILE=$(mktemp --tmpdir "$(basename -- "$0")-XXXXXX${extension:+.}${extension}" 2>/dev/null || echo "${TEMP:-/tmp}/$(basename -- "$0").$$${RANDOM}${extension:+.}${extension}")
 
 cat > "$TMPFILE"
 exec </dev/tty	# Reconnect stdin to terminal, to avoid that Vim complains that input is not from a terminal.
 
-exec "${EDITOR:-vi}" "$TMPFILE"
+exec "$EDITOR" "$TMPFILE"
