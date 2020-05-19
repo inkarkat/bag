@@ -21,6 +21,7 @@ if [ $# -eq 0 ]; then
     printUsage "$0" >&2
     exit 2
 fi
+export PATH_OVERRIDE=true
 export PATH="${1}:$PATH"; shift
 
 isBare=
