@@ -29,9 +29,9 @@ HELPDESCRIPTION
     --memoize-group|-g GROUP
 			Optional application / use case for this tool's use.
 			Determines the configuration directory.
-    --recheck-at-end    will perform a second check after all COMMANDS have been
+    --recheck-at-end	will perform a second check after all COMMANDS have been
 			read; if it fails, an error is printed and this command
-			will fail
+			will fail.
     --recheck-at-checkpoints    defines a custom "checkpoint" command that can
 				be included anywhere in COMMANDS to do a check.
 				A successful check will abort additional
@@ -101,7 +101,7 @@ status=$?
 
 if [ "$isRecheckAtEnd" ]; then
     if ! check; then
-	printf 'ERROR: %s still does not run.\n' "$pattern"
+	printf >&2 'ERROR: %s still does not run.\n' "$pattern"
 	if [ $status -eq 0 ]; then
 	    exit 1
 	else
