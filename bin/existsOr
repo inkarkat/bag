@@ -36,6 +36,12 @@ HELPDESCRIPTION
 				be included anywhere in COMMANDS to do a check.
 				A successful check will abort additional
 				COMMANDS.
+EXIT STATUS:
+    0 if EXECUTABLE exists or the user made it exist
+    1 if not, or if the check at the end fails
+    2 on invocation error
+    3 if memoization fails or the query times out without a given --default
+    * any exit status from COMMANDS
 HELPTEXT
 }
 isBare=
@@ -73,7 +79,7 @@ check()
 }
 check && exit 0
 
-memoizeDecision "${memoizeDecisionArgs[@]}" --subject "$EXECUTABLE" --state 'exist' --action 'define it' || exit 2
+memoizeDecision "${memoizeDecisionArgs[@]}" --subject "$EXECUTABLE" --state 'exist' --action 'define it' || exit $?
 
 runInput()
 {
