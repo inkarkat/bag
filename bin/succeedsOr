@@ -46,12 +46,12 @@ HELPDESCRIPTION
 			    successful check will abort additional COMMANDS.
     --skip-after-num-subsequent-fails N
 			    If the recheck fails N times in a row (i.e. without
-			    a sucessful check / recheck in between), never ask
-			    the user again, and simply ignore a failing
-			    TEST-COMMAND from that point.
+			    a sucessful recheck in between), never ask the user
+			    again, and simply ignore a failing TEST-COMMAND from
+			    that point.
     --skip-after-num-total-fails N
 			    If the recheck fails an overall N times (ignoring
-			    sucessful checks in between), never ask the user
+			    sucessful rechecks in between), never ask the user
 			    again, and simply ignore a failing TEST-COMMAND from
 			    that point.
     --skip-after-fail-for NUMBER[SUFFIX]
@@ -119,6 +119,9 @@ if [ ${#commands[@]} -eq 0 ]; then
     printUsage "$0" >&2
     exit 2
 fi
+if [ -n "$numSubsequentFails" -a -n "$numTotalFails" ] && [ $numSubsequentFails -gt $numTotalFails ]; then
+    echo >&2 'Warning: Number of subsequent fails is larger than the number of total fails and will never be reached.'
+fi
 if [ "$isRecheckAtCheckpoints" ]; then
     printf -v quotedTestCommandLine '%q ' "${commands[@]}"
     checkpointPrePipeline=(sed -e "1i\\checkpoint() { ${isNeedEval:+eval }${quotedTestCommandLine//\\/\\\\}>/dev/null 2>&1 && exit 0; }")
@@ -139,13 +142,9 @@ check()
 	"${commands[@]}"
     fi >/dev/null 2>&1
 )
-if check; then
-    if [ "$numSubsequentFails" ]; then
-	# Reset the counter for subsequent fails.
-	database --update "$commandName" --column SUBSEQUENT_FAILS=0
-    fi
-    exit 0
-fi
+
+
+check && exit 0
 
 
 if [ -n "$numSubsequentFails" -o -n "$numTotalFails" ]; then
@@ -154,10 +153,10 @@ if [ -n "$numSubsequentFails" -o -n "$numTotalFails" ]; then
     if queryResult="$(database --query "$commandName" --as-shell-variables)"; then
 	eval "$queryResult"
 	if [ -n "$numSubsequentFails" ] && [ ${SUBSEQUENT_FAILS:-0} -ge $numSubsequentFails ]; then
-	    printf '%s%s does not succeed, and had failed %d times in a row. I have given up to make it work.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$SUBSEQUENT_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
+	    printf '%s%s does not succeed, and could not be made to work %d times in a row. I have given up to make it work.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$SUBSEQUENT_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
 	    exit 1
 	elif [ -n "$numTotalFails" ] && [ ${TOTAL_FAILS:-0} -ge $numTotalFails ]; then
-	    printf '%s%s does not succeed, and had failed a total of %d times. I have given up to make it work.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$TOTAL_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
+	    printf '%s%s does not succeed, and could not be made to work a total of %d times. I have given up to make it work.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$TOTAL_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
 	    exit 1
 	fi
     fi
@@ -179,7 +178,12 @@ eval '"${checkpointPrePipeline[@]}"' "${checkpointPrePipeline:+|}" runInput
 status=$?
 
 if [ "$isRecheckAtEnd" ]; then
-    if ! check; then
+    if check; then
+	if [ "$numSubsequentFails" ]; then
+	    # Reset the counter for subsequent fails.
+	    database --update "$commandName" --column SUBSEQUENT_FAILS=0
+	fi
+    else
 	printf 'ERROR: %s still does not succeed.\n' "${commands[*]}"
 
 	# Do this before handling numSubsequentFails and numTotalFails so that
@@ -200,10 +204,10 @@ if [ "$isRecheckAtEnd" ]; then
 		database --update "$commandName	$SUBSEQUENT_FAILS	$TOTAL_FAILS"
 
 		if [ -n "$numSubsequentFails" ] && [ ${SUBSEQUENT_FAILS:-0} -ge $numSubsequentFails ]; then
-		    printf '%s%s has now failed %d times in a row. I give up to make it work.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$SUBSEQUENT_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
+		    printf '%s%s now could not be made to work %d times in a row. I will not attempt to make it work in the future any longer.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$SUBSEQUENT_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
 		    failMemoizeDecisionArgs=()
 		elif [ -n "$numTotalFails" ] && [ ${TOTAL_FAILS:-0} -ge $numTotalFails ]; then
-		    printf '%s%s has now failed a total of %d times. I give up to make it work.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$TOTAL_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
+		    printf '%s%s now could not be made to work a total of %d times. I will not attempt to make it work in the future any longer.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$TOTAL_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
 		    failMemoizeDecisionArgs=()
 		fi
 	    fi
