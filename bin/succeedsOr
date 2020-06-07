@@ -154,10 +154,10 @@ if [ -n "$numSubsequentFails" -o -n "$numTotalFails" ]; then
     if queryResult="$(database --query "$commandName" --as-shell-variables)"; then
 	eval "$queryResult"
 	if [ -n "$numSubsequentFails" ] && [ ${SUBSEQUENT_FAILS:-0} -ge $numSubsequentFails ]; then
-	    printf '%s%s has failed %d times in a row. I have given up to make it work.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$SUBSEQUENT_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
+	    printf '%s%s does not succeed, and had failed %d times in a row. I have given up to make it work.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$SUBSEQUENT_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
 	    exit 1
 	elif [ -n "$numTotalFails" ] && [ ${TOTAL_FAILS:-0} -ge $numTotalFails ]; then
-	    printf '%s%s has failed a total of %d times. I have given up to make it work.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$TOTAL_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
+	    printf '%s%s does not succeed, and had failed a total of %d times. I have given up to make it work.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$TOTAL_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
 	    exit 1
 	fi
     fi
@@ -185,10 +185,6 @@ if [ "$isRecheckAtEnd" ]; then
 	# Do this before handling numSubsequentFails and numTotalFails so that
 	# --skip-after-fail-for takes precedence over
 	# --skip-after-num-subsequent-fails and --skip-after-num-total-fails.
-	if [ ${#failMemoizeDecisionArgs[@]} -gt 0 ]; then
-	    memoizeDecision "${memoizeDecisionArgs[@]}" --memoize-group "$group" --subject "$commandName" --action 'make it work' "${failMemoizeDecisionArgs[@]}"
-	fi
-
 	if [ -n "$numSubsequentFails" -o -n "$numTotalFails" ]; then
 	    SUBSEQUENT_FAILS=
 	    TOTAL_FAILS=
@@ -200,9 +196,22 @@ if [ "$isRecheckAtEnd" ]; then
 		let SUBSEQUENT_FAILS=1
 		let TOTAL_FAILS=1
 	    fi
-	    [ -n "$SUBSEQUENT_FAILS" -a -n "$TOTAL_FAILS" ] && \
+	    if [ -n "$SUBSEQUENT_FAILS" -a -n "$TOTAL_FAILS" ]; then
 		database --update "$commandName	$SUBSEQUENT_FAILS	$TOTAL_FAILS"
+
+		if [ -n "$numSubsequentFails" ] && [ ${SUBSEQUENT_FAILS:-0} -ge $numSubsequentFails ]; then
+		    printf '%s%s has now failed %d times in a row. I give up to make it work.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$SUBSEQUENT_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
+		    failMemoizeDecisionArgs=()
+		elif [ -n "$numTotalFails" ] && [ ${TOTAL_FAILS:-0} -ge $numTotalFails ]; then
+		    printf '%s%s has now failed a total of %d times. I give up to make it work.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$TOTAL_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
+		    failMemoizeDecisionArgs=()
+		fi
+	    fi
 	fi
+	if [ ${#failMemoizeDecisionArgs[@]} -gt 0 ]; then
+	    memoizeDecision "${memoizeDecisionArgs[@]}" --memoize-group "$group" --subject "$commandName" --action 'make it work' "${failMemoizeDecisionArgs[@]}"
+	fi
+
 
 	if [ $status -eq 0 ]; then
 	    exit 1
