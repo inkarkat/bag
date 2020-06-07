@@ -2,10 +2,8 @@
 
 printShortUsage()
 {
-    # Note: short followed by long option; if the user knows the short one, she can
-    # skim the long one.
-    printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--bare] [--recheck-at-end] [--recheck-at-checkpoints] [--] EXECUTABLE [-?|-h|--help]'
-    printf 'Usage: %q %s <<EOF\n  COMMANDS\nEOF\n' "$(basename "$1")" '[...] EXECUTABLE'
+    SOMETHING_USAGE='[--] EXECUTABLE'
+    source somethingOr --usage "$1"
 }
 printUsage()
 {
@@ -25,24 +23,8 @@ from stdin.
 HELPDESCRIPTION
     echo
     printShortUsage "$1"
-    cat <<HELPTEXT
-    --memoize-group|-g GROUP
-			Optional application / use case for this tool's use.
-			Determines the configuration directory.
-    --recheck-at-end	will perform a second check after all COMMANDS have been
-			read; if it fails, an error is printed and this command
-			will fail.
-    --recheck-at-checkpoints    defines a custom "checkpoint" command that can
-				be included anywhere in COMMANDS to do a check.
-				A successful check will abort additional
-				COMMANDS.
-EXIT STATUS:
-    0 if EXECUTABLE exists or the user made it exist
-    1 if not, or if the check at the end fails
-    2 on invocation error
-    3 if memoization fails or the query times out without a given --default
-    * any exit status from COMMANDS
-HELPTEXT
+    SOMETHING_HELP_STATUS0='if EXECUTABLE exists or the user made it exist'
+    source somethingOr --long-usage "$1"
 }
 isBare=
 isRecheckAtEnd=
@@ -79,28 +61,7 @@ check()
 }
 check && exit 0
 
-memoizeDecision "${memoizeDecisionArgs[@]}" --subject "$EXECUTABLE" --state 'exist' --action 'define it' || exit $?
-
-runInput()
-{
-    if [ "$isBare" ]; then
-	bash -
-    else
-	runWithPrompt --no-trailing-prompt
-    fi
-}
-eval '"${checkpointPrePipeline[@]}"' "${checkpointPrePipeline:+|}" runInput
-status=$?
-
-if [ "$isRecheckAtEnd" ]; then
-    if ! check; then
-	printf >&2 'ERROR: %s still does not exist.\n' "$EXECUTABLE"
-	if [ $status -eq 0 ]; then
-	    exit 1
-	else
-	    exit $status
-	fi
-    fi
-fi
-
-exit $status
+SOMETHING_SUBJECT="$EXECUTABLE"
+SOMETHING_STATE='exist'
+SOMETHING_ACTION='define it'
+source somethingOr
