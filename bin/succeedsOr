@@ -4,7 +4,7 @@ printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
-    printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--bare] [--recheck-at-end [--skip-after-fail-forever|--skip-after-fail-for NUMBER[SUFFIX]]] [--recheck-at-checkpoints] -c|--command "TEST-COMMANDLINE" [-c ...] [--command-name NAME] | [--] SIMPLE-TEST-COMMAND [...] [-?|-h|--help]'
+    printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--bare] [--recheck-at-end [--skip-after-num-subsequent-fails N] [--skip-after-num-total-fails N] [--skip-after-fail-for NUMBER[SUFFIX]] [--recheck-at-checkpoints] -c|--command "TEST-COMMANDLINE" [-c ...] [--command-name NAME] | [--] SIMPLE-TEST-COMMAND [...] [-?|-h|--help]'
     printf 'Usage: %q %s <<EOF\n  COMMANDS\nEOF\n' "$(basename "$1")" '[...] -c|--command "TEST-COMMANDLINE" [-c ...] | [--] SIMPLE-TEST-COMMAND [...]'
 }
 printUsage()
@@ -41,16 +41,25 @@ HELPDESCRIPTION
 			    Defines a custom "checkpoint" command that can be
 			    included anywhere in COMMANDS to do a check. A
 			    successful check will abort additional COMMANDS.
-    --skip-after-fail-forever
-			    If the recheck fails, never ask the user again, and
-			    simply ignore a failing TEST-COMMAND from that
-			    point.
+    --skip-after-num-subsequent-fails N
+			    If the recheck fails N times in a row (i.e. without
+			    a sucessful check in between), never ask the user
+			    again, and simply ignore a failing TEST-COMMAND from
+			    that point.
+    --skip-after-num-total-fails N
+			    If the recheck fails an overall N times (ignoring
+			    sucessful checks in between), never ask the user
+			    again, and simply ignore a failing TEST-COMMAND from
+			    that point.
     --skip-after-fail-for NUMBER[SUFFIX]
 			    If the recheck fails, do not ask the user again
 			    within the next NUMBER[SUFFIX], and ignore a failing
-			    TEST-COMMAND within that interval. SUFFIX may be 's'
-			    for seconds (the default), 'm' for minutes, 'h' for
-			    hours or 'd' for days.
+			    TEST-COMMAND within that interval (also for the
+			    counting of fails by
+			    --skip-after-num-subsequent-fails and
+			    --skip-after-num-total-fails).
+			    SUFFIX may be 's' for seconds (the default), 'm' for
+			    minutes, 'h' for hours or 'd' for days.
 EXIT STATUS:
     0 if TEST-COMMAND succeeds or the user made it work
     1 if not, or if the check at the end fails
@@ -66,6 +75,8 @@ typeset -a commands=()
 isBare=
 typeset -a memoizeDecisionArgs=()
 typeset -a failMemoizeDecisionArgs=()
+numSubsequentFails=
+numTotalFails=
 isRecheckAtEnd=
 isRecheckAtCheckpoints=
 typeset -a checkpointPrePipeline=()
@@ -77,7 +88,10 @@ do
 	--memoize-group|-g)	    memoizeDecisionArgs+=("$1" "$2"); shift; shift;;
 	--recheck-at-end)	    shift; isRecheckAtEnd=t;;
 	--recheck-at-checkpoints)   shift; isRecheckAtCheckpoints=t;;
-	--skip-after-fail-forever)  shift; failMemoizeDecisionArgs=(--set-decision never);;
+	--skip-after-num-subsequent-fails)
+				    shift; numSubsequentFails="$1"; shift;;
+	--skip-after-num-total-fails)
+				    shift; numTotalFails="$1"; shift;;
 	--skip-after-fail-for)	    shift; failMemoizeDecisionArgs=(--set-decision no --timespan "$1"); shift;;
 	--command-name|-n)	    shift; commandName="$1"; shift;;
 	--command|-c)		    shift; commands+=(${commands:+;} "$1"); isNeedEval=t; shift;;
@@ -115,7 +129,12 @@ check()
 	"${commands[@]}"
     fi >/dev/null 2>&1
 )
-check && exit 0
+if check; then
+    if [ "$numSubsequentFails" ]; then
+	:
+    fi
+    exit 0
+fi
 
 memoizeDecision "${memoizeDecisionArgs[@]}" --subject "${commandName:-${commands[*]}}" --state 'succeed' --action 'make it work' || exit $?
 
