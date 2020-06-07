@@ -148,9 +148,6 @@ if check; then
 fi
 
 
-memoizeDecision "${memoizeDecisionArgs[@]}" --memoize-group "$group" --subject "$commandName" --state 'succeed' --action 'make it work' || exit $?
-
-
 if [ -n "$numSubsequentFails" -o -n "$numTotalFails" ]; then
     SUBSEQUENT_FAILS=
     TOTAL_FAILS=
@@ -165,6 +162,9 @@ if [ -n "$numSubsequentFails" -o -n "$numTotalFails" ]; then
 	fi
     fi
 fi
+
+
+memoizeDecision "${memoizeDecisionArgs[@]}" --memoize-group "$group" --subject "$commandName" --state 'succeed' --action 'make it work' || exit $?
 
 
 runInput()
