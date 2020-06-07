@@ -1,5 +1,8 @@
 #!/bin/bash
 
+: ${MEMOIZEDECISION_NEGATIVE_PREFIX=[33m}
+: ${MEMOIZEDECISION_NEGATIVE_SUFFIX=[0m}
+
 printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
@@ -43,9 +46,9 @@ HELPDESCRIPTION
 			    successful check will abort additional COMMANDS.
     --skip-after-num-subsequent-fails N
 			    If the recheck fails N times in a row (i.e. without
-			    a sucessful check in between), never ask the user
-			    again, and simply ignore a failing TEST-COMMAND from
-			    that point.
+			    a sucessful check / recheck in between), never ask
+			    the user again, and simply ignore a failing
+			    TEST-COMMAND from that point.
     --skip-after-num-total-fails N
 			    If the recheck fails an overall N times (ignoring
 			    sucessful checks in between), never ask the user
@@ -74,6 +77,7 @@ commandName=
 typeset -a commands=()
 isBare=
 typeset -a memoizeDecisionArgs=()
+group=
 typeset -a failMemoizeDecisionArgs=()
 numSubsequentFails=
 numTotalFails=
@@ -85,14 +89,14 @@ do
     case "$1" in
 	--help|-h|-\?)		    shift; printLongUsage "$0"; exit 0;;
 	--bare)			    shift; isBare=t;;
-	--memoize-group|-g)	    memoizeDecisionArgs+=("$1" "$2"); shift; shift;;
+	--memoize-group|-g)	    shift; group="$1"; shift;;
 	--recheck-at-end)	    shift; isRecheckAtEnd=t;;
 	--recheck-at-checkpoints)   shift; isRecheckAtCheckpoints=t;;
 	--skip-after-num-subsequent-fails)
 				    shift; numSubsequentFails="$1"; shift;;
 	--skip-after-num-total-fails)
 				    shift; numTotalFails="$1"; shift;;
-	--skip-after-fail-for)	    shift; failMemoizeDecisionArgs=(--set-decision no --timespan "$1"); shift;;
+	--skip-after-fail-for)	    shift; memoizeDecisionArgs=(--timespan "$1"); failMemoizeDecisionArgs=(--set-decision no); shift;;
 	--command-name|-n)	    shift; commandName="$1"; shift;;
 	--command|-c)		    shift; commands+=(${commands:+;} "$1"); isNeedEval=t; shift;;
 	--)			    shift; break;;
@@ -119,7 +123,13 @@ if [ "$isRecheckAtCheckpoints" ]; then
     printf -v quotedTestCommandLine '%q ' "${commands[@]}"
     checkpointPrePipeline=(sed -e "1i\\checkpoint() { ${isNeedEval:+eval }${quotedTestCommandLine//\\/\\\\}>/dev/null 2>&1 && exit 0; }")
 fi
-[ "$memoizeDecisionArgs" ] || memoizeDecisionArgs=(--memoize-group "$(basename -- "$0").$PPID")
+[ "$group" ] || group="$(basename -- "$0").$PPID"
+[ "$commandName" ] || commandName="${commands[*]}"
+
+database()
+{
+    miniDB --schema 'SUBJECT SUBSEQUENT_FAILS TOTAL_FAILS' --namespace succeedsOr --table "$group" "$@"
+}
 
 check()
 (
@@ -131,12 +141,31 @@ check()
 )
 if check; then
     if [ "$numSubsequentFails" ]; then
-	:
+	# Reset the counter for subsequent fails.
+	database --update "$commandName" --column SUBSEQUENT_FAILS=0
     fi
     exit 0
 fi
 
-memoizeDecision "${memoizeDecisionArgs[@]}" --subject "${commandName:-${commands[*]}}" --state 'succeed' --action 'make it work' || exit $?
+
+memoizeDecision "${memoizeDecisionArgs[@]}" --memoize-group "$group" --subject "$commandName" --state 'succeed' --action 'make it work' || exit $?
+
+
+if [ -n "$numSubsequentFails" -o -n "$numTotalFails" ]; then
+    SUBSEQUENT_FAILS=
+    TOTAL_FAILS=
+    if queryResult="$(database --query "$commandName" --as-shell-variables)"; then
+	eval "$queryResult"
+	if [ -n "$numSubsequentFails" ] && [ ${SUBSEQUENT_FAILS:-0} -ge $numSubsequentFails ]; then
+	    printf '%s%s has failed %d times in a row. I have given up to make it work.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$SUBSEQUENT_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
+	    exit 1
+	elif [ -n "$numTotalFails" ] && [ ${TOTAL_FAILS:-0} -ge $numTotalFails ]; then
+	    printf '%s%s has failed a total of %d times. I have given up to make it work.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$TOTAL_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
+	    exit 1
+	fi
+    fi
+fi
+
 
 runInput()
 {
@@ -153,8 +182,26 @@ if [ "$isRecheckAtEnd" ]; then
     if ! check; then
 	printf 'ERROR: %s still does not succeed.\n' "${commands[*]}"
 
+	# Do this before handling numSubsequentFails and numTotalFails so that
+	# --skip-after-fail-for takes precedence over
+	# --skip-after-num-subsequent-fails and --skip-after-num-total-fails.
 	if [ ${#failMemoizeDecisionArgs[@]} -gt 0 ]; then
-	    memoizeDecision "${memoizeDecisionArgs[@]}" --subject "${commandName:-${commands[*]}}" --action 'make it work' "${failMemoizeDecisionArgs[@]}"
+	    memoizeDecision "${memoizeDecisionArgs[@]}" --memoize-group "$group" --subject "$commandName" --action 'make it work' "${failMemoizeDecisionArgs[@]}"
+	fi
+
+	if [ -n "$numSubsequentFails" -o -n "$numTotalFails" ]; then
+	    SUBSEQUENT_FAILS=
+	    TOTAL_FAILS=
+	    if queryResult="$(database --query "$commandName" --as-shell-variables)"; then
+		eval "$queryResult"
+		let SUBSEQUENT_FAILS+=1
+		let TOTAL_FAILS+=1
+	    elif [ $? -eq 1 -o $? -eq 4 ]; then
+		let SUBSEQUENT_FAILS=1
+		let TOTAL_FAILS=1
+	    fi
+	    [ -n "$SUBSEQUENT_FAILS" -a -n "$TOTAL_FAILS" ] && \
+		database --update "$commandName	$SUBSEQUENT_FAILS	$TOTAL_FAILS"
 	fi
 
 	if [ $status -eq 0 ]; then
