@@ -1,0 +1,58 @@
+#!/bin/bash source-this-script
+
+case "$1" in
+    --usage)
+	shift
+	printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" "[-g|--memoize-group GROUP] [--bare] [--recheck-at-end] [--recheck-at-checkpoints] ${SOMETHING_USAGE:?} [-?|-h|--help]"
+	printf 'Usage: %q %s <<EOF\n  COMMANDS\nEOF\n' "$(basename "$1")" "[...] ${SOMETHING_USAGE:?}"
+	exit
+	;;
+    --long-usage)
+	shift
+	cat <<HELPTEXT
+    --memoize-group|-g GROUP
+			Optional application / use case for this tool's use.
+			Determines the configuration directory.
+    --recheck-at-end	will perform a second check after all COMMANDS have been
+			read; if it fails, an error is printed and this command
+			will fail.
+    --recheck-at-checkpoints    defines a custom "checkpoint" command that can
+				be included anywhere in COMMANDS to do a check.
+				A successful check will abort additional
+				COMMANDS.
+EXIT STATUS:
+    0 ${SOMETHING_HELP_STATUS0:?}
+    1 if not, or if the check at the end fails
+    2 on invocation error
+    3 ${SOMETHING_HELP_STATUS3_ADDITION}${SOMETHING_HELP_STATUS3_ADDITION:+ or }if memoization fails or the query times out without a given --default
+    * any exit status from COMMANDS
+HELPTEXT
+	exit
+	;;
+esac
+
+memoizeDecision "${memoizeDecisionArgs[@]}" --subject "${SOMETHING_SUBJECT:?}" --state "${SOMETHING_STATE:?}" --action "${SOMETHING_ACTION:?}" || exit $?
+
+runInput()
+{
+    if [ "$isBare" ]; then
+	bash -
+    else
+	runWithPrompt --no-trailing-prompt
+    fi
+}
+eval '"${checkpointPrePipeline[@]}"' "${checkpointPrePipeline:+|}" runInput
+status=$?
+
+if [ "$isRecheckAtEnd" ]; then
+    if ! check; then
+	printf >&2 "ERROR: %s still does not ${SOMETHING_STATE:?}.\\n" "${SOMETHING_SUBJECT:?}"
+	if [ $status -eq 0 ]; then
+	    exit 1
+	else
+	    exit $status
+	fi
+    fi
+fi
+
+exit $status
