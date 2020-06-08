@@ -153,10 +153,10 @@ if [ -n "$numSubsequentFails" -o -n "$numTotalFails" ]; then
     if queryResult="$(database --query "$commandName" --as-shell-variables)"; then
 	eval "$queryResult"
 	if [ -n "$numSubsequentFails" ] && [ ${SUBSEQUENT_FAILS:-0} -ge $numSubsequentFails ]; then
-	    printf '%s%s does not succeed, and could not be made to work %d times in a row. I have given up to make it work.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$SUBSEQUENT_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
+	    printf >&2 '%s%s does not succeed, and could not be made to work %d times in a row. I have given up to make it work.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$SUBSEQUENT_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
 	    exit 1
 	elif [ -n "$numTotalFails" ] && [ ${TOTAL_FAILS:-0} -ge $numTotalFails ]; then
-	    printf '%s%s does not succeed, and could not be made to work a total of %d times. I have given up to make it work.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$TOTAL_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
+	    printf >&2 '%s%s does not succeed, and could not be made to work a total of %d times. I have given up to make it work.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$TOTAL_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
 	    exit 1
 	fi
     fi
@@ -184,7 +184,7 @@ if [ "$isRecheckAtEnd" ]; then
 	    database --update "$commandName" --column SUBSEQUENT_FAILS=0
 	fi
     else
-	printf 'ERROR: %s still does not succeed.\n' "${commands[*]}"
+	printf >&2 'ERROR: %s still does not succeed.\n' "${commands[*]}"
 
 	# Do this before handling numSubsequentFails and numTotalFails so that
 	# --skip-after-fail-for takes precedence over
@@ -204,10 +204,10 @@ if [ "$isRecheckAtEnd" ]; then
 		database --update "$commandName	$SUBSEQUENT_FAILS	$TOTAL_FAILS"
 
 		if [ -n "$numSubsequentFails" ] && [ ${SUBSEQUENT_FAILS:-0} -ge $numSubsequentFails ]; then
-		    printf '%s%s now could not be made to work %d times in a row. I will not attempt to make it work in the future any longer.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$SUBSEQUENT_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
+		    printf >&2 '%s%s now could not be made to work %d times in a row. I will not attempt to make it work in the future any longer.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$SUBSEQUENT_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
 		    failMemoizeDecisionArgs=()
 		elif [ -n "$numTotalFails" ] && [ ${TOTAL_FAILS:-0} -ge $numTotalFails ]; then
-		    printf '%s%s now could not be made to work a total of %d times. I will not attempt to make it work in the future any longer.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$TOTAL_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
+		    printf >&2 '%s%s now could not be made to work a total of %d times. I will not attempt to make it work in the future any longer.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "$commandName" "$TOTAL_FAILS" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
 		    failMemoizeDecisionArgs=()
 		fi
 	    fi
