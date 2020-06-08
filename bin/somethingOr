@@ -1,9 +1,12 @@
 #!/bin/bash source-this-script
 
+: ${MEMOIZEDECISION_NEGATIVE_PREFIX=[33m}
+: ${MEMOIZEDECISION_NEGATIVE_SUFFIX=[0m}
+
 case "$1" in
     --usage)
 	shift
-	printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" "[-g|--memoize-group GROUP] [--bare] [--recheck-at-end] [--recheck-at-checkpoints] ${SOMETHING_USAGE:?} [-?|-h|--help]"
+	printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" "[-g|--memoize-group GROUP] [--bare] [--recheck-at-end [--skip-after-num-subsequent-fails N] [--skip-after-num-total-fails N] [--skip-after-fail-for NUMBER[SUFFIX]]] [--recheck-at-checkpoints] ${SOMETHING_USAGE:?} [-?|-h|--help]"
 	printf 'Usage: %q %s <<EOF\n  COMMANDS\nEOF\n' "$(basename "$1")" "[...] ${SOMETHING_USAGE:?}"
 	return
 	;;
@@ -11,15 +14,34 @@ case "$1" in
 	shift
 	cat <<HELPTEXT
     --memoize-group|-g GROUP
-			Optional application / use case for this tool's use.
-			Determines the configuration directory.
-    --recheck-at-end	will perform a second check after all COMMANDS have been
-			read; if it fails, an error is printed and this command
-			will fail.
-    --recheck-at-checkpoints    defines a custom "checkpoint" command that can
-				be included anywhere in COMMANDS to do a check.
-				A successful check will abort additional
-				COMMANDS.
+			    Optional application / use case for this tool's use.
+			    Determines the configuration directory.
+    --recheck-at-end	    will perform a second check after all COMMANDS have
+			    been read; if it fails, an error is printed and this
+			    command will fail.
+    --recheck-at-checkpoints
+			    Defines a custom "checkpoint" command that can be
+			    included anywhere in COMMANDS to do a check. A
+			    successful check will abort additional COMMANDS.
+    --skip-after-num-subsequent-fails N
+			    If the recheck fails N times in a row (i.e. without
+			    a sucessful recheck in between), never ask the user
+			    again, and simply ignore ${SOMETHING_WHAT_SUBJECT:?}
+			    from that point.
+    --skip-after-num-total-fails N
+			    If the recheck fails an overall N times (ignoring
+			    sucessful rechecks in between), never ask the user
+			    again, and simply ignore ${SOMETHING_WHAT_SUBJECT:?}
+			    from that point.
+    --skip-after-fail-for NUMBER[SUFFIX]
+			    If the recheck fails, do not ask the user again
+			    within the next NUMBER[SUFFIX], and ignore
+			    ${SOMETHING_WHAT_SUBJECT:?} within
+			    that interval (also for the counting of fails by
+			    --skip-after-num-subsequent-fails and
+			    --skip-after-num-total-fails).
+			    SUFFIX may be 's' for seconds (the default), 'm' for
+			    minutes, 'h' for hours or 'd' for days.
 EXIT STATUS:
     0 ${SOMETHING_HELP_STATUS0:?}
     1 if not, or if the check at the end fails
@@ -40,13 +62,18 @@ HELPTEXT
 	#	    *)	    somethingParse || break;;
 	#     esac
 	# done
+	# somethingVerifyParse
 	# set -- "${ARGS[@]}"
 	typeset -a ARGS=("$@")
 	isBare=
+	typeset -a memoizeDecisionArgs=()
+	group=
+	typeset -a failMemoizeDecisionArgs=()
+	numSubsequentFails=
+	numTotalFails=
 	isRecheckAtEnd=
 	isRecheckAtCheckpoints=
 	typeset -a checkpointPrePipeline=()
-	typeset -a memoizeDecisionArgs=()
 
 	shiftArg()
 	{
@@ -57,9 +84,14 @@ HELPTEXT
 	    case "${ARGS[0]}" in
 		--help|-h|-\?)		    shiftArg; printLongUsage "$0"; exit 0;;
 		--bare)			    shiftArg; isBare=t;;
-		--memoize-group|-g)	    memoizeDecisionArgs+=("$1" "$2"); shiftArg; shiftArg;;
+		--memoize-group|-g)	    shiftArg; group="${ARGS[0]}"; shiftArg;;
 		--recheck-at-end)	    shiftArg; isRecheckAtEnd=t;;
 		--recheck-at-checkpoints)   shiftArg; isRecheckAtCheckpoints=t;;
+		--skip-after-num-subsequent-fails)
+					    shiftArg; numSubsequentFails="${ARGS[0]}"; shiftArg;;
+		--skip-after-num-total-fails)
+					    shiftArg; numTotalFails="$1"; shiftArg;;
+		--skip-after-fail-for)	    shiftArg; memoizeDecisionArgs=(--timespan "${ARGS[0]}"); failMemoizeDecisionArgs=(--set-decision no); shiftArg;;
 		--)			    shiftArg; return 1;;
 		-*)			    [ "$SOMETHING_ALLOW_ANY_OPTION" ] && return 1
 					    { echo "ERROR: Unknown option \"${ARGS[0]}\"!"; echo; printShortUsage "$0"; } >&2; exit 2
@@ -68,11 +100,41 @@ HELPTEXT
 	    esac
 	    return 0
 	}
+	somethingVerifyParse()
+	{
+	    if [ -n "$numSubsequentFails" -a -n "$numTotalFails" ] && [ $numSubsequentFails -gt $numTotalFails ]; then
+		echo >&2 'Warning: Number of subsequent fails is larger than the number of total fails and will never be reached.'
+	    fi
+	    [ "$group" ] || group="$(basename -- "$0").$PPID"
+	}
 	return
 	;;
 esac
 
-memoizeDecision "${memoizeDecisionArgs[@]}" --subject "${SOMETHING_SUBJECT:?}" --state "${SOMETHING_STATE:?}" --action "${SOMETHING_ACTION:?}" || exit $?
+database()
+{
+    miniDB --schema 'SUBJECT SUBSEQUENT_FAILS TOTAL_FAILS' --namespace succeedsOr --table "$group" "$@"
+}
+
+if [ -n "$numSubsequentFails" -o -n "$numTotalFails" ]; then
+    SUBSEQUENT_FAILS=
+    TOTAL_FAILS=
+    if queryResult="$(database --query "${SOMETHING_SUBJECT:?}" --as-shell-variables)"; then
+	eval "$queryResult"
+	if [ -n "$numSubsequentFails" ] && [ ${SUBSEQUENT_FAILS:-0} -ge $numSubsequentFails ]; then
+	    printf >&2 '%s%s does not %s, and could not be %s %d times in a row. I have given up to %s.%s\n' \
+		"$MEMOIZEDECISION_NEGATIVE_PREFIX" "${SOMETHING_SUBJECT:?}" "${SOMETHING_STATE:?}" "${SOMETHING_ACTION_PAST:-${SOMETHING_ACTION:?}}" "$SUBSEQUENT_FAILS" "${SOMETHING_ACTION:?}" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
+	    exit 1
+	elif [ -n "$numTotalFails" ] && [ ${TOTAL_FAILS:-0} -ge $numTotalFails ]; then
+	    printf >&2 '%s%s does not %s, and could not be %s a total of %d times. I have given up to %s.%s\n' \
+		"$MEMOIZEDECISION_NEGATIVE_PREFIX" "${SOMETHING_SUBJECT:?}" "${SOMETHING_STATE:?}" "${SOMETHING_ACTION_PAST:-${SOMETHING_ACTION:?}}" "$TOTAL_FAILS" "${SOMETHING_ACTION:?}" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
+	    exit 1
+	fi
+    fi
+fi
+
+
+memoizeDecision "${memoizeDecisionArgs[@]}" --memoize-group "$group" --subject "${SOMETHING_SUBJECT:?}" --state "${SOMETHING_STATE:?}" --action "${SOMETHING_ACTION:?}" || exit $?
 
 runInput()
 {
@@ -86,8 +148,47 @@ eval '"${checkpointPrePipeline[@]}"' "${checkpointPrePipeline:+|}" runInput
 status=$?
 
 if [ "$isRecheckAtEnd" ]; then
-    if ! check; then
-	printf >&2 "ERROR: %s still does not ${SOMETHING_STATE:?}.\\n" "${SOMETHING_SUBJECT:?}"
+    if check; then
+	if [ "$numSubsequentFails" ]; then
+	    # Reset the counter for subsequent fails.
+	    database --update "${SOMETHING_SUBJECT:?}" --column SUBSEQUENT_FAILS=0
+	fi
+    else
+	printf >&2 'ERROR: %s still does not %s.\n' "${SOMETHING_SUBJECT:?}" "${SOMETHING_STATE:?}"
+
+	# Do this before handling numSubsequentFails and numTotalFails so that
+	# --skip-after-fail-for takes precedence over
+	# --skip-after-num-subsequent-fails and --skip-after-num-total-fails.
+	if [ -n "$numSubsequentFails" -o -n "$numTotalFails" ]; then
+	    SUBSEQUENT_FAILS=
+	    TOTAL_FAILS=
+	    if queryResult="$(database --query "${SOMETHING_SUBJECT:?}" --as-shell-variables)"; then
+		eval "$queryResult"
+		let SUBSEQUENT_FAILS+=1
+		let TOTAL_FAILS+=1
+	    elif [ $? -eq 1 -o $? -eq 4 ]; then
+		let SUBSEQUENT_FAILS=1
+		let TOTAL_FAILS=1
+	    fi
+	    if [ -n "$SUBSEQUENT_FAILS" -a -n "$TOTAL_FAILS" ]; then
+		database --update "${SOMETHING_SUBJECT:?}	$SUBSEQUENT_FAILS	$TOTAL_FAILS"
+
+		if [ -n "$numSubsequentFails" ] && [ ${SUBSEQUENT_FAILS:-0} -ge $numSubsequentFails ]; then
+		    printf >&2 '%s%s now could not be %s %d times in a row. I will not attempt to %s in the future any longer.%s\n' \
+			"$MEMOIZEDECISION_NEGATIVE_PREFIX" "${SOMETHING_SUBJECT:?}" "${SOMETHING_ACTION_PAST:?}" "$SUBSEQUENT_FAILS" "${SOMETHING_ACTION:?}" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
+		    failMemoizeDecisionArgs=()
+		elif [ -n "$numTotalFails" ] && [ ${TOTAL_FAILS:-0} -ge $numTotalFails ]; then
+		    printf >&2 '%s%s now could not be %s a total of %d times. I will not attempt to %s in the future any longer.%s\n' \
+			"$MEMOIZEDECISION_NEGATIVE_PREFIX" "${SOMETHING_SUBJECT:?}" "${SOMETHING_ACTION_PAST:?}" "$TOTAL_FAILS" "${SOMETHING_ACTION:?}" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
+		    failMemoizeDecisionArgs=()
+		fi
+	    fi
+	fi
+	if [ ${#failMemoizeDecisionArgs[@]} -gt 0 ]; then
+	    memoizeDecision "${memoizeDecisionArgs[@]}" --memoize-group "$group" --subject "${SOMETHING_SUBJECT:?}" --action "${SOMETHING_ACTION:?}" "${failMemoizeDecisionArgs[@]}"
+	fi
+
+
 	if [ $status -eq 0 ]; then
 	    exit 1
 	else
