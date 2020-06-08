@@ -5,7 +5,7 @@ case "$1" in
 	shift
 	printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" "[-g|--memoize-group GROUP] [--bare] [--recheck-at-end] [--recheck-at-checkpoints] ${SOMETHING_USAGE:?} [-?|-h|--help]"
 	printf 'Usage: %q %s <<EOF\n  COMMANDS\nEOF\n' "$(basename "$1")" "[...] ${SOMETHING_USAGE:?}"
-	exit
+	return
 	;;
     --long-usage)
 	shift
@@ -27,7 +27,48 @@ EXIT STATUS:
     3 ${SOMETHING_HELP_STATUS3_ADDITION}${SOMETHING_HELP_STATUS3_ADDITION:+ or }if memoization fails or the query times out without a given --default
     * any exit status from COMMANDS
 HELPTEXT
-	exit
+	return
+	;;
+    --init-parse)
+	shift
+	# #SOMETHING_ALLOW_ANY_OPTION=t
+	# source somethingOr --init-parse "$@"
+	# while [ ${#ARGS[@]} -ne 0 ]
+	# do
+	#     case "${ARGS[0]}" in
+	#	    --foo)  shiftArg; foo="${ARGS[0]}"; shiftArg;;
+	#	    *)	    somethingParse || break;;
+	#     esac
+	# done
+	# set -- "${ARGS[@]}"
+	typeset -a ARGS=("$@")
+	isBare=
+	isRecheckAtEnd=
+	isRecheckAtCheckpoints=
+	typeset -a checkpointPrePipeline=()
+	typeset -a memoizeDecisionArgs=()
+
+	shiftArg()
+	{
+	    ARGS=("${ARGS[@]:1}")
+	}
+	somethingParse()
+	{
+	    case "${ARGS[0]}" in
+		--help|-h|-\?)		    shiftArg; printLongUsage "$0"; exit 0;;
+		--bare)			    shiftArg; isBare=t;;
+		--memoize-group|-g)	    memoizeDecisionArgs+=("$1" "$2"); shiftArg; shiftArg;;
+		--recheck-at-end)	    shiftArg; isRecheckAtEnd=t;;
+		--recheck-at-checkpoints)   shiftArg; isRecheckAtCheckpoints=t;;
+		--)			    shiftArg; return 1;;
+		-*)			    [ "$SOMETHING_ALLOW_ANY_OPTION" ] && return 1
+					    { echo "ERROR: Unknown option \"${ARGS[0]}\"!"; echo; printShortUsage "$0"; } >&2; exit 2
+					    ;;
+		*)			    return 1;;
+	    esac
+	    return 0
+	}
+	return
 	;;
 esac
 
