@@ -23,6 +23,8 @@ from stdin.
 HELPDESCRIPTION
     echo
     printShortUsage "$1"
+    echo
+    SOMETHING_WHAT_SUBJECT='a missing EXECUTABLE'
     SOMETHING_HELP_STATUS0='if EXECUTABLE exists or the user made it exist'
     source somethingOr --long-usage "$1"
 }
@@ -31,6 +33,7 @@ while [ ${#ARGS[@]} -ne 0 ]
 do
     somethingParse || break
 done
+somethingVerifyParse
 set -- "${ARGS[@]}"
 if [ $# -eq 0 ]; then
     printUsage "$0" >&2
@@ -43,7 +46,6 @@ if [ "$isRecheckAtCheckpoints" ]; then
     printf -v quotedExecutable '%q' "$EXECUTABLE"
     checkpointPrePipeline=(sed -e "1i\\checkpoint() { 'which' ${quotedExecutable//\\/\\\\} >/dev/null 2>&1 && exit 0; }")
 fi
-[ "$memoizeDecisionArgs" ] || memoizeDecisionArgs=(--memoize-group "$(basename -- "$0").$PPID")
 
 check()
 {
@@ -54,4 +56,5 @@ check && exit 0
 SOMETHING_SUBJECT="$EXECUTABLE"
 SOMETHING_STATE='exist'
 SOMETHING_ACTION='define it'
+SOMETHING_ACTION_PAST='defined'
 source somethingOr
