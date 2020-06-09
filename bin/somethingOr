@@ -8,7 +8,7 @@
 case "$1" in
     --usage)
 	shift
-	printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" "[-g|--memoize-group GROUP] [--bare|[--trailing-prompt|--no-trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--no-success-no-count|--no-count-on N] [--emulate-prompt] [--worst-status] [--timespan TIMESPAN[SUFFIX]] [--timeout TIMEOUT[SUFFIX]] [-d|--default c|y|a|l|A|d|n|o|v|N] [--recheck-at-end [--skip-after-num-subsequent-fails N] [--skip-after-num-total-fails N] [--skip-after-fail-for NUMBER[SUFFIX]]] [--recheck-at-checkpoints] ${SOMETHING_USAGE:?} [-?|-h|--help]"
+	printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" "[-g|--memoize-group GROUP] [--bare|[--trailing-prompt|--no-trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--no-success-no-count|--no-count-on N] [--emulate-prompt] [--worst-status]] [--timespan TIMESPAN[SUFFIX]] [--timeout TIMEOUT[SUFFIX]] [-d|--default c|y|a|l|A|d|n|o|v|N] [--recheck-at-end [--skip-after-num-subsequent-fails N] [--skip-after-num-total-fails N] [--skip-after-fail-for NUMBER[SUFFIX]]] [--recheck-at-checkpoints] ${SOMETHING_USAGE:?} [-?|-h|--help]"
 	printf 'Usage: %q %s <<EOF\n  COMMANDS\nEOF\n' "$(basename "$1")" "[...] ${SOMETHING_USAGE:?}"
 	return
 	;;
