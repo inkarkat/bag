@@ -16,6 +16,8 @@ case "$1" in
     --memoize-group|-g GROUP
 			    Optional application / use case for this tool's use.
 			    Determines the configuration directory.
+    --bare		    Do not print a status line before and after
+			    launching the COMMAND.
     --recheck-at-end	    will perform a second check after all COMMANDS have
 			    been read; if it fails, an error is printed and this
 			    command will fail.
