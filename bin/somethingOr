@@ -2,6 +2,8 @@
 
 : ${MEMOIZEDECISION_NEGATIVE_PREFIX=[33m}
 : ${MEMOIZEDECISION_NEGATIVE_SUFFIX=[0m}
+: ${SOMETHINGOR_ERROR_PREFIX=[31m}
+: ${SOMETHINGOR_ERROR_SUFFIX=[0m}
 
 case "$1" in
     --usage)
@@ -172,7 +174,7 @@ if [ "$isRecheckAtEnd" ]; then
 	    database --update "${SOMETHING_SUBJECT:?}" --column SUBSEQUENT_FAILS=0
 	fi
     else
-	printf >&2 'ERROR: %s still does not %s.\n' "${SOMETHING_SUBJECT:?}" "${SOMETHING_STATE:?}"
+	printf >&2 '%sERROR: %s still does not %s.%s\n' "$SOMETHINGOR_ERROR_PREFIX" "${SOMETHING_SUBJECT:?}" "${SOMETHING_STATE:?}" "$SOMETHINGOR_ERROR_SUFFIX"
 
 	# Do this before handling numSubsequentFails and numTotalFails so that
 	# --skip-after-fail-for takes precedence over
