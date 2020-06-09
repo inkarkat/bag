@@ -153,6 +153,10 @@ isSkipAfterNum()
 {
     [ -n "$numSubsequentFails" -o -n "$numTotalFails" ]
 }
+isSkipAfterFail()
+{
+    [ ${#failMemoizeDecisionArgs[@]} -gt 0 ]
+}
 handleSkipAfterNum()
 {
     # Do this before handling numSubsequentFails and numTotalFails so that
@@ -188,7 +192,7 @@ handleSkipAfterNum()
 }
 handleSkipAfterFail()
 {
-    if [ ${#failMemoizeDecisionArgs[@]} -gt 0 ]; then
+    if isSkipAfterFail; then
 	memoizeDecision "${memoizeDecisionArgs[@]}" --memoize-group "$group" --subject "${SOMETHING_SUBJECT:?}" --action "${SOMETHING_ACTION:?}" "${failMemoizeDecisionArgs[@]}"
 	return 1
     fi
