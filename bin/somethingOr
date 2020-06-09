@@ -149,12 +149,16 @@ database()
     miniDB --schema 'SUBJECT SUBSEQUENT_FAILS TOTAL_FAILS' --namespace succeedsOr --table "$group" "$@"
 }
 
+isSkipAfterNum()
+{
+    [ -n "$numSubsequentFails" -o -n "$numTotalFails" ]
+}
 handleSkipAfter()
 {
     # Do this before handling numSubsequentFails and numTotalFails so that
     # --skip-after-fail-for takes precedence over
     # --skip-after-num-subsequent-fails and --skip-after-num-total-fails.
-    if [ -n "$numSubsequentFails" -o -n "$numTotalFails" ]; then
+    if isSkipAfterNum; then
 	SUBSEQUENT_FAILS=
 	TOTAL_FAILS=
 	if queryResult="$(database --query "${SOMETHING_SUBJECT:?}" --as-shell-variables)"; then
@@ -184,7 +188,7 @@ handleSkipAfter()
     fi
 }
 
-if [ -n "$numSubsequentFails" -o -n "$numTotalFails" ]; then
+if isSkipAfterNum; then
     SUBSEQUENT_FAILS=
     TOTAL_FAILS=
     if queryResult="$(database --query "${SOMETHING_SUBJECT:?}" --as-shell-variables)"; then
