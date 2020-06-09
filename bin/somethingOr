@@ -176,10 +176,12 @@ handleSkipAfterNum()
 		printf >&2 '%s%s now could not be %s %d times in a row. I will not attempt to %s in the future any longer.%s\n' \
 		    "$MEMOIZEDECISION_NEGATIVE_PREFIX" "${SOMETHING_SUBJECT:?}" "${SOMETHING_ACTION_PAST:?}" "$SUBSEQUENT_FAILS" "${SOMETHING_ACTION:?}" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
 		failMemoizeDecisionArgs=()
+		return 1
 	    elif [ -n "$numTotalFails" ] && [ ${TOTAL_FAILS:-0} -ge $numTotalFails ]; then
 		printf >&2 '%s%s now could not be %s a total of %d times. I will not attempt to %s in the future any longer.%s\n' \
 		    "$MEMOIZEDECISION_NEGATIVE_PREFIX" "${SOMETHING_SUBJECT:?}" "${SOMETHING_ACTION_PAST:?}" "$TOTAL_FAILS" "${SOMETHING_ACTION:?}" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
 		failMemoizeDecisionArgs=()
+		return 1
 	    fi
 	fi
     fi
@@ -188,6 +190,7 @@ handleSkipAfterFail()
 {
     if [ ${#failMemoizeDecisionArgs[@]} -gt 0 ]; then
 	memoizeDecision "${memoizeDecisionArgs[@]}" --memoize-group "$group" --subject "${SOMETHING_SUBJECT:?}" --action "${SOMETHING_ACTION:?}" "${failMemoizeDecisionArgs[@]}"
+	return 1
     fi
 }
 resetSubsequentCounter()
