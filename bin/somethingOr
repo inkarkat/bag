@@ -190,6 +190,13 @@ handleSkipAfterFail()
 	memoizeDecision "${memoizeDecisionArgs[@]}" --memoize-group "$group" --subject "${SOMETHING_SUBJECT:?}" --action "${SOMETHING_ACTION:?}" "${failMemoizeDecisionArgs[@]}"
     fi
 }
+resetSubsequentCounter()
+{
+    if [ "$numSubsequentFails" ]; then
+	# Reset the counter for subsequent fails.
+	database --update "${SOMETHING_SUBJECT:?}" --column SUBSEQUENT_FAILS=0
+    fi
+}
 
 if isSkipAfterNum; then
     SUBSEQUENT_FAILS=
@@ -224,10 +231,7 @@ status=$?
 
 if [ "$isRecheckAtEnd" ]; then
     if check; then
-	if [ "$numSubsequentFails" ]; then
-	    # Reset the counter for subsequent fails.
-	    database --update "${SOMETHING_SUBJECT:?}" --column SUBSEQUENT_FAILS=0
-	fi
+	resetSubsequentCounter
     else
 	printf >&2 '%sERROR: %s still does not %s.%s\n' "$SOMETHINGOR_ERROR_PREFIX" "${SOMETHING_SUBJECT:?}" "${SOMETHING_STATE:?}" "$SOMETHINGOR_ERROR_SUFFIX"
 
