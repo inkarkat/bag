@@ -96,6 +96,7 @@ HELPTEXT
 	typeset -a memoizeDecisionArgs=()
 	group=
 	typeset -a failMemoizeDecisionArgs=()
+	failMemoizeDecisionTimestamp=
 	numSubsequentFails=
 	numTotalFails=
 	isRecheckAtEnd=
@@ -123,7 +124,7 @@ HELPTEXT
 					    shiftArg; numSubsequentFails="${ARGS[0]}"; shiftArg;;
 		--skip-after-num-total-fails)
 					    shiftArg; numTotalFails="${ARGS[0]}"; shiftArg;;
-		--skip-after-fail-for)	    shiftArg; memoizeDecisionArgs+=(--timespan "${ARGS[0]}"); failMemoizeDecisionArgs=(--set-decision no); shiftArg;;
+		--skip-after-fail-for)	    shiftArg; memoizeDecisionArgs+=(--timespan "${ARGS[0]}"); failMemoizeDecisionTimestamp="${ARGS[0]}"; failMemoizeDecisionArgs=(--set-decision no); shiftArg;;
 		--)			    shiftArg; return 1;;
 		-*)			    [ "$SOMETHING_ALLOW_ANY_OPTION" ] && return 1
 					    { echo "ERROR: Unknown option \"${ARGS[0]}\"!"; echo; printShortUsage "$0"; } >&2; exit 2
@@ -229,10 +230,27 @@ if isSkipAfterNum; then
 fi
 
 if [ ! "$isRecheckAtEnd" ]; then
-    isSkipped=
-    handleSkipAfterNum || isSkipped=t
-    handleSkipAfterFail || isSkipped=t
-    [ "$isSkipped" ] && exit 1
+    # Need to handle skips before the memoizeDecision call that may abort the
+    # execution of COMMANDS to avoid duplicate conflicting messages (first from
+    # memoizeDecision that it may attempt to run something, then from the skip
+    # handling that we've given up).
+    # And for the skips, we first need to check for --skip-after-fail-for and
+    # only then for --skip-after-num-*, so that the timeout takes precedence.
+    # This is the other way around than with the recheck, where the timeout gets
+    # set by the first call and then the second invocation first invokes
+    # memoizeDecision, and that does the timeout handling, and then we check for
+    # --skip-after-num-*. Here, we need to check for the timeout first, and do
+    # this directly through executionMarker (duplicating the call from
+    # memoizeDecision), because we don't want a positive message from
+    # memoizeDecision, only the negative one. Then handle --skip-for-num-*, and
+    # finally delegate to memoizeDecision.
+    if isSkipAfterFail && \
+	executionMarker --namespace memoizeDecision --group "$group" --fallback-subject '*' --query "${SOMETHING_SUBJECT:?}" --within "$failMemoizeDecisionTimestamp"; then
+	printf >&2 '%s%s does not %s. Do not %s yet again.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "${SOMETHING_SUBJECT:?}" "${SOMETHING_STATE:?}" "${SOMETHING_ACTION:?}" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
+	exit 1
+    fi
+
+    handleSkipAfterNum || exit 1
 fi
 
 memoizeDecision "${memoizeDecisionArgs[@]}" --memoize-group "$group" --subject "${SOMETHING_SUBJECT:?}" --state "${SOMETHING_STATE:?}" --action "${SOMETHING_ACTION:?}" || exit $?
