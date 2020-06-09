@@ -8,7 +8,7 @@
 case "$1" in
     --usage)
 	shift
-	printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" "[-g|--memoize-group GROUP] [--bare] [--timespan TIMESPAN[SUFFIX]] [--timeout TIMEOUT[SUFFIX]] [-d|--default c|y|a|l|A|d|n|o|v|N] [--recheck-at-end [--skip-after-num-subsequent-fails N] [--skip-after-num-total-fails N] [--skip-after-fail-for NUMBER[SUFFIX]]] [--recheck-at-checkpoints] ${SOMETHING_USAGE:?} [-?|-h|--help]"
+	printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" "[-g|--memoize-group GROUP] [--bare|[--trailing-prompt|--no-trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--no-success-no-count|--no-count-on N] [--emulate-prompt] [--worst-status] [--timespan TIMESPAN[SUFFIX]] [--timeout TIMEOUT[SUFFIX]] [-d|--default c|y|a|l|A|d|n|o|v|N] [--recheck-at-end [--skip-after-num-subsequent-fails N] [--skip-after-num-total-fails N] [--skip-after-fail-for NUMBER[SUFFIX]]] [--recheck-at-checkpoints] ${SOMETHING_USAGE:?} [-?|-h|--help]"
 	printf 'Usage: %q %s <<EOF\n  COMMANDS\nEOF\n' "$(basename "$1")" "[...] ${SOMETHING_USAGE:?}"
 	return
 	;;
@@ -20,6 +20,14 @@ case "$1" in
 			    Determines the configuration directory.
     --bare		    Do not print a status line before and after
 			    launching the COMMAND.
+    --trailing-prompt	    Customizations of the prompt emulation around
+    --no-trailing-prompt    COMMAND; cp. runWithPrompt
+    --no-output-no-prompt
+    --no-output-no-error
+    --no-success-no-count
+    --no-count-on N
+    --emulate-prompt
+    --worst-status
     --timespan TIMESPAN[SUFFIX]
 			    Recall a previous answer if a previous invocation
 			    (with an answer of yes/any/no/none) had happened
@@ -84,6 +92,7 @@ HELPTEXT
 	# set -- "${ARGS[@]}"
 	typeset -a ARGS=("$@")
 	isBare=
+	typeset -a runWithPromptArgs=()
 	typeset -a memoizeDecisionArgs=()
 	group=
 	typeset -a failMemoizeDecisionArgs=()
@@ -102,6 +111,9 @@ HELPTEXT
 	    case "${ARGS[0]}" in
 		--help|-h|-\?)		    shiftArg; printLongUsage "$0"; exit 0;;
 		--bare)			    shiftArg; isBare=t;;
+		--no-trailing-prompt|--trailing-prompt|--no-output-no-prompt|--no-output-no-error|--no-success-no-count|--emulate-prompt|--worst-status)
+					    runWithPromptArgs+=("${ARGS[0]}"); shiftArg;;
+		--no-count-on)		    runWithPromptArgs+=("${ARGS[0]}" "${ARGS[1]}"); shiftArg; shiftArg;;
 		--timespan|--timeout|--default|-d)
 					    memoizeDecisionArgs+=("${ARGS[0]}" "${ARGS[1]}"); shiftArg; shiftArg;;
 		--memoize-group|-g)	    shiftArg; group="${ARGS[0]}"; shiftArg;;
@@ -126,6 +138,7 @@ HELPTEXT
 		echo >&2 'Warning: Number of subsequent fails is larger than the number of total fails and will never be reached.'
 	    fi
 	    [ "$group" ] || group="$(basename -- "$0").$PPID"
+	    [ ${#runWithPromptArgs[@]} -eq 0 ] && runWithPromptArgs=(--no-trailing-prompt)
 	}
 	return
 	;;
@@ -161,7 +174,7 @@ runInput()
     if [ "$isBare" ]; then
 	bash -
     else
-	runWithPrompt --no-trailing-prompt
+	runWithPrompt "${runWithPromptArgs[@]}"
     fi
 }
 eval '"${checkpointPrePipeline[@]}"' "${checkpointPrePipeline:+|}" runInput
