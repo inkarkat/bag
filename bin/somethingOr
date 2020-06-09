@@ -201,6 +201,11 @@ resetSubsequentCounter()
     fi
 }
 
+if [ $status -eq 0 ]; then
+    exit 0
+fi
+
+
 if isSkipAfterNum; then
     SUBSEQUENT_FAILS=
     TOTAL_FAILS=

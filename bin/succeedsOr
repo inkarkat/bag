@@ -78,9 +78,7 @@ check()
 	"${commands[@]}"
     fi >/dev/null 2>&1
 )
-
-
-check && exit 0
+check; status=$?
 
 
 SOMETHING_SUBJECT="$commandName"

@@ -53,13 +53,14 @@ check()
 {
     pgrep --count "${pgrepArgs[@]}" >/dev/null
 }
-check && exit 0
-case $? in
+check; status=$?
+case $status in
     1)	;; # No processes matched, continue.
     2)	echo >&2 "ERROR: Invalid pgrep OPTIONS"; exit 2;;
     3)	echo >&2 "ERROR: Fatal pgrep error"; exit 3;;
     *)	echo >&2 "ERROR: Unknown pgrep error"; exit 3;;
 esac
+
 
 SOMETHING_SUBJECT="$pattern"
 SOMETHING_STATE='run'
