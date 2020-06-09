@@ -122,7 +122,7 @@ HELPTEXT
 		--skip-after-num-subsequent-fails)
 					    shiftArg; numSubsequentFails="${ARGS[0]}"; shiftArg;;
 		--skip-after-num-total-fails)
-					    shiftArg; numTotalFails="$1"; shiftArg;;
+					    shiftArg; numTotalFails="${ARGS[0]}"; shiftArg;;
 		--skip-after-fail-for)	    shiftArg; memoizeDecisionArgs+=(--timespan "${ARGS[0]}"); failMemoizeDecisionArgs=(--set-decision no); shiftArg;;
 		--)			    shiftArg; return 1;;
 		-*)			    [ "$SOMETHING_ALLOW_ANY_OPTION" ] && return 1
