@@ -149,6 +149,41 @@ database()
     miniDB --schema 'SUBJECT SUBSEQUENT_FAILS TOTAL_FAILS' --namespace succeedsOr --table "$group" "$@"
 }
 
+handleSkipAfter()
+{
+    # Do this before handling numSubsequentFails and numTotalFails so that
+    # --skip-after-fail-for takes precedence over
+    # --skip-after-num-subsequent-fails and --skip-after-num-total-fails.
+    if [ -n "$numSubsequentFails" -o -n "$numTotalFails" ]; then
+	SUBSEQUENT_FAILS=
+	TOTAL_FAILS=
+	if queryResult="$(database --query "${SOMETHING_SUBJECT:?}" --as-shell-variables)"; then
+	    eval "$queryResult"
+	    let SUBSEQUENT_FAILS+=1
+	    let TOTAL_FAILS+=1
+	elif [ $? -eq 1 -o $? -eq 4 ]; then
+	    let SUBSEQUENT_FAILS=1
+	    let TOTAL_FAILS=1
+	fi
+	if [ -n "$SUBSEQUENT_FAILS" -a -n "$TOTAL_FAILS" ]; then
+	    database --update "${SOMETHING_SUBJECT:?}	$SUBSEQUENT_FAILS	$TOTAL_FAILS"
+
+	    if [ -n "$numSubsequentFails" ] && [ ${SUBSEQUENT_FAILS:-0} -ge $numSubsequentFails ]; then
+		printf >&2 '%s%s now could not be %s %d times in a row. I will not attempt to %s in the future any longer.%s\n' \
+		    "$MEMOIZEDECISION_NEGATIVE_PREFIX" "${SOMETHING_SUBJECT:?}" "${SOMETHING_ACTION_PAST:?}" "$SUBSEQUENT_FAILS" "${SOMETHING_ACTION:?}" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
+		failMemoizeDecisionArgs=()
+	    elif [ -n "$numTotalFails" ] && [ ${TOTAL_FAILS:-0} -ge $numTotalFails ]; then
+		printf >&2 '%s%s now could not be %s a total of %d times. I will not attempt to %s in the future any longer.%s\n' \
+		    "$MEMOIZEDECISION_NEGATIVE_PREFIX" "${SOMETHING_SUBJECT:?}" "${SOMETHING_ACTION_PAST:?}" "$TOTAL_FAILS" "${SOMETHING_ACTION:?}" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
+		failMemoizeDecisionArgs=()
+	    fi
+	fi
+    fi
+    if [ ${#failMemoizeDecisionArgs[@]} -gt 0 ]; then
+	memoizeDecision "${memoizeDecisionArgs[@]}" --memoize-group "$group" --subject "${SOMETHING_SUBJECT:?}" --action "${SOMETHING_ACTION:?}" "${failMemoizeDecisionArgs[@]}"
+    fi
+}
+
 if [ -n "$numSubsequentFails" -o -n "$numTotalFails" ]; then
     SUBSEQUENT_FAILS=
     TOTAL_FAILS=
@@ -189,38 +224,7 @@ if [ "$isRecheckAtEnd" ]; then
     else
 	printf >&2 '%sERROR: %s still does not %s.%s\n' "$SOMETHINGOR_ERROR_PREFIX" "${SOMETHING_SUBJECT:?}" "${SOMETHING_STATE:?}" "$SOMETHINGOR_ERROR_SUFFIX"
 
-	# Do this before handling numSubsequentFails and numTotalFails so that
-	# --skip-after-fail-for takes precedence over
-	# --skip-after-num-subsequent-fails and --skip-after-num-total-fails.
-	if [ -n "$numSubsequentFails" -o -n "$numTotalFails" ]; then
-	    SUBSEQUENT_FAILS=
-	    TOTAL_FAILS=
-	    if queryResult="$(database --query "${SOMETHING_SUBJECT:?}" --as-shell-variables)"; then
-		eval "$queryResult"
-		let SUBSEQUENT_FAILS+=1
-		let TOTAL_FAILS+=1
-	    elif [ $? -eq 1 -o $? -eq 4 ]; then
-		let SUBSEQUENT_FAILS=1
-		let TOTAL_FAILS=1
-	    fi
-	    if [ -n "$SUBSEQUENT_FAILS" -a -n "$TOTAL_FAILS" ]; then
-		database --update "${SOMETHING_SUBJECT:?}	$SUBSEQUENT_FAILS	$TOTAL_FAILS"
-
-		if [ -n "$numSubsequentFails" ] && [ ${SUBSEQUENT_FAILS:-0} -ge $numSubsequentFails ]; then
-		    printf >&2 '%s%s now could not be %s %d times in a row. I will not attempt to %s in the future any longer.%s\n' \
-			"$MEMOIZEDECISION_NEGATIVE_PREFIX" "${SOMETHING_SUBJECT:?}" "${SOMETHING_ACTION_PAST:?}" "$SUBSEQUENT_FAILS" "${SOMETHING_ACTION:?}" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
-		    failMemoizeDecisionArgs=()
-		elif [ -n "$numTotalFails" ] && [ ${TOTAL_FAILS:-0} -ge $numTotalFails ]; then
-		    printf >&2 '%s%s now could not be %s a total of %d times. I will not attempt to %s in the future any longer.%s\n' \
-			"$MEMOIZEDECISION_NEGATIVE_PREFIX" "${SOMETHING_SUBJECT:?}" "${SOMETHING_ACTION_PAST:?}" "$TOTAL_FAILS" "${SOMETHING_ACTION:?}" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
-		    failMemoizeDecisionArgs=()
-		fi
-	    fi
-	fi
-	if [ ${#failMemoizeDecisionArgs[@]} -gt 0 ]; then
-	    memoizeDecision "${memoizeDecisionArgs[@]}" --memoize-group "$group" --subject "${SOMETHING_SUBJECT:?}" --action "${SOMETHING_ACTION:?}" "${failMemoizeDecisionArgs[@]}"
-	fi
-
+	handleSkipAfter
 
 	if [ $status -eq 0 ]; then
 	    exit 1
