@@ -245,7 +245,7 @@ if [ ! "$isRecheckAtEnd" ]; then
     # memoizeDecision, only the negative one. Then handle --skip-for-num-*, and
     # finally delegate to memoizeDecision.
     if isSkipAfterFail && \
-	executionMarker --namespace memoizeDecision --group "$group" --fallback-subject '*' --query "${SOMETHING_SUBJECT:?}" --within "$failMemoizeDecisionTimestamp"; then
+	executionMarker --namespace memoizeDecision --group "$group" --query "${SOMETHING_SUBJECT:?}" --within "$failMemoizeDecisionTimestamp"; then
 	printf >&2 '%s%s does not %s. Do not %s yet again.%s\n' "$MEMOIZEDECISION_NEGATIVE_PREFIX" "${SOMETHING_SUBJECT:?}" "${SOMETHING_STATE:?}" "${SOMETHING_ACTION:?}" "$MEMOIZEDECISION_NEGATIVE_SUFFIX"
 	exit 1
     fi
