@@ -4,8 +4,8 @@ printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-d|--or-existing DIRSPEC] [-c|--command "COMMANDLINE" [-c ...] | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
-    printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '[-d|--or-existing DIRSPEC] -|--stdin'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-d|--or-existing DIRSPEC] [-n|--name NAME] [-c|--command "COMMANDLINE" [-c ...] | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '[-d|--or-existing DIRSPEC] [-n|--name NAME] -|--stdin'
     printf 'Usage: %q %s <<EOF\n  COMMANDLINE\n...\nEOF\n' "$(basename "$1")" '[...] -|--stdin'
 }
 printUsage()
@@ -28,9 +28,11 @@ HELPDESCRIPTION
     --or-existing|-d DIRSPEC	Use DIRSPEC if it exists (and keep it
 				afterwards) instead of creating a new temporary
 				directory.
+    --name|-n NAME		Use NAME as the temp dir prefix.
 HELPTEXT
 }
 
+prefix="$(basename -- "$0")"
 tmpDirspec=
 isStdin=
 isNeedEval=
@@ -41,6 +43,7 @@ do
 	--help|-h|-\?)	shift; printLongUsage "$0"; exit 0;;
 	--or-existing|-d)
 			shift; tmpDirspec="$1"; shift;;
+	--name|-n)	shift; prefix="${1:?}"; shift;;
 	--command|-c)	shift; commands+=(${commands:+;} "$1"); isNeedEval=t; shift;;
 	--stdin|-)	shift; isStdin=t;;
 	--)		shift; break;;
@@ -66,9 +69,7 @@ fi
 
 
 if [ ! -d "$tmpDirspec" ]; then
-    readonly timestamp="$(date +%s.%N)"
-    tmpDirspec="${TEMP:-$HOME/tmp}/${timestamp:?}"
-    mkdir -p -- "${tmpDirspec:?}" || exit $?
+    tmpDirspec="$(mktemp --directory --tmpdir "${prefix}-XXXXXX" 2>/dev/null || { dirspec="${TEMP:-/tmp}/${prefix}.$$$RANDOM"; mkdir -p -- "$dirspec" && printf %s "$dirspec"; })" || exit $?
     cleanup()
     {
 	rm -rf "$tmpDirspec" 2>/dev/null
