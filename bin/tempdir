@@ -1,0 +1,13 @@
+#!/bin/bash
+
+typeset timestamp="$(date +%s)"
+typeset tmpDirspec="$HOME/tmp/$timestamp"
+mkdir -p "$tmpDirspec" || exit $?
+if [ $# -gt 0 ]; then
+    (cd "$tmpDirspec" && eval "$@")
+else
+    (cd "$tmpDirspec" && $SHELL)
+fi
+status=$?
+rm -rf "$tmpDirspec" 2>/dev/null
+exit $status
