@@ -1,13 +1,64 @@
 #!/bin/bash
 
-typeset timestamp="$(date +%s)"
-typeset tmpDirspec="$HOME/tmp/$timestamp"
-mkdir -p "$tmpDirspec" || exit $?
-if [ $# -gt 0 ]; then
-    (cd "$tmpDirspec" && eval "$@")
-else
-    (cd "$tmpDirspec" && $SHELL)
+printUsage()
+{
+    cat <<HELPTEXT
+Open a new shell in a temporary directory that is removed on exit.
+HELPTEXT
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-c|--command "COMMANDLINE" [-c ...] | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '-|--stdin'
+    printf 'Usage: %q %s <<EOF\n  COMMANDLINE\n...\nEOF\n' "$(basename "$1")" '-|--stdin'
+}
+
+isStdin=
+isNeedEval=
+typeset -a commands=()
+while [ $# -ne 0 ]
+do
+    case "$1" in
+	--help|-h|-\?)	shift; printUsage "$0"; exit 0;;
+	--command|-c)	shift; commands+=(${commands:+;} "$1"); isNeedEval=t; shift;;
+	--stdin|-)	shift; isStdin=t;;
+	--)		shift; break;;
+	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
+	*)		break;;
+    esac
+done
+if [ $# -ne 0 ]; then
+    if [ "$isNeedEval" ]; then
+	# Combine --command and SIMPLECOMMAND; need to quote SIMPLECOMMAND to
+	# undo the effects of eval.
+	commands+=(${commands:+;} $(printf '%q ' "$@"))
+    else
+	commands=("$@")
+    fi
+elif [ "$isStdin" ]; then
+    commands+=("$(< /dev/stdin)")
+    [ ${#commands[@]} -gt 0 ] || exit 1
+
+    isNeedEval=t
+    { exec 0</dev/tty; } 2>/dev/null
 fi
-status=$?
-rm -rf "$tmpDirspec" 2>/dev/null
-exit $status
+
+
+typeset timestamp="$(date +%s.%N)"
+typeset tmpDirspec="${TEMP:-$HOME/tmp}/${timestamp:?}"
+mkdir -p -- "${tmpDirspec:?}" || exit $?
+cleanup()
+{
+    rm -rf "$tmpDirspec" 2>/dev/null
+}
+[ "${DEBUG:-}" ] || trap 'cleanup' EXIT
+
+cd "$tmpDirspec" || exit $?
+
+if [ ${#commands[@]} -gt 0 ]; then
+    if [ "$isNeedEval" ]; then
+	eval "${commands[@]}"
+    else
+	"${commands[@]}"
+    fi
+else
+    let _SHLVL_BASE-=1
+    "$SHELL" -i
+fi
