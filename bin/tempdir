@@ -1,26 +1,50 @@
 #!/bin/bash
 
+printShortUsage()
+{
+    # Note: short followed by long option; if the user knows the short one, she can
+    # skim the long one.
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-d|--or-existing DIRSPEC] [-c|--command "COMMANDLINE" [-c ...] | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '[-d|--or-existing DIRSPEC] -|--stdin'
+    printf 'Usage: %q %s <<EOF\n  COMMANDLINE\n...\nEOF\n' "$(basename "$1")" '[...] -|--stdin'
+}
 printUsage()
 {
-    cat <<HELPTEXT
+    # This is the short help when launched with no or incorrect arguments.
+    # It is printed to stderr to avoid accidental processing.
+    printShortUsage "$1" >&2
+    printf >&2 'Try %q --help for more information.\n' "$(basename "$1")"
+}
+printLongUsage()
+{
+    # This is the long "man page" when launched with the help argument.
+    # It is printed to stdout to allow paging with 'more'.
+    cat <<HELPDESCRIPTION
 Open a new shell in a temporary directory that is removed on exit.
+HELPDESCRIPTION
+    echo
+    printShortUsage "$1"
+    cat <<HELPTEXT
+    --or-existing|-d DIRSPEC	Use DIRSPEC if it exists (and keep it
+				afterwards) instead of creating a new temporary
+				directory.
 HELPTEXT
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-c|--command "COMMANDLINE" [-c ...] | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
-    printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '-|--stdin'
-    printf 'Usage: %q %s <<EOF\n  COMMANDLINE\n...\nEOF\n' "$(basename "$1")" '-|--stdin'
 }
 
+tmpDirspec=
 isStdin=
 isNeedEval=
 typeset -a commands=()
 while [ $# -ne 0 ]
 do
     case "$1" in
-	--help|-h|-\?)	shift; printUsage "$0"; exit 0;;
+	--help|-h|-\?)	shift; printLongUsage "$0"; exit 0;;
+	--or-existing|-d)
+			shift; tmpDirspec="$1"; shift;;
 	--command|-c)	shift; commands+=(${commands:+;} "$1"); isNeedEval=t; shift;;
 	--stdin|-)	shift; isStdin=t;;
 	--)		shift; break;;
-	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
+	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printShortUsage "$0"; } >&2; exit 2;;
 	*)		break;;
     esac
 done
@@ -41,14 +65,16 @@ elif [ "$isStdin" ]; then
 fi
 
 
-typeset timestamp="$(date +%s.%N)"
-typeset tmpDirspec="${TEMP:-$HOME/tmp}/${timestamp:?}"
-mkdir -p -- "${tmpDirspec:?}" || exit $?
-cleanup()
-{
-    rm -rf "$tmpDirspec" 2>/dev/null
-}
-[ "${DEBUG:-}" ] || trap 'cleanup' EXIT
+if [ ! -d "$tmpDirspec" ]; then
+    readonly timestamp="$(date +%s.%N)"
+    tmpDirspec="${TEMP:-$HOME/tmp}/${timestamp:?}"
+    mkdir -p -- "${tmpDirspec:?}" || exit $?
+    cleanup()
+    {
+	rm -rf "$tmpDirspec" 2>/dev/null
+    }
+    [ "${DEBUG:-}" ] || trap 'cleanup' EXIT
+fi
 
 cd "$tmpDirspec" || exit $?
 
