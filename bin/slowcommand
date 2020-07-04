@@ -28,7 +28,7 @@ case "$1" in
     '')			echo >&2 'ERROR: No duration (NUMBER[SUFFIX]) passed.'; echo >&2; printUsage "$0" >&2; exit 2;;
 esac
 
-duration="$(timeToSeconds "$1")"; shift
+duration="$(timeToSeconds "$1")" || exit $?; shift
 before=
 isBare=
 isNeedEval=
@@ -38,7 +38,7 @@ while [ $# -ne 0 ]
 do
     case "$1" in
 	--help|-h|-\?)	shift; printUsage "$0"; exit 0;;
-	--before|-b)	shift; before="$(timeToSeconds "$1")"; shift;;
+	--before|-b)	shift; before="$(timeToSeconds "$1")" || exit $?; shift;;
 	--command|-c)	shift; commands+=(${commands:+;} "$1"); isNeedEval=t; shift;;
 	--bare)		shift; isBare=t;;
 	--no-trailing-prompt|--trailing-prompt|--emulate-prompt|--worst-status)  runWithPromptArgs+=("$1"); shift;;
