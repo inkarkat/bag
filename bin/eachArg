@@ -4,7 +4,7 @@ printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[--with-header|--with-prompt] -c|--command "COMMANDLINE" | SIMPLECOMMAND [...] -- ARGUMENT [...] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[--with-header|--with-prompt] [--usage-redirect COMMAND] -c|--command "COMMANDLINE" | SIMPLECOMMAND [...] -- ARGUMENT [...] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -29,6 +29,11 @@ HELPDESCRIPTION
 		    execution.
     --with-prompt   Emulate a full prompt (as if invoking COMMAND) before each
 		    execution.
+    --usage-redirect COMMAND
+		    When no ARGUMENT(s) are passed, redirect to COMMAND --help
+		    for usage instructions instead of printing this command's
+		    usage. Useful for wrapper scripts to delegate back to
+		    themselves.
 EXIT STATUS:
 Overall exit status is the highest status of all.
 
@@ -51,6 +56,7 @@ done
 with=
 typeset -a commands=()
 typeset -a simpleCommands=()
+usageRedirectCommand=
 while [ $# -ne 0 ]
 do
     case "$1" in
@@ -58,6 +64,8 @@ do
 	--command|-c)	shift; commands+=("$1"); isNeedEval=t; shift;;
 	--with-header)	shift; with=header;;
 	--with-prompt)	shift; with=prompt;;
+	--usage-redirect)
+			shift; usageRedirectCommand="$1"; shift;;
 	--)		shift; break;;
 	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
 	*)		typeset -a cmd=()
@@ -84,7 +92,11 @@ fi
 if [ $# -eq 0 ]; then
     echo >&2 'ERROR: No ARGUMENT(s) passed.'
     echo >&2
-    printShortUsage "$0" >&2
+    if [ "$usageRedirectCommand" ]; then
+	"$usageRedirectCommand" --help
+    else
+	printShortUsage "$0" >&2
+    fi
     exit 2
 fi
 
