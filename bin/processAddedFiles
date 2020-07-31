@@ -132,6 +132,8 @@ if [ -z "$id" ]; then
     exit 2
 elif [ ${#commands[@]} -eq 0 ]; then
     echo 'ERROR: No COMMAND(s) specified; need to pass -c|--command "COMMANDLINE", or SIMPLECOMMAND.'
+    echo
+    printShortUsage "$0"
     exit 2
 fi >&2
 
