@@ -18,6 +18,8 @@ newerFiles()
 {
     { printf '> '; printf '%q ' "$@"; printf \\n; } > "$ARG_FILESPEC"
 
+    [ "$NEWERFILES_EXIT" ] && return $NEWERFILES_EXIT
+
     if [ "$NEWERFILES" ]; then
 	echo -e "$NEWERFILES" | awk -v start=1000 '{ print ++start "\t" $0 }'
     fi

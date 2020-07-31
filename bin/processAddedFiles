@@ -87,6 +87,7 @@ id=
 typeset -a dirspecs=()
 typeset -a addedFileCommand=()
 typeset -a allFileCommand=()
+restartExitStatus=
 typeset -a fileExtractor=()
 typeset -a lastExtractor=()
 typeset -a initialFilter=()
@@ -103,6 +104,7 @@ do
 			abortLastNewest "$0"
 			addedFileCommand=(lastFiles --after)
 			allFileCommand=(lastFiles --count 2147483647)
+			restartExitStatus=4
 			;;
 	--newer|-N)	shift
 			abortLastNewest "$0"
@@ -172,6 +174,12 @@ typeset -a addedFilespecs=()
 addedFilespecs=($(
     if [ "$last" ]; then
 	eval '"${addedFileCommand[@]}" "$last" -- "${dirspecs[@]}"' "${maxFilter:+|}" '"${maxFilter[@]}"'
+	typeset -a status=("${PIPESTATUS[@]}")
+	if [ -n "$restartExitStatus" ] && [ ${status[0]} -eq $restartExitStatus ]; then
+	    eval '"${allFileCommand[@]}" -- "${dirspecs[@]}"' "${initialFilter:+|}" '"${initialFilter[@]}"'
+	else
+	    exit ${status[-1]}
+	fi
     else
 	eval '"${allFileCommand[@]}" -- "${dirspecs[@]}"' "${initialFilter:+|}" '"${initialFilter[@]}"'
     fi
