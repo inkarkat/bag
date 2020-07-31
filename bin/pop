@@ -1,14 +1,17 @@
-#!/bin/sh
+#!/bin/bash
 
 printUsage()
 {
     cat <<HELPTEXT
 Remove the first line from (the first non-empty) FILE and output it.
+With -d|--delete, an emptied file is removed from the file system as well.
 HELPTEXT
-    printf 'Usage: %q %s\n' "$(basename "$1")" 'FILE [...] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-d|--delete] FILE [...] [-?|-h|--help]'
 }
+isDelete=
 case "$1" in
     --help|-h|-\?)	shift; printUsage "$0"; exit 0;;
+    --delete|-d)	shift; isDelete=t;;
 esac
 if [ $# -eq 0 ]; then
     printUsage "$0" >&2
@@ -19,7 +22,13 @@ for filespec
 do
     if [ -s "$filespec" ]; then
 	sed -i -e '1w /dev/stdout' -e 1d -- "$filespec"
-	exit $?
+	status=$?
+
+	if [ "$isDelete" ] && [ -r "$filespec" -a ! -s "$filespec" ]; then
+	    rm -- "$filespec"
+	fi
+
+	exit $status
     fi
 done
 exit 1
