@@ -1,14 +1,13 @@
 #!/bin/bash
 
 export XDG_CONFIG_HOME="${BATS_TMPDIR}"
-setup() {
-    rm -f -- "${BATS_TMPDIR}/processAddedFiles"
-}
 
-export LASTFILES
+export LASTFILES LASTFILES_EXIT
 lastFiles()
 {
     { printf '%q ' "$@"; printf \\n; } > "$ARG_FILESPEC"
+
+    [ "$LASTFILES_EXIT" ] && return $LASTFILES_EXIT
 
     if [ "$LASTFILES" ]; then
 	echo -e "$LASTFILES"
@@ -18,7 +17,11 @@ export -f lastFiles
 
 export ARG_FILESPEC="${BATS_TMPDIR}/args"
 assert_args() {
-    [ "$(cat "$ARG_FILESPEC")" = "${1?} " ]
+    if [ -n "${1?}" ]; then
+	[ "$(cat "$ARG_FILESPEC")" = "${1?} " ]
+    else
+	[ ! -e "$ARG_FILESPEC" ]
+    fi
 }
 dump_args() {
     prefix '#' "$ARG_FILESPEC" >&3
@@ -29,4 +32,8 @@ assert_last() {
 }
 dump_last() {
     miniDB --table processAddedFiles --schema 'ID LAST' --query ID --columns LAST | prefix '#' >&3
+}
+
+setup() {
+    rm -f -- "${BATS_TMPDIR}/processAddedFiles" "$ARG_FILESPEC"
 }

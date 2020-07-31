@@ -142,20 +142,28 @@ database()
 }
 updateDatabase()
 {
-    database --update "${id:?}	${1:?}"
+    database --update "${id:?}	${1?}"
 }
 readDatabase()
 {
     database --query "${id:?}" --columns LAST
+    case $? in
+	1)	updateDatabase '';;
+	0|4)	return 0;;
+	*)	return 3;;
+    esac
 }
 
 IFS=$'\n'
+last="$(readDatabase)" || exit 3
 typeset -a addedFilespecs=()
-addedFilespecs=($(if last="$(readDatabase)"; then
-    eval '"${addedFileCommand[@]}" "$last" -- "${dirspecs[@]}"' "${maxFilter:+|}" '"${maxFilter[@]}"'
-else
-    eval '"${allFileCommand[@]}" -- "${dirspecs[@]}"' "${initialFilter:+|}" '"${initialFilter[@]}"'
-fi)) || exit 4
+addedFilespecs=($(
+    if [ "$last" ]; then
+	eval '"${addedFileCommand[@]}" "$last" -- "${dirspecs[@]}"' "${maxFilter:+|}" '"${maxFilter[@]}"'
+    else
+	eval '"${allFileCommand[@]}" -- "${dirspecs[@]}"' "${initialFilter:+|}" '"${initialFilter[@]}"'
+    fi
+)) || exit 4
 [ ${#addedFilespecs[@]} -eq 0 ] && exit 4
 
 if [ ${#fileExtractor[@]} -gt 0 ]; then
