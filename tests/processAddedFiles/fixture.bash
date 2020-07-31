@@ -2,7 +2,7 @@
 
 export XDG_CONFIG_HOME="${BATS_TMPDIR}"
 
-export LASTFILES LASTFILES_EXIT
+export LASTFILES LASTFILES_EXIT NEWERFILES
 lastFiles()
 {
     { printf '%q ' "$@"; printf \\n; } > "$ARG_FILESPEC"
@@ -14,6 +14,15 @@ lastFiles()
     fi
 }
 export -f lastFiles
+newerFiles()
+{
+    { printf '> '; printf '%q ' "$@"; printf \\n; } > "$ARG_FILESPEC"
+
+    if [ "$NEWERFILES" ]; then
+	echo -e "$NEWERFILES" | awk -v start=1000 '{ print ++start "\t" $0 }'
+    fi
+}
+export -f newerFiles
 
 export ARG_FILESPEC="${BATS_TMPDIR}/args"
 assert_args() {

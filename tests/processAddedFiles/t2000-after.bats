@@ -2,7 +2,7 @@
 
 load fixture
 
-@test "initial call queries all files and passes to simple command" {
+@test "initial call queries all later files and passes to simple command" {
     LASTFILES='foo\nbar\nwith space'
     run processAddedFiles --id ID --after -- printf '[%s]-'
 
@@ -12,7 +12,7 @@ load fixture
     assert_last 'with space'
 }
 
-@test "initial call and two updates, concluded by no further updates and passes to simple command" {
+@test "initial call and two later updates, concluded by no further updates and passes to simple command" {
     LASTFILES='foo\nbar\nwith space'
     run processAddedFiles --id ID --after -- printf '[%s]-'
 
@@ -46,7 +46,7 @@ load fixture
     assert_last 'files'
 }
 
-@test "initial call queries all files and passes to simple command with explicit {}" {
+@test "initial call queries all later files and passes to simple command with explicit {}" {
     LASTFILES='foo\nbar\nwith space'
     run processAddedFiles --id ID --after -- printf '[%s]-' first '{}' last
 
@@ -56,7 +56,7 @@ load fixture
     assert_last 'with space'
 }
 
-@test "initial call queries all files and passes to commandline" {
+@test "initial call queries later all files and passes to commandline" {
     LASTFILES='foo\nbar\nwith space'
     run processAddedFiles --id ID --after --command "printf '[%s]-'"
 
@@ -66,7 +66,7 @@ load fixture
     assert_last 'with space'
 }
 
-@test "initial call queries all files and passes to commandline with explicit {}" {
+@test "initial call queries all later files and passes to commandline with explicit {}" {
     LASTFILES='foo\nbar\nwith space'
     run processAddedFiles --id ID --after --command "printf first-; printf '[%s]-' {}; printf last"
 

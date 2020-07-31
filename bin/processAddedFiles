@@ -168,6 +168,7 @@ addedFilespecs=($(
 )) || exit 4
 [ ${#addedFilespecs[@]} -eq 0 ] && exit 4
 
+last="${addedFilespecs[-1]}"
 if [ ${#fileExtractor[@]} -gt 0 ]; then
     addedFilespecs=($(printf '%s\n' "${addedFilespecs[@]}" | "${fileExtractor[@]}")) || exit 3
 fi
@@ -195,8 +196,7 @@ else
 fi
 status=$?; [ $status -eq 0 ] || exit $status
 
-last="${addedFilespecs[-1]}"
-if [ ${#lastExtractor[@]} -gt 0 ];then
+if [ ${#lastExtractor[@]} -gt 0 ]; then
     last="$(printf '%s\n' "$last" | "${lastExtractor[@]}")" || exit 3
 fi
 
