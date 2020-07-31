@@ -72,6 +72,16 @@ abortLastNewest()
     printShortUsage "$1" >&2
     exit 2
 }
+abortFirstLastFilter()
+{
+    local what="${1:?}"; shift
+    [ $# -eq 0 ] && return
+
+    echo >&2 "ERROR: Only one of --${what}-first or --${what}-last can be passed."
+    echo >&2
+    printShortUsage "$1" >&2
+    exit 2
+}
 
 id=
 typeset -a dirspecs=()
@@ -102,13 +112,13 @@ do
 			lastExtractor=(cut -f 1)
 			;;
 	--initial-first)
-			shift; initialFilter=(head -n "${1:?}"); shift;;
+			shift; abortFirstLastFilter initial "${initialFilter[@]}"; initialFilter=(head -n "${1:?}"); shift;;
 	--initial-last)
-			shift; initialFilter=(tail -n "${1:?}"); shift;;
+			shift; abortFirstLastFilter initial "${initialFilter[@]}"; initialFilter=(tail -n "${1:?}"); shift;;
 	--max-first)
-			shift; maxFilter=(head -n "${1:?}"); shift;;
+			shift; abortFirstLastFilter max "${maxFilter[@]}"; maxFilter=(head -n "${1:?}"); shift;;
 	--max-last)
-			shift; maxFilter=(tail -n "${1:?}"); shift;;
+			shift; abortFirstLastFilter max "${maxFilter[@]}"; maxFilter=(tail -n "${1:?}"); shift;;
 	--command|-c)	shift; commands+=(${commands:+;} "$1"); isNeedEval=t; shift;;
 	--)		shift; break;;
 	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
