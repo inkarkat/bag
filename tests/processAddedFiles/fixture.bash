@@ -20,7 +20,13 @@ export ARG_FILESPEC="${BATS_TMPDIR}/args"
 assert_args() {
     [ "$(cat "$ARG_FILESPEC")" = "${1?} " ]
 }
-
 dump_args() {
     prefix '#' "$ARG_FILESPEC" >&3
+}
+
+assert_last() {
+    [ "$(miniDB --table processAddedFiles --schema 'ID LAST' --query ID --columns LAST)" = "${1?}" ]
+}
+dump_last() {
+    miniDB --table processAddedFiles --schema 'ID LAST' --query ID --columns LAST | prefix '#' >&3
 }
