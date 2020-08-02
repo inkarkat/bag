@@ -5,7 +5,7 @@ printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
-    printf 'Usage: %q %s\n' "$(basename "$1")" '-i|--id ID [-d|--dir DIRSPEC [...]] -a|--after|-N|--newer [--initial-first|--initial-last I] [--max-first|--max-last M] -c|--command "COMMANDLINE" [-c ...] | [--] SIMPLECOMMAND [...] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '-i|--id ID [-d|--dir DIRSPEC [...]] -a|--after|-N|--newer [--initial-first|--initial-last I] [--max-first|--max-last M] [-s|--skip '\''GLOB'\'' [...]] -c|--command "COMMANDLINE" [-c ...] | [--] SIMPLECOMMAND [...] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -48,6 +48,7 @@ HELPDESCRIPTION
     --max-last M	Only process the last M files that were added since the
 			last run. If more are available, these will be skipped
 			over, also by subsequent runs.
+    --skip|-s 'GLOB'	Ignore added files that match GLOB.
     --command|-c CMD	Execute CMD as a command-line. The file names that have
 			been added will either be appended or replace any {}
 			marker inside CMD.
@@ -92,6 +93,7 @@ typeset -a fileExtractor=()
 typeset -a lastExtractor=()
 typeset -a initialFilter=()
 typeset -a maxFilter=()
+typeset -a skipGlobs=()
 isNeedEval=
 typeset -a commands=()
 while [ $# -ne 0 ]
@@ -121,6 +123,7 @@ do
 			shift; abortFirstLastFilter max "${maxFilter[@]}"; maxFilter=(head -n "${1:?}"); shift;;
 	--max-last)
 			shift; abortFirstLastFilter max "${maxFilter[@]}"; maxFilter=(tail -n "${1:?}"); shift;;
+	--skip|-s)	shift; skipGlobs+=("$1"); shift;;
 	--command|-c)	shift; commands+=(${commands:+;} "$1"); isNeedEval=t; shift;;
 	--)		shift; break;;
 	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
@@ -185,6 +188,20 @@ addedFilespecs=($(
     fi
 )) || exit 4
 [ ${#addedFilespecs[@]} -eq 0 ] && exit 4
+
+if [ ${#skipGlobs[@]} -gt 0 ]; then
+    if [ ${#fileExtractor[@]} -gt 0 ]; then
+	typeset -a acceptedFilespecs=()
+	for filespec in "${addedFilespecs[@]}"
+	do
+	    extractedFilespec="$(printf '%s\n' "$filespec" | "${fileExtractor[@]}")"
+	    globmatch "${skipGlobs[@]}" -- "$extractedFilespec" || acceptedFilespecs+=("$filespec")
+	done
+	addedFilespecs=("${acceptedFilespecs[@]}")
+    else
+	addedFilespecs=($(globmatch --files-not-matching "${skipGlobs[@]}" -- "${addedFilespecs[@]}"))
+    fi
+fi
 
 last="${addedFilespecs[-1]}"
 if [ ${#fileExtractor[@]} -gt 0 ]; then
