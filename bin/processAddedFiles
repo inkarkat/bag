@@ -201,6 +201,7 @@ if [ ${#skipGlobs[@]} -gt 0 ]; then
     else
 	addedFilespecs=($(globmatch --files-not-matching "${skipGlobs[@]}" -- "${addedFilespecs[@]}"))
     fi
+    [ ${#addedFilespecs[@]} -eq 0 ] && exit 4
 fi
 
 last="${addedFilespecs[-1]}"
