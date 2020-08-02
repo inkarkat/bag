@@ -48,7 +48,8 @@ HELPDESCRIPTION
     --max-last M	Only process the last M files that were added since the
 			last run. If more are available, these will be skipped
 			over, also by subsequent runs.
-    --skip|-s 'GLOB'	Ignore added files that match GLOB.
+    --skip|-s 'GLOB'	Ignore added files that match GLOB (either the full
+			path, or just the filename).
     --command|-c CMD	Execute CMD as a command-line. The file names that have
 			been added will either be appended or replace any {}
 			marker inside CMD.
