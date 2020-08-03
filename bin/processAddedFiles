@@ -217,7 +217,11 @@ if [ "$isNeedEval" ]; then
     printf -v quotedAddedFilespecs '%q ' "${addedFilespecs[@]}"; quotedAddedFilespecs=${quotedAddedFilespecs% }
     typeset -a interpolatedCommands=("${commands[@]//"$PROCESSADDEDFILES_FILE_MARKER"/$quotedAddedFilespecs}")
     [ "${interpolatedCommands[*]}" = "${commands[*]}" ] && interpolatedCommands="$interpolatedCommands $quotedAddedFilespecs"
+    saveProcessAddedFilesFileMarker="$PROCESSADDEDFILES_FILE_MARKER"; unset PROCESSADDEDFILES_FILE_MARKER
+
     eval "${interpolatedCommands[@]}"
+
+    PROCESSADDEDFILES_FILE_MARKER="$saveProcessAddedFilesFileMarker"
 else
     didInterpolate=
     typeset -a interpolatedCommands=()
@@ -231,8 +235,11 @@ else
 	fi
     done
     [ "$didInterpolate" ] || interpolatedCommands+=("${addedFilespecs[@]}")
+    saveProcessAddedFilesFileMarker="$PROCESSADDEDFILES_FILE_MARKER"; unset PROCESSADDEDFILES_FILE_MARKER
 
     "${interpolatedCommands[@]}"
+
+    PROCESSADDEDFILES_FILE_MARKER="$saveProcessAddedFilesFileMarker"
 fi
 status=$?; [ $status -eq 0 ] || exit $status
 

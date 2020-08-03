@@ -133,11 +133,15 @@ case "$with" in
 	    typeset -a interpolatedCommands=("${commands[@]//"$EACHARG_ARG_MARKER"/$arg}")
 	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || a=()
 
+	    saveEachArgArgMarker="$EACHARG_ARG_MARKER"; unset EACHARG_ARG_MARKER
+
 	    if [ "$isNeedEval" ]; then
 		eval "${interpolatedCommands[@]}" '"${a[@]}"'
 	    else
 		"${interpolatedCommands[@]}" "${a[@]}"
 	    fi || { exitStatus=$?; if [ $exitStatus -gt $status ]; then status=$exitStatus; fi; }
+
+	    EACHARG_ARG_MARKER="$saveEachArgArgMarker"
 	done
 	exit $status
 	;;

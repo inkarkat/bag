@@ -163,11 +163,15 @@ case "$with" in
 	    typeset -a interpolatedCommands=("${commands[@]//"$EACHFILE_FILE_MARKER"/$filespec}")
 	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || f=()
 
+	    saveEachFileFileMarker="$EACHFILE_FILE_MARKER"; unset EACHFILE_FILE_MARKER
+
 	    if [ "$isNeedEval" ]; then
 		eval "${interpolatedCommands[@]}" '"${f[@]}"'
 	    else
 		"${interpolatedCommands[@]}" "${f[@]}"
 	    fi || { exitStatus=$?; if [ $exitStatus -gt $status ]; then status=$exitStatus; fi; }
+
+	    EACHFILE_FILE_MARKER="$saveEachFileFileMarker"
 	done
 	exit $status
 	;;
