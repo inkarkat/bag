@@ -1,6 +1,8 @@
 #!/bin/bash
 set -o noglob -o pipefail
 
+: ${PROCESSADDEDFILES_FILE_MARKER:='{}'}
+
 printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
@@ -136,7 +138,8 @@ if [ $# -ne 0 ]; then
 	# Combine --command and SIMPLECOMMAND; need to quote SIMPLECOMMAND to
 	# undo the effects of eval.
 	printf -v quotedSimpleCommand '%q ' "$@"
-	commands+=(${commands:+;} "${quotedSimpleCommand//\\\{\\\}/\{\}}")	# %q escapes {}, we don't want that to have it interpolated later.
+	printf -v escapedFileMarker %q "$PROCESSADDEDFILES_FILE_MARKER"
+	commands+=(${commands:+;} "${quotedSimpleCommand//"$escapedFileMarker"/$PROCESSADDEDFILES_FILE_MARKER}")	# %q escapes {}, we don't want that to have it interpolated later.
     else
 	commands=("$@")
     fi
@@ -212,7 +215,7 @@ fi
 
 if [ "$isNeedEval" ]; then
     printf -v quotedAddedFilespecs '%q ' "${addedFilespecs[@]}"; quotedAddedFilespecs=${quotedAddedFilespecs% }
-    typeset -a interpolatedCommands=("${commands[@]//\{\}/$quotedAddedFilespecs}")
+    typeset -a interpolatedCommands=("${commands[@]//"$PROCESSADDEDFILES_FILE_MARKER"/$quotedAddedFilespecs}")
     [ "${interpolatedCommands[*]}" = "${commands[*]}" ] && interpolatedCommands="$interpolatedCommands $quotedAddedFilespecs"
     eval "${interpolatedCommands[@]}"
 else
@@ -220,7 +223,7 @@ else
     typeset -a interpolatedCommands=()
     for c in "${commands[@]}"
     do
-	if [ "$c" = '{}' ]; then
+	if [ "$c" = "$PROCESSADDEDFILES_FILE_MARKER" ]; then
 	    interpolatedCommands+=("${addedFilespecs[@]}")
 	    didInterpolate=t
 	else

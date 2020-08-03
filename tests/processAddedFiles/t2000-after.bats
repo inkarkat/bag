@@ -91,3 +91,14 @@ load fixture
     assert_args '--after with\ space --'
     assert_last 'with space'
 }
+
+@test "initial call queries all later files and passes to simple command with reconfigured [X] marker, leaving any {} intact" {
+    LASTFILES='foo\nbar\nwith space'
+    export PROCESSADDEDFILES_FILE_MARKER='[X]'
+    run processAddedFiles --id ID --after -- printf '[%s]-{}-' first '[X]' last
+
+    [ $status -eq 0 ]
+    [ "$output" = "[first]-{}-[foo]-{}-[bar]-{}-[with space]-{}-[last]-{}-" ]
+    assert_args '--count 2147483647 --'
+    assert_last 'with space'
+}
