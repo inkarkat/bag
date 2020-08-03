@@ -131,7 +131,7 @@ case "$with" in
 
 	    [ "$isNeedEval" ] && printf -v filespec '%q' "$filespec"
 	    typeset -a interpolatedCommands=("${commands[@]//"$EACHFILE_FILE_MARKER"/$filespec}")
-	    typeset -a f=("$filespec")
+	    typeset -a f=("$filespec")	# Quoter for isNeedEval=t is off, so need to use quoted arg here.
 	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || f=()
 
 	    printf 'cd %q && ' "$dirspec"
@@ -158,9 +158,9 @@ case "$with" in
 		filespec="$(basename -- "$filespec")"
 	    fi
 
+	    typeset -a f=("$filespec")	# No quoting, as array provides separation.
 	    [ "$isNeedEval" ] && printf -v filespec '%q' "$filespec"
 	    typeset -a interpolatedCommands=("${commands[@]//"$EACHFILE_FILE_MARKER"/$filespec}")
-	    typeset -a f=("$filespec")
 	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || f=()
 
 	    if [ "$isNeedEval" ]; then
