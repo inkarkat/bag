@@ -164,10 +164,10 @@ case "$with" in
 	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || f=()
 
 	    if [ "$isNeedEval" ]; then
-		eval "${interpolatedCommands[@]}" '"${f[@]}"' || { exitStatus=$?; if [ $exitStatus -gt $status ]; then status=$exitStatus; fi; }
+		eval "${interpolatedCommands[@]}" '"${f[@]}"'
 	    else
-		"${interpolatedCommands[@]}" "${f[@]}" || { exitStatus=$?; if [ $exitStatus -gt $status ]; then status=$exitStatus; fi; }
-	    fi
+		"${interpolatedCommands[@]}" "${f[@]}"
+	    fi || { exitStatus=$?; if [ $exitStatus -gt $status ]; then status=$exitStatus; fi; }
 	done
 	exit $status
 	;;
