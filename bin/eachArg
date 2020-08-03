@@ -1,5 +1,7 @@
 #!/bin/bash
 
+: ${EACHARG_ARG_MARKER:='{}'}
+
 printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
@@ -19,7 +21,7 @@ printLongUsage()
     # It is printed to stdout to allow paging with 'more'.
     cat <<HELPDESCRIPTION
 Execute COMMAND with each supplied ARGUMENT (which either is appended or
-replaces any {} marker inside COMMANDLINE) individually. So one invocation of
+replaces any $EACHARG_ARG_MARKER marker inside COMMANDLINE) individually. So one invocation of
 COMMAND per ARGUMENT.
 HELPDESCRIPTION
     echo
@@ -78,7 +80,8 @@ do
 			    # Combine --command and SIMPLECOMMAND; need to quote SIMPLECOMMAND to
 			    # undo the effects of eval.
 			    printf -v quotedSimpleCommand '%q ' "${cmd[@]}"
-			    commands+=(${commands:+;} "${quotedSimpleCommand//\\\{\\\}/\{\}}")	# %q escapes {}, we don't want that to have it interpolated later.
+			    printf -v escapedArgMarker %q "$EACHARG_ARG_MARKER"
+			    commands+=(${commands:+;} "${quotedSimpleCommand//"$escapedArgMarker"/$EACHARG_ARG_MARKER}")	# %q escapes {}, we don't want that to have it interpolated later.
 			else
 			    commands+=(${commands:+;} "$cmd")
 			fi
@@ -107,8 +110,8 @@ case "$with" in
 	for arg
 	do
 	    [ "$isNeedEval" ] && printf -v arg '%q' "$arg"
-	    typeset -a interpolatedCommands=("${commands[@]//\{\}/$arg}")
-	    typeset -a a=("$arg")
+	    typeset -a interpolatedCommands=("${commands[@]//"$EACHARG_ARG_MARKER"/$arg}")
+	    typeset -a a=("$arg")   # Quoter for isNeedEval=t is off, so need to use quoted arg here.
 	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || a=()
 
 	    printf "$quoter " "${interpolatedCommands[@]}" "${a[@]}"
@@ -125,9 +128,9 @@ case "$with" in
 		firstArg=()
 	    fi
 
+	    typeset -a a=("$arg")   # No quoting, as array provides separation.
 	    [ "$isNeedEval" ] && printf -v arg '%q' "$arg"
-	    typeset -a interpolatedCommands=("${commands[@]//\{\}/$arg}")
-	    typeset -a a=("$arg")
+	    typeset -a interpolatedCommands=("${commands[@]//"$EACHARG_ARG_MARKER"/$arg}")
 	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || a=()
 
 	    if [ "$isNeedEval" ]; then
