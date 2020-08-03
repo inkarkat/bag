@@ -98,7 +98,7 @@ do
 			    printf -v escapedFileMarker %q "$EACHFILE_FILE_MARKER"
 			    commands+=(${commands:+;} "${quotedSimpleCommand//"$escapedFileMarker"/$EACHFILE_FILE_MARKER}")	# %q escapes {}, we don't want that to have it interpolated later.
 			else
-			    commands+=(${commands:+;} "$cmd")
+			    commands+=(${commands:+;} "${cmd[@]}")
 			fi
 			;;
     esac

@@ -83,7 +83,7 @@ do
 			    printf -v escapedArgMarker %q "$EACHARG_ARG_MARKER"
 			    commands+=(${commands:+;} "${quotedSimpleCommand//"$escapedArgMarker"/$EACHARG_ARG_MARKER}")	# %q escapes {}, we don't want that to have it interpolated later.
 			else
-			    commands+=(${commands:+;} "$cmd")
+			    commands+=(${commands:+;} "${cmd[@]}")
 			fi
 			;;
     esac
