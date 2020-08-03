@@ -1,5 +1,7 @@
 #!/bin/bash
 
+: ${EACHFILE_FILE_MARKER:='{}'}
+
 printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
@@ -19,7 +21,7 @@ printLongUsage()
     # This is the long "man page" when launched with the help argument.
     # It is printed to stdout to allow paging with 'more'.
     cat <<HELPDESCRIPTION
-Execute COMMAND on each FILE (which either is appended or replaces any {} marker
+Execute COMMAND on each FILE (which either is appended or replaces any $EACHFILE_FILE_MARKER marker
 inside COMMANDLINE) individually. So one invocation of COMMAND per FILE.
 HELPDESCRIPTION
     echo
@@ -93,7 +95,8 @@ do
 			    # Combine --command and SIMPLECOMMAND; need to quote SIMPLECOMMAND to
 			    # undo the effects of eval.
 			    printf -v quotedSimpleCommand '%q ' "${cmd[@]}"
-			    commands+=(${commands:+;} "${quotedSimpleCommand//\\\{\\\}/\{\}}")	# %q escapes {}, we don't want that to have it interpolated later.
+			    printf -v escapedFileMarker %q "$EACHFILE_FILE_MARKER"
+			    commands+=(${commands:+;} "${quotedSimpleCommand//"$escapedFileMarker"/$EACHFILE_FILE_MARKER}")	# %q escapes {}, we don't want that to have it interpolated later.
 			else
 			    commands+=(${commands:+;} "$cmd")
 			fi
@@ -127,7 +130,7 @@ case "$with" in
 	    fi
 
 	    [ "$isNeedEval" ] && printf -v filespec '%q' "$filespec"
-	    typeset -a interpolatedCommands=("${commands[@]//\{\}/$filespec}")
+	    typeset -a interpolatedCommands=("${commands[@]//"$EACHFILE_FILE_MARKER"/$filespec}")
 	    typeset -a f=("$filespec")
 	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || f=()
 
@@ -156,7 +159,7 @@ case "$with" in
 	    fi
 
 	    [ "$isNeedEval" ] && printf -v filespec '%q' "$filespec"
-	    typeset -a interpolatedCommands=("${commands[@]//\{\}/$filespec}")
+	    typeset -a interpolatedCommands=("${commands[@]//"$EACHFILE_FILE_MARKER"/$filespec}")
 	    typeset -a f=("$filespec")
 	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || f=()
 
