@@ -2,6 +2,7 @@
 set -o noglob -o pipefail
 
 : ${PROCESSADDEDFILES_FILE_MARKER:='{}'}
+fileMarker="$PROCESSADDEDFILES_FILE_MARKER"; unset PROCESSADDEDFILES_FILE_MARKER
 
 printShortUsage()
 {
@@ -138,8 +139,8 @@ if [ $# -ne 0 ]; then
 	# Combine --command and SIMPLECOMMAND; need to quote SIMPLECOMMAND to
 	# undo the effects of eval.
 	printf -v quotedSimpleCommand '%q ' "$@"
-	printf -v escapedFileMarker %q "$PROCESSADDEDFILES_FILE_MARKER"
-	commands+=(${commands:+;} "${quotedSimpleCommand//"$escapedFileMarker"/$PROCESSADDEDFILES_FILE_MARKER}")	# %q escapes {}, we don't want that to have it interpolated later.
+	printf -v escapedFileMarker %q "$fileMarker"
+	commands+=(${commands:+;} "${quotedSimpleCommand//"$escapedFileMarker"/$fileMarker}")	# %q escapes {}, we don't want that to have it interpolated later.
     else
 	commands=("$@")
     fi
@@ -215,19 +216,16 @@ fi
 
 if [ "$isNeedEval" ]; then
     printf -v quotedAddedFilespecs '%q ' "${addedFilespecs[@]}"; quotedAddedFilespecs=${quotedAddedFilespecs% }
-    typeset -a interpolatedCommands=("${commands[@]//"$PROCESSADDEDFILES_FILE_MARKER"/$quotedAddedFilespecs}")
+    typeset -a interpolatedCommands=("${commands[@]//"$fileMarker"/$quotedAddedFilespecs}")
     [ "${interpolatedCommands[*]}" = "${commands[*]}" ] && interpolatedCommands="$interpolatedCommands $quotedAddedFilespecs"
-    saveProcessAddedFilesFileMarker="$PROCESSADDEDFILES_FILE_MARKER"; unset PROCESSADDEDFILES_FILE_MARKER
 
     eval "${interpolatedCommands[@]}"
-
-    PROCESSADDEDFILES_FILE_MARKER="$saveProcessAddedFilesFileMarker"
 else
     didInterpolate=
     typeset -a interpolatedCommands=()
     for c in "${commands[@]}"
     do
-	if [ "$c" = "$PROCESSADDEDFILES_FILE_MARKER" ]; then
+	if [ "$c" = "$fileMarker" ]; then
 	    interpolatedCommands+=("${addedFilespecs[@]}")
 	    didInterpolate=t
 	else
@@ -235,11 +233,8 @@ else
 	fi
     done
     [ "$didInterpolate" ] || interpolatedCommands+=("${addedFilespecs[@]}")
-    saveProcessAddedFilesFileMarker="$PROCESSADDEDFILES_FILE_MARKER"; unset PROCESSADDEDFILES_FILE_MARKER
 
     "${interpolatedCommands[@]}"
-
-    PROCESSADDEDFILES_FILE_MARKER="$saveProcessAddedFilesFileMarker"
 fi
 status=$?; [ $status -eq 0 ] || exit $status
 

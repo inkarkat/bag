@@ -1,6 +1,7 @@
 #!/bin/bash
 
 : ${EACHFILE_FILE_MARKER:='{}'}
+fileMarker="$EACHFILE_FILE_MARKER"; unset EACHFILE_FILE_MARKER
 
 printShortUsage()
 {
@@ -21,7 +22,7 @@ printLongUsage()
     # This is the long "man page" when launched with the help argument.
     # It is printed to stdout to allow paging with 'more'.
     cat <<HELPDESCRIPTION
-Execute COMMAND on each FILE (which either is appended or replaces any $EACHFILE_FILE_MARKER marker
+Execute COMMAND on each FILE (which either is appended or replaces any $fileMarker marker
 inside COMMANDLINE) individually. So one invocation of COMMAND per FILE.
 HELPDESCRIPTION
     echo
@@ -95,8 +96,8 @@ do
 			    # Combine --command and SIMPLECOMMAND; need to quote SIMPLECOMMAND to
 			    # undo the effects of eval.
 			    printf -v quotedSimpleCommand '%q ' "${cmd[@]}"
-			    printf -v escapedFileMarker %q "$EACHFILE_FILE_MARKER"
-			    commands+=(${commands:+;} "${quotedSimpleCommand//"$escapedFileMarker"/$EACHFILE_FILE_MARKER}")	# %q escapes {}, we don't want that to have it interpolated later.
+			    printf -v escapedFileMarker %q "$fileMarker"
+			    commands+=(${commands:+;} "${quotedSimpleCommand//"$escapedFileMarker"/$fileMarker}")	# %q escapes {}, we don't want that to have it interpolated later.
 			else
 			    commands+=(${commands:+;} "${cmd[@]}")
 			fi
@@ -130,7 +131,7 @@ case "$with" in
 	    fi
 
 	    [ "$isNeedEval" ] && printf -v filespec '%q' "$filespec"
-	    typeset -a interpolatedCommands=("${commands[@]//"$EACHFILE_FILE_MARKER"/$filespec}")
+	    typeset -a interpolatedCommands=("${commands[@]//"$fileMarker"/$filespec}")
 	    typeset -a f=("$filespec")	# Quoter for isNeedEval=t is off, so need to use quoted arg here.
 	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || f=()
 
@@ -160,18 +161,14 @@ case "$with" in
 
 	    typeset -a f=("$filespec")	# No quoting, as array provides separation.
 	    [ "$isNeedEval" ] && printf -v filespec '%q' "$filespec"
-	    typeset -a interpolatedCommands=("${commands[@]//"$EACHFILE_FILE_MARKER"/$filespec}")
+	    typeset -a interpolatedCommands=("${commands[@]//"$fileMarker"/$filespec}")
 	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || f=()
-
-	    saveEachFileFileMarker="$EACHFILE_FILE_MARKER"; unset EACHFILE_FILE_MARKER
 
 	    if [ "$isNeedEval" ]; then
 		eval "${interpolatedCommands[@]}" '"${f[@]}"'
 	    else
 		"${interpolatedCommands[@]}" "${f[@]}"
 	    fi || { exitStatus=$?; if [ $exitStatus -gt $status ]; then status=$exitStatus; fi; }
-
-	    EACHFILE_FILE_MARKER="$saveEachFileFileMarker"
 	done
 	exit $status
 	;;

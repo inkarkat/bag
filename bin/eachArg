@@ -1,6 +1,7 @@
 #!/bin/bash
 
 : ${EACHARG_ARG_MARKER:='{}'}
+argMarker="$EACHARG_ARG_MARKER"; unset EACHARG_ARG_MARKER
 
 printShortUsage()
 {
@@ -21,7 +22,7 @@ printLongUsage()
     # It is printed to stdout to allow paging with 'more'.
     cat <<HELPDESCRIPTION
 Execute COMMAND with each supplied ARGUMENT (which either is appended or
-replaces any $EACHARG_ARG_MARKER marker inside COMMANDLINE) individually. So one invocation of
+replaces any $argMarker marker inside COMMANDLINE) individually. So one invocation of
 COMMAND per ARGUMENT.
 HELPDESCRIPTION
     echo
@@ -80,8 +81,8 @@ do
 			    # Combine --command and SIMPLECOMMAND; need to quote SIMPLECOMMAND to
 			    # undo the effects of eval.
 			    printf -v quotedSimpleCommand '%q ' "${cmd[@]}"
-			    printf -v escapedArgMarker %q "$EACHARG_ARG_MARKER"
-			    commands+=(${commands:+;} "${quotedSimpleCommand//"$escapedArgMarker"/$EACHARG_ARG_MARKER}")	# %q escapes {}, we don't want that to have it interpolated later.
+			    printf -v escapedArgMarker %q "$argMarker"
+			    commands+=(${commands:+;} "${quotedSimpleCommand//"$escapedArgMarker"/$argMarker}")	# %q escapes {}, we don't want that to have it interpolated later.
 			else
 			    commands+=(${commands:+;} "${cmd[@]}")
 			fi
@@ -110,7 +111,7 @@ case "$with" in
 	for arg
 	do
 	    [ "$isNeedEval" ] && printf -v arg '%q' "$arg"
-	    typeset -a interpolatedCommands=("${commands[@]//"$EACHARG_ARG_MARKER"/$arg}")
+	    typeset -a interpolatedCommands=("${commands[@]//"$argMarker"/$arg}")
 	    typeset -a a=("$arg")   # Quoter for isNeedEval=t is off, so need to use quoted arg here.
 	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || a=()
 
@@ -130,18 +131,14 @@ case "$with" in
 
 	    typeset -a a=("$arg")   # No quoting, as array provides separation.
 	    [ "$isNeedEval" ] && printf -v arg '%q' "$arg"
-	    typeset -a interpolatedCommands=("${commands[@]//"$EACHARG_ARG_MARKER"/$arg}")
+	    typeset -a interpolatedCommands=("${commands[@]//"$argMarker"/$arg}")
 	    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] || a=()
-
-	    saveEachArgArgMarker="$EACHARG_ARG_MARKER"; unset EACHARG_ARG_MARKER
 
 	    if [ "$isNeedEval" ]; then
 		eval "${interpolatedCommands[@]}" '"${a[@]}"'
 	    else
 		"${interpolatedCommands[@]}" "${a[@]}"
 	    fi || { exitStatus=$?; if [ $exitStatus -gt $status ]; then status=$exitStatus; fi; }
-
-	    EACHARG_ARG_MARKER="$saveEachArgArgMarker"
 	done
 	exit $status
 	;;
