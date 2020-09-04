@@ -105,6 +105,7 @@ if [ $# -eq 0 ]; then
 fi
 
 
+isFirst=t
 case "$with" in
     prompt)
 	quoter='%q'; [ "$isNeedEval" ] && quoter='%s'
@@ -117,16 +118,15 @@ case "$with" in
 
 	    printf "$quoter " "${interpolatedCommands[@]}" "${a[@]}"
 	    printf '\n'
+	    isFirst=
 	done | runWithPrompt --worst-status
 	;;
     *)
 	status=0
-	typeset -a firstArg=(--first)
 	for arg
 	do
 	    if [ "$with" = 'header' ]; then
-		header "${firstArg[@]}" "$arg"
-		firstArg=()
+		header ${isFirst:+--first} "$arg"
 	    fi
 
 	    typeset -a a=("$arg")   # No quoting, as array provides separation.
@@ -139,6 +139,7 @@ case "$with" in
 	    else
 		"${interpolatedCommands[@]}" "${a[@]}"
 	    fi || { exitStatus=$?; if [ $exitStatus -gt $status ]; then status=$exitStatus; fi; }
+	    isFirst=
 	done
 	exit $status
 	;;
