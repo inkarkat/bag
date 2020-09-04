@@ -120,6 +120,7 @@ if [ $# -eq 0 -a ${#findArgs[@]} -eq 0 ]; then
 fi
 
 
+isFirst=t
 case "$with" in
     prompt)
 	quoter='%q'; [ "$isNeedEval" ] && quoter='%s'
@@ -138,16 +139,15 @@ case "$with" in
 	    printf 'cd %q && ' "$dirspec"
 	    printf "$quoter " "${interpolatedCommands[@]}" "${f[@]}"
 	    printf '\n'
+	    isFirst=
 	done | runWithPrompt --worst-status
 	;;
     *)
 	status=0
-	typeset -a firstArg=(--first)
 	$fileSource "$@" | while IFS=$'\n' read -r filespec || [ -n "$filespec" ]
 	do
 	    if [ "$with" = 'header' ]; then
-		header "${firstArg[@]}" "$filespec"
-		firstArg=()
+		header ${isFirst:+--first} "$filespec"
 	    fi
 
 	    if [ "$isLocalDir" ]; then
@@ -169,6 +169,7 @@ case "$with" in
 	    else
 		"${interpolatedCommands[@]}" "${f[@]}"
 	    fi || { exitStatus=$?; if [ $exitStatus -gt $status ]; then status=$exitStatus; fi; }
+	    isFirst=
 	done
 	exit $status
 	;;
