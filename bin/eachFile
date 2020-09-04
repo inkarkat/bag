@@ -7,8 +7,8 @@ printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-l|--local-dir] [--with-header|--with-prompt] [--usage-redirect COMMAND] -c|--command "COMMANDLINE" | SIMPLECOMMAND [...] -- FILE [...] [-?|-h|--help]'
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-l|--local-dir] [--with-header|--with-prompt] [--usage-redirect COMMAND] -c|--command "COMMANDLINE" | SIMPLECOMMAND [...] -f|--find FIND-ARGS ... [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-l|--local-dir] [--with-header|--with-prompt] [--between-command BETWEEN-COMMAND] [--usage-redirect COMMAND] -c|--command "COMMANDLINE" | SIMPLECOMMAND [...] -- FILE [...] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-l|--local-dir] [--with-header|--with-prompt] [--between-command BETWEEN-COMMAND] [--usage-redirect COMMAND] -c|--command "COMMANDLINE" | SIMPLECOMMAND [...] -f|--find FIND-ARGS ... [-?|-h|--help]'
 }
 printUsage()
 {
@@ -34,6 +34,8 @@ HELPDESCRIPTION
 		    execution.
     --with-prompt   Emulate a full prompt (as if invoking COMMAND) before each
 		    execution.
+    --between-command BETWEEN-COMMAND
+		    Execute BETWEEN-COMMAND in between each COMMAND execution.
     --find|-f	    Execute find with the following FIND-ARGS to obtain the list
 		    of files instead of directly taking FILEs. This allows
 		    recursing into and filtering of subdirectories.
@@ -72,6 +74,7 @@ typeset -a findArgs=()
 with=
 typeset -a commands=()
 typeset -a simpleCommands=()
+betweenCommand=
 usageRedirectCommand=
 while [ $# -ne 0 ]
 do
@@ -82,6 +85,8 @@ do
 	--command|-c)	shift; commands+=("$1"); isNeedEval=t; shift;;
 	--with-header)	shift; with=header;;
 	--with-prompt)	shift; with=prompt;;
+	--between-command)
+			shift; betweenCommand="$1"; shift;;
 	--usage-redirect)
 			shift; usageRedirectCommand="$1"; shift;;
 	--)		shift; break;;
@@ -126,6 +131,14 @@ case "$with" in
 	quoter='%q'; [ "$isNeedEval" ] && quoter='%s'
 	$fileSource "$@" | while IFS=$'\n' read -r filespec || [ -n "$filespec" ]
 	do
+	    if [ ! "$isFirst" ] && [ -n "$betweenCommand" ]; then
+		if [ "${betweenCommand:$((${#betweenCommand} - 1))}" = ';' ]; then
+		    printf '%s ' "$betweenCommand"  # Prepend the BETWEEN-COMMAND to the next FILE's execution (so there's no separate prompt) if it ends with a semicolon. Its exit status is then ignored.
+		else
+		    printf '%s\n' "$betweenCommand" # Use a separate prompt (and with it consider its exit status).
+		fi
+	    fi
+
 	    if [ "$isLocalDir" ]; then
 		dirspec="$(dirname -- "$filespec")"
 		filespec="$(basename -- "$filespec")"
@@ -146,6 +159,10 @@ case "$with" in
 	status=0
 	$fileSource "$@" | while IFS=$'\n' read -r filespec || [ -n "$filespec" ]
 	do
+	    if [ ! "$isFirst" ] && [ -n "$betweenCommand" ]; then
+		eval "$betweenCommand" || { exitStatus=$?; if [ $exitStatus -gt $status ]; then status=$exitStatus; fi; }
+	    fi
+
 	    if [ "$with" = 'header' ]; then
 		header ${isFirst:+--first} "$filespec"
 	    fi
