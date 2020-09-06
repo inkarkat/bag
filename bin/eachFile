@@ -66,9 +66,19 @@ done
 
 isLocalDir=
 fileSource='printf %s\n'
+fileProcessor=
 finder()
 {
     find "${findArgs[@]}"
+}
+makeAbsolute()
+{
+    # COMMAND may change the directory, so all passed FILE need to be made
+    # absolute first.
+    while IFS=$'\n' read -r filespec || [ -n "$filespec" ]
+    do
+	realpath --no-symlinks -- "$filespec"
+    done
 }
 typeset -a findArgs=()
 with=
@@ -80,7 +90,7 @@ while [ $# -ne 0 ]
 do
     case "$1" in
 	--help|-h|-\?)	shift; printLongUsage "$0"; exit 0;;
-	--local-dir|-l)	shift; isLocalDir=t;;
+	--local-dir|-l)	shift; isLocalDir=t; fileProcessor='makeAbsolute';;
 	--find|-f)	shift; findArgs=("$@"); fileSource='finder'; break;;
 	--command|-c)	shift; commands+=("$1"); isNeedEval=t; shift;;
 	--with-header)	shift; with=header;;
@@ -124,13 +134,12 @@ if [ $# -eq 0 -a ${#findArgs[@]} -eq 0 ]; then
     exit 2
 fi
 
-
 isFirst=t
 dirspec=.
 case "$with" in
     prompt)
 	quoter='%q'; [ "$isNeedEval" ] && quoter='%s'
-	$fileSource "$@" | while IFS=$'\n' read -r filespec || [ -n "$filespec" ]
+	eval '$fileSource "$@"' "${fileProcessor:+|}" "$fileProcessor" | while IFS=$'\n' read -r filespec || [ -n "$filespec" ]
 	do
 	    if [ ! "$isFirst" ] && [ -n "$betweenCommand" ]; then
 		if [ "${betweenCommand:$((${#betweenCommand} - 1))}" = ';' ]; then
@@ -158,7 +167,7 @@ case "$with" in
 	;;
     *)
 	status=0
-	$fileSource "$@" | while IFS=$'\n' read -r filespec || [ -n "$filespec" ]
+	eval '$fileSource "$@"' "${fileProcessor:+|}" "$fileProcessor" | while IFS=$'\n' read -r filespec || [ -n "$filespec" ]
 	do
 	    if [ ! "$isFirst" ] && [ -n "$betweenCommand" ]; then
 		eval "$betweenCommand" || { exitStatus=$?; if [ $exitStatus -gt $status ]; then status=$exitStatus; fi; }
