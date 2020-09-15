@@ -2,17 +2,46 @@
 set -o pipefail
 shopt -qs extglob
 
-printUsage()
+printShortUsage()
 {
-    cat <<HELPTEXT
-Print file contents on standard output with delay(s)
-- before doing any output at all (initial)
-- after each complete line (line); this also considers inner carriage returns
-- after each individual character (char) other than newlines
-HELPTEXT
+    # Note: short followed by long option; if the user knows the short one, she can
+    # skim the long one.
     printf 'Usage: %q %s\n' "$(basename "$1")" '[-i|--initial NUMBER[SUFFIX]] [-l|--line NUMBER[SUFFIX]] [-c|--char NUMBER[SUFFIX]] FILE [...] [-?|-h|--help]'
     printf 'Usage: %q %s\n' "$(basename "$1")" '[-i|--initial NUMBER[SUFFIX]] [-L|--line-total|-C|--char-total TIMESPAN[SUFFIX]] FILE [...]'
     printf 'Usage: cat FILE [...] | %q %s\n' "$(basename "$1")" '[...] [-?|-h|--help]'
+}
+printUsage()
+{
+    # This is the short help when launched with no or incorrect arguments.
+    # It is printed to stderr to avoid accidental processing.
+    printShortUsage "$1" >&2
+    printf >&2 'Try %q --help for more information.\n' "$(basename "$1")"
+}
+printLongUsage()
+{
+    # This is the long "man page" when launched with the help argument.
+    # It is printed to stdout to allow paging with 'more'.
+    cat <<HELPDESCRIPTION
+Print file contents on standard output with delay(s).
+HELPDESCRIPTION
+    echo
+    printShortUsage "$1"
+    cat <<HELPTEXT
+    --initial|-i NUMBER[SUFFIX]	Delay before doing any output at all.
+    --line|-l NUMBER[SUFFIX]	Delay after each complete line (line); this also
+				considers inner carriage returns.
+    --char|-c NUMBER[SUFFIX]	Delay after each individual character (char)
+				other than newlines.
+    --line-total|-L TIMESPAN[SUFFIX]
+				Delay individual lines so that the total output
+				time of all FILE(s) is about TIMESPAN.
+    --char-total|-C TIMESPAN[SUFFIX]
+				Delay individual characters so that the total
+				output time of all FILE(s) is about TIMESPAN.
+    NUMBER may be an arbitrary floating-point number, TIMESPAN must be an
+    integer. SUFFIX may be 's' for seconds (the default), 'm' for minutes, 'h'
+    for hours or 'd' for days.
+HELPTEXT
 }
 
 timeToSeconds()
@@ -37,7 +66,7 @@ linePrinter='printf %s'
 while [ $# -ne 0 ]
 do
     case "$1" in
-	--help|-h|-\?)	shift; printUsage "$0"; exit 0;;
+	--help|-h|-\?)	shift; printLongUsage "$0"; exit 0;;
 	--initial|-i)	shift; initialDelay="$1"; shift;;
 	--line|-l)	shift; lineDelay="$1"; shift; consumer=lineDelay;;
 	--char|-c)	shift; charDelay="$1"; shift; linePrinter=charDelay;;
