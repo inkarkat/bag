@@ -58,12 +58,12 @@ lineDelay()
 
 	    # Return to the first column before printing a subsequent internal line
 	    # fragment.
-	    [[ $cnt > 1 ]] && printf '\r'
+	    [ $cnt -gt 1 ] && printf '\r'
 
 	    $linePrinter "$line"
 
 	    # Conclude the last line fragment with a newline.
-	    if [[ $cnt = ${#lines[@]} ]]; then
+	    if [ $cnt -eq ${#lines[@]} ]; then
 		if [ "$isEOL" ]; then
 		    printf '\n'
 		else
