@@ -91,4 +91,4 @@ charDelay()
 
 
 [ "$initialDelay" ] && sleep "$initialDelay"
-eval cat '"$@"' "${consumer:+|} $consumer"
+eval cat -- '"$@"' "${consumer:+|} $consumer"
