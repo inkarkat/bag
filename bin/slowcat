@@ -1,4 +1,6 @@
 #!/bin/bash
+set -o pipefail
+shopt -qs extglob
 
 printUsage()
 {
@@ -9,12 +11,27 @@ Print file contents on standard output with delay(s)
 - after each individual character (char) other than newlines
 HELPTEXT
     printf 'Usage: %q %s\n' "$(basename "$1")" '[-i|--initial NUMBER[SUFFIX]] [-l|--line NUMBER[SUFFIX]] [-c|--char NUMBER[SUFFIX]] FILE [...] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i|--initial NUMBER[SUFFIX]] [-L|--line-total|-C|--char-total TIMESPAN[SUFFIX]] FILE [...]'
     printf 'Usage: cat FILE [...] | %q %s\n' "$(basename "$1")" '[...] [-?|-h|--help]'
 }
 
+timeToSeconds()
+{
+    case "$1" in
+	+([0-9])?(s))   time="${1%s}";;
+	+([0-9])m)	time=$((${1%m} * 60));;
+	+([0-9])h)	time=$((${1%h} * 3600));;
+	+([0-9])d)	time=$((${1%d} * 86400));;
+	*)		printf >&2 "ERROR: Illegal ${2:-timespan}: %s\\n" "$1"; exit 2;;
+    esac
+    printf %s "$time"
+}
 initialDelay=
 lineDelay=
 charDelay=
+total=
+totaller=
+totalTargetDelay=
 consumer=
 linePrinter='printf %s'
 while [ $# -ne 0 ]
@@ -24,11 +41,36 @@ do
 	--initial|-i)	shift; initialDelay="$1"; shift;;
 	--line|-l)	shift; lineDelay="$1"; shift; consumer=lineDelay;;
 	--char|-c)	shift; charDelay="$1"; shift; linePrinter=charDelay;;
+	--line-total|-L)
+			shift; total="$(timeToSeconds "$1")"; shift; totaller=-l; totalTargetDelay=lineDelay; consumer=lineDelay;;
+	--char-total|-C)
+			shift; total="$(timeToSeconds "$1")"; shift; totaller=-c; totalTargetDelay=charDelay; linePrinter=charDelay;;
 	--)		shift; break;;
 	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
 	*)		break;;
     esac
 done
+if [ -n "$total" ]; then
+    if [ -n "$charDelay" -o -n "$lineDelay" ]; then
+	echo 'ERROR: Cannot combine --line-total or --char-total with --line or --char.'
+	echo
+	printUsage "$0"
+	exit 2
+    elif [ $# -eq 0 ]; then
+	echo 'ERROR: --line-total and --char-total need FILE(s) passed; cannot read from standard input.'
+	echo
+	printUsage "$0"
+	exit 2
+    fi >&2
+
+    requiredSteps=$(cat -- "$@" | wc $totaller) || exit $?
+    delay=$((total / requiredSteps))
+    if [ $delay -eq 0 ]; then
+	delay=000$((1000 * total / requiredSteps))
+	delay=.${delay: -3}
+    fi
+    eval "$totalTargetDelay=$delay"
+fi
 [ -n "$charDelay" -a -z "$consumer" ] && consumer=lineReader
 
 
