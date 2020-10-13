@@ -20,19 +20,22 @@ HELPTEXT
 Remove all collected output from the special file.
 HELPTEXT
     echo
-    printf 'Usage: %q %s\n' "$(basename "$1")" '-d|--delete [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-p|--print] -d|--delete [-?|-h|--help]'
 }
 
 BAG="$HOME/.bag"
 
+isPrint=
 action=
 case "$1" in
     --help|-h|-\?)	shift; printUsage "$0"; exit 0;;
+    --print|-p)		shift; isPrint=t;;
     --delete|-d)	shift; action=delete;;
 esac
 
 
 if [ "$action" = delete ]; then
+    [ "$isPrint" ] && [ -f "$BAG" ] && cat -- "$BAG"
     exec rm --force -- "$BAG"
 fi
 
@@ -41,7 +44,7 @@ if [ -t 0 ]; then
 	printf >&2 '%s does not exist\n' "$BAG"
 	exit 1
     fi
-    cat "$BAG"
+    cat -- "$BAG"
 else
-    tee "$@" "$BAG"
+    tee "$@" -- "$BAG"
 fi
