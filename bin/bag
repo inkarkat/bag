@@ -39,11 +39,16 @@ if [ "$action" = delete ]; then
     exec rm --force -- "$BAG"
 fi
 
-if [ -t 0 ]; then
+assertExistingBag()
+{
     if [ ! -f "$BAG" ]; then
 	printf >&2 '%s does not exist\n' "$BAG"
 	exit 1
     fi
+}
+
+if [ -t 0 ]; then
+    assertExistingBag
     cat -- "$BAG"
 else
     tee "$@" -- "$BAG"
