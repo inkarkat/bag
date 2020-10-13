@@ -25,10 +25,16 @@ HELPTEXT
 
 BAG="$HOME/.bag"
 
+action=
 case "$1" in
     --help|-h|-\?)	shift; printUsage "$0"; exit 0;;
-    --delete|-d)	shift; exec rm --force -- "$BAG";;
+    --delete|-d)	shift; action=delete;;
 esac
+
+
+if [ "$action" = delete ]; then
+    exec rm --force -- "$BAG"
+fi
 
 if [ -t 0 ]; then
     if [ ! -f "$BAG" ]; then
