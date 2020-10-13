@@ -3,9 +3,24 @@
 printUsage()
 {
     cat <<HELPTEXT
-Collect output in a file.
+Collect output in a special file.
 HELPTEXT
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-a|--append|-d|--delete] [-?|-h|--help]'
+    echo
+    printf 'Usage: echo OUTPUT | %q %s\n' "$(basename "$1")" '[-a|--append]'
+
+    echo
+    cat <<HELPTEXT
+Print collected output from the special file.
+HELPTEXT
+    echo
+    printf 'Usage: %q %s [| ...]\n' "$(basename "$1")" '[-a|--append]'
+
+    echo
+    cat <<HELPTEXT
+Remove all collected output from the special file.
+HELPTEXT
+    echo
+    printf 'Usage: %q %s\n' "$(basename "$1")" '-d|--delete [-?|-h|--help]'
 }
 
 BAG="$HOME/.bag"
