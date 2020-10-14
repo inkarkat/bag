@@ -33,7 +33,7 @@ HELPTEXT
     printf 'Usage: %q %s\n' "$(basename "$1")" '[-p|--print] -d|--delete'
 }
 
-BAG="$HOME/.bag"
+readonly BAG="${HOME}/.bag"
 
 typeset -a popArgs=()
 typeset -a teeArgs=()
