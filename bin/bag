@@ -14,7 +14,7 @@ HELPTEXT
 Print collected output from the special file.
 HELPTEXT
     echo
-    printf 'Usage: %q %s [| ...]\n' "$(basename "$1")" '[-a|--append]'
+    printf 'Usage: %q %s [| ...]\n' "$(basename "$1")" '[-p|--print]'
 
     echo
     cat <<HELPTEXT
@@ -48,6 +48,7 @@ do
 	-+([0-9]))	popArgs+=("$1"); shift;;
 	--delete-empty)	shift; popArgs+=(--delete);;
 	--delete|-d)	shift; action=delete;;
+	*)		break;;
     esac
 done
 
