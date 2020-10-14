@@ -36,6 +36,7 @@ HELPTEXT
 BAG="$HOME/.bag"
 
 typeset -a popArgs=()
+typeset -a teeArgs=()
 isPrint=
 action=collect; [ -t 0 ] && action=print
 while [ $# -ne 0 ]
@@ -48,6 +49,8 @@ do
 	-+([0-9]))	popArgs+=("$1"); shift;;
 	--delete-empty)	shift; popArgs+=(--delete);;
 	--delete|-d)	shift; action=delete;;
+	--append|-a)	teeArgs+=("$1"); shift;;
+	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
 	*)		break;;
     esac
 done
@@ -74,7 +77,7 @@ case "$action" in
 	exec rm --force -- "$BAG"
 	;;
     collect)
-	exec tee "$@" -- "$BAG"
+	exec tee "${teeArgs[@]}" -- "$BAG"
 	;;
     *)
 	printf >&2 'ASSERT: Invalid action: %s\n' "$action"; exit 3
