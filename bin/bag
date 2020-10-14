@@ -37,7 +37,7 @@ BAG="$HOME/.bag"
 
 typeset -a popArgs=()
 isPrint=
-action=
+action=collect; [ -t 0 ] && action=print
 while [ $# -ne 0 ]
 do
     case "$1" in
@@ -61,6 +61,10 @@ assertExistingBag()
 }
 
 case "$action" in
+    print)
+	assertExistingBag
+	exec cat -- "$BAG"
+	;;
     pop)
 	assertExistingBag
 	exec pop "${popArgs[@]}" -- "$BAG"
@@ -69,11 +73,10 @@ case "$action" in
 	[ "$isPrint" ] && [ -f "$BAG" ] && cat -- "$BAG"
 	exec rm --force -- "$BAG"
 	;;
+    collect)
+	exec tee "$@" -- "$BAG"
+	;;
+    *)
+	printf >&2 'ASSERT: Invalid action: %s\n' "$action"; exit 3
+	;;
 esac
-
-if [ -t 0 ]; then
-    assertExistingBag
-    cat -- "$BAG"
-else
-    tee "$@" -- "$BAG"
-fi
