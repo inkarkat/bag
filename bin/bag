@@ -1,4 +1,5 @@
 #!/bin/bash
+shopt -qs extglob
 
 printUsage()
 {
@@ -22,7 +23,7 @@ the special file.
 With --delete-empty, an emptied bag is removed from the file system as well.
 HELPTEXT
     echo
-    printf 'Usage: %q %s\n' "$(basename "$1")" '--pop [-n|--lines N] [--delete-empty]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '--pop [-<N>|-n|--lines N] [--delete-empty]'
 
     echo
     cat <<HELPTEXT
@@ -44,6 +45,7 @@ do
 	--print|-p)	shift; isPrint=t;;
 	--pop)		shift; action=pop;;
 	--lines|-n)	popArgs+=("$1" "$2"); shift; shift;;
+	-+([0-9]))	popArgs+=("$1"); shift;;
 	--delete-empty)	shift; popArgs+=(--delete);;
 	--delete|-d)	shift; action=delete;;
     esac
