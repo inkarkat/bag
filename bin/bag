@@ -54,6 +54,13 @@ do
 	*)		break;;
     esac
 done
+if [ "$isPrint" ]; then
+    case "$action" in
+	collect)    action=print;;
+	print)	    ;;
+	*)	    printUsage "$0" >&2; exit 2;;
+    esac
+fi
 
 assertExistingBag()
 {
