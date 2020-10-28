@@ -62,6 +62,10 @@ if [ "$isPrint" ]; then
 	*)	    printUsage "$0" >&2; exit 2;;
     esac
 fi
+if [ $# -gt 0 -a "$action" != collect ]; then
+    printUsage "$0" >&2
+    exit 2
+fi
 
 assertExistingBag()
 {
