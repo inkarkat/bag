@@ -9,6 +9,7 @@ printUsage()
 Collect output in a special file.
 HELPTEXT
     echo
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-a|--append] [--] [OUTPUT ...]'
     printf 'Usage: echo OUTPUT | %q %s\n' "$(basename "$1")" '[-a|--append]'
 
     echo
@@ -37,6 +38,7 @@ HELPTEXT
 
 typeset -a popArgs=()
 typeset -a teeArgs=()
+isAppend=
 isPrint=
 action=collect; [ -t 0 ] && action=print
 while [ $# -ne 0 ]
@@ -49,7 +51,8 @@ do
 	-+([0-9]))	popArgs+=("$1"); shift;;
 	--delete-empty)	shift; popArgs+=(--delete);;
 	--delete|-d)	shift; action=delete;;
-	--append|-a)	teeArgs+=("$1"); shift;;
+	--append|-a)	isAppend=t; teeArgs+=("$1"); shift;;
+	--)		shift; break;;
 	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
 	*)		break;;
     esac
@@ -62,9 +65,13 @@ if [ "$isPrint" ]; then
 	*)	    printUsage "$0" >&2; exit 2;;
     esac
 fi
-if [ $# -gt 0 -a "$action" != collect ]; then
-    printUsage "$0" >&2
-    exit 2
+if [ $# -gt 0 ]; then
+    case "$action" in
+	collect)    action=put;;
+	*)	    printUsage "$0" >&2
+		    exit 2
+		    ;;
+    esac
 fi
 
 assertExistingBag()
@@ -87,6 +94,9 @@ case "$action" in
     delete)
 	[ "$isPrint" ] && [ -f "$BAG" ] && cat -- "$BAG"
 	exec rm --force -- "$BAG"
+	;;
+    put)
+	eval 'printf %s\\n "$*"' ">${isAppend:+>}" '"$BAG"'
 	;;
     collect)
 	exec tee "${teeArgs[@]}" -- "$BAG"
