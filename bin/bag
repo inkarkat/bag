@@ -1,6 +1,8 @@
 #!/bin/bash
 shopt -qs extglob
 
+: ${BAG:="${HOME}/.bag"}
+
 printUsage()
 {
     cat <<HELPTEXT
@@ -32,8 +34,6 @@ HELPTEXT
     echo
     printf 'Usage: %q %s\n' "$(basename "$1")" '[-p|--print] -d|--delete'
 }
-
-readonly BAG="${HOME}/.bag"
 
 typeset -a popArgs=()
 typeset -a teeArgs=()
