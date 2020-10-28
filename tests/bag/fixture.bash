@@ -17,7 +17,7 @@ assert_no_bag()
 }
 assert_empty_bag()
 {
-    [ ! -s "$BAG" ]
+    [ -e "$BAG" -a  ! -s "$BAG" ]
 }
 assert_bag()
 {
@@ -29,4 +29,9 @@ assert_bag()
 dump_bag()
 {
     cat -- "$BAG" | prefix \# >&3
+}
+
+make_bag()
+{
+    echo -e 'some stuff\n in\nhere' | bag
 }
