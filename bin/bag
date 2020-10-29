@@ -36,10 +36,12 @@ HELPTEXT
     printf 'Usage: %q %s\n' "$(basename "$1")" '[-p|--print] -d|--delete'
 }
 
+typeset -a allArgs=("$@")
 typeset -a popArgs=()
 typeset -a teeArgs=()
 isAppend=
 isPrint=
+isTransactional=
 action=collect; [ -t 0 ] && action=print
 while [ $# -ne 0 ]
 do
@@ -52,6 +54,8 @@ do
 	--delete-empty)	shift; popArgs+=(--delete);;
 	--delete|-d)	shift; action=delete;;
 	--append|-a)	isAppend=t; teeArgs+=("$1"); shift;;
+	--transactional|-t)
+			isTransactional=t; shift;;
 	--)		shift; break;;
 	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
 	*)		break;;
@@ -72,6 +76,17 @@ if [ $# -gt 0 ]; then
 		    exit 2
 		    ;;
     esac
+fi
+
+if [ "$isTransactional" ]; then
+    typeset -a withTransactionArgs=()
+    [ "$action" = print ] && withTransactionArgs+=(--read-only)
+    readonly scriptFilespec="${BASH_SOURCE[0]}"
+
+    exec withTransaction \
+	--drop-argument --transactional --drop-argument -t "${withTransactionArgs[@]}" \
+	--transacted-file "$BAG" \
+	-- "$scriptFilespec" "${allArgs[@]}"
 fi
 
 assertExistingBag()

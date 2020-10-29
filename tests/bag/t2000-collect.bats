@@ -9,6 +9,7 @@ load fixture
 }
 
 @test "a second set of lines overwrites the bag" {
+    echo 'first entry' | bag
     echo -e 'second entry\nand more' | bag
 
     assert_bag "second entry
