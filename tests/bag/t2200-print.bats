@@ -33,3 +33,9 @@ here" ]
  in
 here" ]
 }
+
+@test "attempting to print a non-existing bag prints an error and fails with 1" {
+    run bag --print
+    [ $status -eq 1 ]
+    [ "$output" = "$BAG does not exist" ]
+}

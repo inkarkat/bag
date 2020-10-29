@@ -19,3 +19,9 @@ load fixture
 here" ]
     assert_no_bag
 }
+
+@test "attempting to delete a non-existing bag does nothing" {
+    run bag --delete
+    [ $status -eq 0 ]
+    [ "$output" = "" ]
+}

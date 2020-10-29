@@ -32,3 +32,9 @@ load fixture
  in
 here" ]
 }
+
+@test "attempting to pop a non-existing bag prints an error and fails with 1" {
+    run bag --pop
+    [ $status -eq 1 ]
+    [ "$output" = "$BAG does not exist" ]
+}
