@@ -38,3 +38,9 @@ here" ]
     [ $status -eq 1 ]
     [ "$output" = "$BAG does not exist" ]
 }
+
+@test "attempting to pop a non-existing bag in quiet mode just fails with 1" {
+    run bag --pop --quiet
+    [ $status -eq 1 ]
+    [ "$output" = "" ]
+}
