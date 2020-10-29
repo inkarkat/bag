@@ -8,6 +8,14 @@ load fixture
     assert_bag "first entry"
 }
 
+@test "a passed argument works when stdin is from terminal" {
+    { exec </dev/tty; } 2>/dev/null || skip 'cannot access terminal'
+
+    bag 'first entry'
+
+    assert_bag "first entry"
+}
+
 @test "a second argument overwrites the bag" {
     bag -- 'second entry'
 

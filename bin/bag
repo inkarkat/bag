@@ -72,6 +72,13 @@ fi
 if [ $# -gt 0 ]; then
     case "$action" in
 	collect)    action=put;;
+	print)	    if [ "$isPrint" ]; then
+			printUsage "$0" >&2
+			exit 2
+		    else
+			action=put
+		    fi
+		    ;;
 	*)	    printUsage "$0" >&2
 		    exit 2
 		    ;;
