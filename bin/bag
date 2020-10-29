@@ -9,15 +9,15 @@ printUsage()
 Collect output in a special file.
 HELPTEXT
     echo
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-a|--append] [--] [OUTPUT ...]'
-    printf 'Usage: echo OUTPUT | %q %s\n' "$(basename "$1")" '[-a|--append]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [-a|--append] [--] [OUTPUT ...]'
+    printf 'Usage: echo OUTPUT | %q %s\n' "$(basename "$1")" '[-t|--transactional] [-a|--append]'
 
     echo
     cat <<HELPTEXT
 Print collected output from the special file.
 HELPTEXT
     echo
-    printf 'Usage: %q %s [| ...]\n' "$(basename "$1")" '[-p|--print] [-q|--quiet]'
+    printf 'Usage: %q %s [| ...]\n' "$(basename "$1")" '[-t|--transactional] [-p|--print] [-q|--quiet]'
 
     echo
     cat <<HELPTEXT
@@ -26,14 +26,14 @@ the special file.
 With --delete-empty, an emptied bag is removed from the file system as well.
 HELPTEXT
     echo
-    printf 'Usage: %q %s\n' "$(basename "$1")" '--pop [-<N>|-n|--lines N] [--delete-empty] [-q|--quiet]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] --pop [-<N>|-n|--lines N] [--delete-empty] [-q|--quiet]'
 
     echo
     cat <<HELPTEXT
 Remove all collected output from the special file.
 HELPTEXT
     echo
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-p|--print] -d|--delete'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [-p|--print] -d|--delete'
 }
 
 typeset -a allArgs=("$@")
