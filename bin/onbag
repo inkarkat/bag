@@ -1,0 +1,321 @@
+#!/bin/bash
+set -o pipefail
+
+: ${ONBAG_OUTPUT_MARKER='{}'}
+outputMarker="$ONBAG_OUTPUT_MARKER"
+readonly EXIT_SIGNAL=125
+
+isTrigger=
+if [ "$1" = --trigger ]; then
+    shift
+    isTrigger=t
+else
+    if [ -z "$PGID" ]; then # No parent script has become the process group leader yet.
+	pgid=$(($(ps -o pgid= -p "$$")))	# By defining this, we'll be killing subshell processes of this process group when we're done or interrupted. Any children with the same ambition will defer to us.
+	if [ $$ -eq $pgid ]; then
+	    export PGID=$pgid   # We are (already / after setsid) in our own process group, announce our leadership to any children, so that they don't become leaders themselves and thereby decouple themselves from our lifetime control.
+	else
+	    exec setsid --wait "${BASH_SOURCE[0]}" "$@" # Use setsid instead of set -m (...) to avoid having another subshell in between.
+	fi
+    fi
+fi
+
+
+printShortUsage()
+{
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [-n|--count N|-1] [-i|--interval NUMBER[SUFFIX] [-l|--max-lines N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [--print] [[--bare|--no-capture-output] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--retry-on-failure|--retry-on NUM|--retry-unless NUM] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+}
+printUsage()
+{
+    # This is the short help when launched with no or incorrect arguments.
+    # It is printed to stderr to avoid accidental processing.
+    printShortUsage "$1" >&2
+    printf >&2 'Try %q --help for more information.\n' "$(basename "$1")"
+}
+printLongUsage()
+{
+    # This is the long "man page" when launched with the help argument.
+    # It is printed to stdout to allow paging with 'more'.
+    cat <<HELPDESCRIPTION
+Observe a special file for added output and perform an action with this.
+HELPDESCRIPTION
+    printShortUsage "$1"
+    echo
+    cat <<HELPTEXT
+    --transactional|-t	Lock the special file during the access so that writes
+			are serialized and concurrent reads can only happen
+			while no write is under way. Pass this to ensure
+			consistency in case there could ever be contention over
+			the file.
+    --print		Print the added output.
+    --bare		Do not print a status line before and after launching
+			the COMMAND.
+    --no-capture-output	By default, no status line is printed if the COMMAND did
+			not have any output, and failing parallel invocations
+			without output are ignored altogether. This option turns
+			this off and will print status lines (and consider
+			parallel failures) even without output. Some
+			(interactive) commands (like Vim) do not like having
+			their output not connected to the terminal, and can be
+			made to cooperate by passing this option.
+    --command|-c CMD	Execute CMD as a command-line. The string $outputMarker is
+			replaced by the added output. Multiple lines (via
+			--max-lines) are passed as individual arguments.
+    --prefix-command PC	Put PC (directly) in front of the COMMAND(s) given by
+			(subsequent, but not previous) --command or --exec. This
+			can be used to inject a wrapper command.
+    --prefix-command-command PCC
+			Put PCC (directly) in front of the COMMAND(s) given by
+			(subsequent, but not previous) --command, and pass
+			COMMAND via --command COMMAND to PCC. This can be used
+			to inject a wrapper command that itself takes a
+			--command argument.
+			This is different than --prefix-command when COMMAND
+			itself is a pipeline; here, the entire pipeline will be
+			passed to PCC; whereas PC would only cover the first
+			command inside the pipeline.
+    --interval|-i INTERVAL[SUFFIX]
+			Wait for INTERVAL seconds between observations of the
+			special file. By default, any change is observed
+			immediately.
+    --max-lines|-l N	A maximum of N (default: 1) lines are consumed and
+			passed to COMMAND at once (if available). The entire set
+			of lines counts as one change (for --count).
+    --stop-on-empty|-S	Stop once the special file becomes empty / is deleted.
+    --stop-on|-s PATTERN
+			Stop observing changes if the output (individual lines)
+			matches PATTERN. PATTERN is a Bash-style extended
+			regular expression.
+    --parallel		Instead of waiting for one COMMAND to finish before
+			executing the next, run each one the moment the change
+			is triggered. The default is sequential invocation.
+    --rate-limit NUMBER[SUFFIX]]
+			Sleep for NUMBER[SUFFIX]] before triggering the next
+			parallel execution of COMMAND. This can avoid triggering
+			too many simultaneous executions.
+    --exit-on-success	Stop observing changes if COMMAND is successful.
+    --exit-on-failure	Stop observing changes if COMMAND is unsuccessful.
+    --exit-on NUM	Stop observing changes if COMMAND exits with NUM.
+    --exit-unless NUM	Stop observing changes if COMMAND does not exit with
+			NUM.
+    --count|-n N	Stop observing changes after N changes.
+    -1			Stop observing after the first change.
+    --retry-on-failure	Put back the output into the special file if COMMAND is
+			unsuccessful.
+    --retry-on NUM	Put back the output into the special file if COMMAND
+			exits with NUM.
+    --retry-unless NUM	Put back the output into the special file if COMMAND
+			does not exit with NUM.
+Example:
+HELPTEXT
+    printf '%q %s\n' "$(basename "$1")" "--exec scp $outputMarker user@host:/tmp/ \; *.sh"
+}
+
+typeset -a allArgs=("$@")
+typeset -a bagArgs=()
+let observedChanges=0
+isParallel=
+count=
+interval=
+maxLines=1
+isStopOnEmpty=
+stopPattern=
+rateLimit=
+exitOn=
+exitComparison=-eq
+retryOn= #TODO
+retryComparison=-eq
+typeset -a commands=()
+prefixCommand=
+prefixCommandCommand=
+isPrint=
+isBare=
+isCaptureOutput=t
+typeset -a onchangeArgs=()
+while [ $# -ne 0 ]
+do
+    case "$1" in
+	--help|-h|-\?)	shift; printLongUsage "$0"; exit 0;;
+	--transactional|-t)
+			bagArgs+=("$1"); shift;;
+	--count|-n)	shift; count="$1"; shift;;
+	-1)		shift; count=1;;
+	--exit-on-success)	shift; exitOn=0; exitComparison=-eq;;
+	--exit-on-failure)	shift; exitOn=0; exitComparison=-ne;;
+	--exit-on)		shift; exitOn="$1"; shift; exitComparison=-eq;;
+	--exit-unless)		shift; exitOn="$1"; shift; exitComparison=-ne;;
+	--retry-on-failure)	shift; retryOn=0; retryComparison=-ne;;
+	--retry-on)		shift; retryOn="$1"; shift; retryComparison=-eq;;
+	--retry-unless)		shift; retryOn="$1"; shift; retryComparison=-ne;;
+	--poll)		shift; hasInotify=;;
+	--parallel)	shift; isParallel=t;;
+	--print)	shift; isPrint=t;;
+	--bare)		shift; isBare=t;;
+	--no-capture-output)
+			shift; isCaptureOutput=;;
+	--command|-c)	shift
+			if [ -n "$prefixCommandCommand" ]; then
+			    printf -v quotedCommand %q "$1"
+			    printf -v escapedFileMarker %q "$outputMarker" # %q escapes {}, we don't want that to have it interpolated later.
+			    commands+=(${commands:+;} "${prefixCommandCommand} --command ${quotedCommand//"$escapedFileMarker"/$outputMarker}")
+			else
+			    commands+=(${commands:+;} "${prefixCommand}$1")
+			fi
+			shift
+			;;
+	--prefix-command)
+			shift; prefixCommand="$1"; shift;;
+	--prefix-command-command)
+			shift; prefixCommandCommand="$1"; shift;;
+	--interval|-i)	shift; interval="$1"; shift;;
+	--max-lines|-l)	shift; maxLines="$1"; shift;;
+	--stop-on-empty|-S)
+			shift; isStopOnEmpty=t; onchangeArgs=(--exit-on $EXIT_SIGNAL);;
+	--stop-on|-s)	shift; stopPattern="$1"; shift; onchangeArgs=(--exit-on $EXIT_SIGNAL);;
+	--rate-limit)	shift; rateLimit="$1"; shift;;
+	--)		shift; break;;
+	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printShortUsage "$0"; } >&2; exit 2;;
+	*)		break;;
+    esac
+done
+if [ $# -ne 0 ]; then
+    # Combine --command and SIMPLECOMMAND; need to quote SIMPLECOMMAND to
+    # undo the effects of eval.
+    printf -v quotedSimpleCommand '%q ' "$@"
+    printf -v escapedFileMarker %q "$outputMarker"
+    commands+=(${commands:+;} "${prefixCommand}${quotedSimpleCommand//"$escapedFileMarker"/$outputMarker}")	# %q escapes {}, we don't want that to have it interpolated later.
+fi
+if [ ! "$isPrint" ] && [ ! "$count" ] && [ ${#commands[@]} -eq 0 ]; then
+    echo 'ERROR: Need to pass either -1|-c|--count to count changes, --print to show updated files, or -c|--command to execute a command.'
+    echo
+    printShortUsage "$0"
+    exit 2
+fi >&2
+if [ -n "$exitOn" -a -n "$isParallel" ]; then
+    # Need a marker file to signal stopping; a variable won't do.
+    keepRunningMarkerFile=$(mktemp --tmpdir "$(basename -- "$0")-XXXXXX" 2>/dev/null || echo "${TEMP:-/tmp}/$(basename -- "$0").$$$RANDOM")
+    touch "$keepRunningMarkerFile"
+fi
+
+# Don't show a prompt if nothing was printed; this would just waste screen
+# space. Parallel execution is supposedly mostly used to control resource usage
+# (e.g. just one instance via singleton or not too frequent actions via
+# oncePer). In that case, ignore failing invocations altogether.
+typeset -a runWithPromptArgs=(); [ "$isCaptureOutput" ] && runWithPromptArgs+=(--no-output-no-prompt)
+if [ "$isParallel" ]; then
+    [ "$isCaptureOutput" ] && runWithPromptArgs+=(--no-output-no-error)
+    runWithPromptArgs+=(--no-count-on 99)
+fi
+
+
+
+pollForOutput()
+{
+    while :
+    do
+	sleep "${interval:?}"
+
+	processBag
+	[ $? -eq $EXIT_SIGNAL ] && return 0
+    done
+}
+
+processBag()
+{
+    bag "${bagArgs[@]}" --pop --quiet --lines "$maxLines" | executeTrigger
+    typeset -a result=("${PIPESTATUS[@]}")
+
+    if [ ${result[0]} -eq 1 ] && [ "$isStopOnEmpty" ]; then
+	# The bag is empty.
+	return $EXIT_SIGNAL
+    elif [ ${result[1]} -eq $EXIT_SIGNAL ]; then
+	# The stop pattern has been encountered.
+	return $EXIT_SIGNAL
+    fi
+}
+
+executeTrigger()
+{
+    readarray -t lines
+    [ ${#lines[@]} -eq 0 ] && return 0	# Because of the pipeline, we're also invoked if bag fails due to an empty bag.
+
+    if [ -n "$stopPattern" ]; then
+	local line
+	for line in "${lines[@]}"
+	do
+	    [[ "$line" =~ $stopPattern ]] && return $EXIT_SIGNAL
+	done
+    fi
+
+
+    let observedChanges+=1
+
+    [ "$isPrint" ] && printf '%s\n' "${lines[@]}"
+
+    if [ ${#commands[@]} -ge 1 ]; then
+	if [ -n "$exitOn" -a -n "$isParallel" -a ! -e "$keepRunningMarkerFile" ]; then
+	    # The marker file is gone; this means we should not trigger anything
+	    # new, and instead exit the script.
+	    return 0
+	fi
+
+	[ "$rateLimit" ] && sleep "$rateLimit"
+	eval 'triggerCommand "${lines[@]}"' ${isParallel:+&}
+    fi
+
+    if [ "$count" ]; then
+	[ $observedChanges -ge $count ] && return 0
+    fi
+}
+
+triggerCommand()
+{
+    local quotedLines; printf -v quotedLines '%q ' "$@"; quotedLines=${quotedLines% }
+
+    typeset -a expandedCommands=("${commands[@]//"$outputMarker"/$quotedLines}")
+
+    [ "$delay" ] && sleep "$delay"
+
+    unset ONBAG_OUTPUT_MARKER
+    if [ "$isBare" ]; then
+	eval "${expandedCommands[@]}"
+    else
+	{ printf '%s ' "${expandedCommands[@]}"; printf '\n'; } | runWithPrompt "${runWithPromptArgs[@]}" --comment "$observedChanges"
+    fi <&6
+    exitStatus=$?
+
+    if [ "$exitOn" ]; then
+	if [ $exitStatus $exitComparison $exitOn ]; then
+	    [ "$isParallel" ] && kill -SIGUSR1 $$
+	    return 0
+	fi
+    fi
+}
+
+if [ "$isTrigger" ]; then
+    processBag
+    exit $?
+fi
+
+
+shutdown()
+{
+    if [ -e "$keepRunningMarkerFile" ]; then
+	rm -f "$keepRunningMarkerFile"
+	wait    # Wait for running jobs to finish; this avoids the "Terminated" message and exit status 143.
+    fi
+    exit 0
+}
+trap "shutdown" SIGUSR1
+if [ -n "$pgid" ]; then
+    trap "kill -- -$pgid" EXIT  # If we're the leader, kill subshell processes when the script exits.
+else
+    trap "jobs -p | xargs kill --" EXIT  # Someone else is the leader; killing remaining jobs is all we can do here.
+fi
+exec 6<&0
+
+if [ -n "$interval" ]; then
+    pollForOutput
+else
+    ONCHANGE_FILE_MARKER='' onchange "${onchangeArgs[@]}" --bare --exec "${BASH_SOURCE[0]}" --trigger "${allArgs[@]}" \; "${BAG:-"${HOME}/.bag"}"
+fi
