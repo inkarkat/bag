@@ -4,6 +4,7 @@ set -o pipefail
 : ${ONBAG_OUTPUT_MARKER='{}'}
 outputMarker="$ONBAG_OUTPUT_MARKER"
 readonly EXIT_SIGNAL=125
+readonly NOOP_SIGNAL=124
 
 isTrigger=
 if [ "$1" = --trigger ]; then
@@ -113,7 +114,6 @@ HELPTEXT
 
 typeset -a allArgs=("$@")
 typeset -a bagArgs=()
-let observedChanges=0
 isParallel=
 count=
 interval=
@@ -211,12 +211,25 @@ fi
 
 pollForOutput()
 {
+    let observedChanges=0
+
     while :
     do
 	sleep "${interval:?}"
 
 	processBag
-	[ $? -eq $EXIT_SIGNAL ] && return 0
+	case $? in
+	    $EXIT_SIGNAL)
+		return 0;;
+	    $NOOP_SIGNAL)
+		;;
+	    0)
+		let observedChanges+=1
+		if [ "$count" ]; then
+		    [ $observedChanges -ge $count ] && return 0
+		fi
+		;;
+	esac
     done
 }
 
@@ -228,16 +241,14 @@ processBag()
     if [ ${result[0]} -eq 1 ] && [ "$isStopOnEmpty" ]; then
 	# The bag is empty.
 	return $EXIT_SIGNAL
-    elif [ ${result[1]} -eq $EXIT_SIGNAL ]; then
-	# The stop pattern has been encountered.
-	return $EXIT_SIGNAL
     fi
+    return ${result[1]}
 }
 
 executeTrigger()
 {
     readarray -t lines
-    [ ${#lines[@]} -eq 0 ] && return 0	# Because of the pipeline, we're also invoked if bag fails due to an empty bag.
+    [ ${#lines[@]} -eq 0 ] && return $NOOP_SIGNAL   # Because of the pipeline, we're also invoked if bag fails due to an empty bag.
 
     if [ -n "$stopPattern" ]; then
 	local line
@@ -248,23 +259,17 @@ executeTrigger()
     fi
 
 
-    let observedChanges+=1
-
     [ "$isPrint" ] && printf '%s\n' "${lines[@]}"
 
     if [ ${#commands[@]} -ge 1 ]; then
 	if [ -n "$exitOn" -a -n "$isParallel" -a ! -e "$keepRunningMarkerFile" ]; then
 	    # The marker file is gone; this means we should not trigger anything
 	    # new, and instead exit the script.
-	    return 0
+	    return $EXIT_SIGNAL
 	fi
 
 	[ "$rateLimit" ] && sleep "$rateLimit"
 	eval 'triggerCommand "${lines[@]}"' ${isParallel:+&}
-    fi
-
-    if [ "$count" ]; then
-	[ $observedChanges -ge $count ] && return 0
     fi
 }
 
