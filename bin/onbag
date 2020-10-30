@@ -6,10 +6,10 @@ outputMarker="$ONBAG_OUTPUT_MARKER"
 readonly EXIT_SIGNAL=125
 readonly NOOP_SIGNAL=124
 
-isTrigger=
-if [ "$1" = --trigger ]; then
+isOnChange=
+if [ "$1" = --onchange ]; then
     shift
-    isTrigger=t
+    isOnChange=t
 else
     if [ -z "$PGID" ]; then # No parent script has become the process group leader yet.
 	pgid=$(($(ps -o pgid= -p "$$")))	# By defining this, we'll be killing subshell processes of this process group when we're done or interrupted. Any children with the same ambition will defer to us.
@@ -297,7 +297,7 @@ triggerCommand()
     fi
 }
 
-if [ "$isTrigger" ]; then
+if [ "$isOnChange" ]; then
     processBag
     exit $?
 fi
@@ -322,5 +322,5 @@ exec 6<&0
 if [ -n "$interval" ]; then
     pollForOutput
 else
-    ONCHANGE_FILE_MARKER='' onchange "${onchangeArgs[@]}" --bare --exec "${BASH_SOURCE[0]}" --trigger "${allArgs[@]}" \; "${BAG:-"${HOME}/.bag"}"
+    ONCHANGE_FILE_MARKER='' onchange "${onchangeArgs[@]}" --bare --exec "${BASH_SOURCE[0]}" --onchange "${allArgs[@]}" \; "${BAG:-"${HOME}/.bag"}"
 fi
