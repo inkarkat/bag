@@ -10,6 +10,8 @@ isOnChange=
 if [ "$1" = --onchange ]; then
     shift
     isOnChange=t
+    parentScriptPid="$1"
+    shift
 else
     if [ -z "$PGID" ]; then # No parent script has become the process group leader yet.
 	pgid=$(($(ps -o pgid= -p "$$")))	# By defining this, we'll be killing subshell processes of this process group when we're done or interrupted. Any children with the same ambition will defer to us.
@@ -297,9 +299,25 @@ triggerCommand()
     fi
 }
 
+database()
+{
+    miniDB --base-type runtime --schema 'PID COUNT' --table onbag "$@"
+}
+
 if [ "$isOnChange" ]; then
-    processBag
-    exit $?
+    if processBag; then
+	if [ -n "$count" ]; then
+	    if observedChanges="$(database --query $parentScriptPid --columns COUNT)"; then
+		let observedChanges+=1
+		[ $observedChanges -ge $count ] && exit $EXIT_SIGNAL
+		database --update "$parentScriptPid	$observedChanges"
+	    fi
+	fi
+
+	exit 0
+    else
+	exit $?
+    fi
 fi
 
 
@@ -322,5 +340,20 @@ exec 6<&0
 if [ -n "$interval" ]; then
     pollForOutput
 else
-    ONCHANGE_FILE_MARKER='' onchange "${onchangeArgs[@]}" --bare --exec "${BASH_SOURCE[0]}" --onchange "${allArgs[@]}" \; "${BAG:-"${HOME}/.bag"}"
+    if [ -n "$count" ]; then
+	# We cannot let onchange directly count the invocations via --count, as
+	# the popping off of the output is another change; doubling the counts
+	# might work with inotifywait, but not with the much more granular
+	# polling.
+
+	# Therefore, we need another external store to persist the counter.
+	database --update "$$	0"
+	[ "${DEBUG:-}" ] || trap 'database --delete $$ 2>/dev/null' EXIT
+
+	# As with the --stop-on options, the end of observation is signaled by
+	# the recursive invocation through $EXIT_SIGNAL.
+	onchangeArgs=(--exit-on $EXIT_SIGNAL)
+    fi
+
+    ONCHANGE_FILE_MARKER='' onchange "${onchangeArgs[@]}" --bare --exec "${BASH_SOURCE[0]}" --onchange $$ "${allArgs[@]}" \; "${BAG:-"${HOME}/.bag"}"
 fi
