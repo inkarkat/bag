@@ -1,6 +1,6 @@
 #!/bin/bash
 
-: ${EACHFILE_FILE_MARKER:='{}'}
+: ${EACHFILE_FILE_MARKER='{}'}
 fileMarker="$EACHFILE_FILE_MARKER"; unset EACHFILE_FILE_MARKER
 
 printShortUsage()
@@ -22,7 +22,7 @@ printLongUsage()
     # This is the long "man page" when launched with the help argument.
     # It is printed to stdout to allow paging with 'more'.
     cat <<HELPDESCRIPTION
-Execute COMMAND on each FILE (which either is appended or replaces any $fileMarker marker
+Execute COMMAND on each FILE (which ${fileMarker:+either }is appended${fileMarker:+ or replaces any $fileMarker marker}
 inside COMMANDLINE) individually. So one invocation of COMMAND per FILE.
 HELPDESCRIPTION
     echo

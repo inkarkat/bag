@@ -1,6 +1,6 @@
 #!/bin/bash
 
-: ${EACHARG_ARG_MARKER:='{}'}
+: ${EACHARG_ARG_MARKER='{}'}
 argMarker="$EACHARG_ARG_MARKER"; unset EACHARG_ARG_MARKER
 
 printShortUsage()
@@ -21,8 +21,8 @@ printLongUsage()
     # This is the long "man page" when launched with the help argument.
     # It is printed to stdout to allow paging with 'more'.
     cat <<HELPDESCRIPTION
-Execute COMMAND with each supplied ARGUMENT (which either is appended or
-replaces any $argMarker marker inside COMMANDLINE) individually. So one invocation of
+Execute COMMAND with each supplied ARGUMENT (which ${argMarker:+either }is appended${argMarker:+ or
+replaces any $argMarker marker }inside COMMANDLINE) individually. So one invocation of
 COMMAND per ARGUMENT.
 HELPDESCRIPTION
     echo
