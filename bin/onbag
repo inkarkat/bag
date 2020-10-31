@@ -271,7 +271,7 @@ executeTrigger()
 
 		# Need to process any previous read lines, and put back lines
 		# after the stop line. Do the latter first.
-		[ $lineCnt -lt ${#lines[@]} ] && printf '%s\n' "${lines[@]:$lineCnt}" | bag --append
+		[ $lineCnt -lt ${#lines[@]} ] && bag --prepend -- "${lines[@]}"
 		if [ $lineCnt -eq 1 ]; then
 		    return $EXIT_SIGNAL
 		else
@@ -298,7 +298,7 @@ executeTrigger()
     fi
 
     # Put back any lines that have been read but haven't been processed.
-    [ ${#lines[@]} -gt 0 ] && printf '%s\n' "${lines[@]}" | bag --append
+    [ ${#lines[@]} -gt 0 ] && bag --prepend -- "${lines[@]}"
 
     return $signal
 }
