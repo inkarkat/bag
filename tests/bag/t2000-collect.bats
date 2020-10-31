@@ -26,3 +26,9 @@ and more
 third entry
 gets appended"
 }
+
+@test "force reading from stdin via -" {
+    echo 'first entry' | bag -
+
+    assert_bag "first entry"
+}
