@@ -40,6 +40,24 @@ multiple lines"
 second entry"
 }
 
+@test "prepending an argument" {
+    bag 'first entry'
+    bag --prepend 'second entry'
+
+    assert_bag "second entry
+first entry"
+}
+
+@test "prepending three arguments" {
+    bag 'first entry'
+    bag --prepend 'second entry' 'third entry' 'last entry'
+
+    assert_bag "second entry
+third entry
+last entry
+first entry"
+}
+
 @test "three passed arguments create three lines" {
     bag 'first entry' 'second entry' 'last entry'
 

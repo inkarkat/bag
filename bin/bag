@@ -9,8 +9,8 @@ printUsage()
 Collect output in a special file.
 HELPTEXT
     echo
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [-a|--append] [--] [OUTPUT ...]'
-    printf 'Usage: echo OUTPUT | %q %s\n' "$(basename "$1")" '[-t|--transactional] [-a|--append] [-]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [--prepend|-a|--append] [--] OUTPUT [...]'
+    printf 'Usage: echo OUTPUT | %q %s\n' "$(basename "$1")" '[-t|--transactional] [--prepend|-a|--append] [-]'
 
     echo
     cat <<HELPTEXT
@@ -40,6 +40,7 @@ HELPTEXT
 typeset -a allArgs=("$@")
 typeset -a popArgs=()
 isQuiet=
+isPrepend=
 isAppend=
 isPrint=
 isTransactional=
@@ -55,6 +56,7 @@ do
 	-+([0-9]))	popArgs+=("$1"); shift;;
 	--delete-empty)	shift; popArgs+=(--delete);;
 	--delete|-d)	shift; action=delete;;
+	--prepend)	isPrepend=t; shift;;
 	--append|-a)	isAppend=t; shift;;
 	--transactional|-t)
 			isTransactional=t; shift;;
@@ -74,6 +76,9 @@ do
 	*)		break;;
     esac
 done
+if [ "$isPrepend" ] && [ "$isAppend" ]; then
+    printUsage "$0" >&2
+fi
 if [ "$isPrint" ]; then
     case "$action" in
 	collect)    action=print;;
@@ -131,18 +136,29 @@ case "$action" in
 	exec rm --force -- "$BAG"
 	;;
     put)
-	eval 'printf %s\\n "$@"' ">${isAppend:+>}" '"$BAG"'
+	if [ "$isPrepend" ]; then
+	    prepend "$@" "$BAG"
+	else
+	    eval 'printf %s\\n "$@"' ">${isAppend:+>}" '"$BAG"'
+	fi
 	;;
     collect)
-	if [ ! "$isAppend" ]; then
-	    > "$BAG" || exit $?
-	fi
+	if [ "$isPrepend" ]; then
+	    readarray -t lines
+	    if [ ${#lines[@]} -gt 0 ]; then
+		prepend "${lines[@]}" "$BAG" || exit $?
+	    fi
+	else
+	    if [ ! "$isAppend" ]; then
+		> "$BAG" || exit $?
+	    fi
 
-	isEOL=t
-	while IFS=$'\n' read -r line || { isEOL=; [ -n "$line" ]; }
-	do
-	    printf %s${isEOL:+\\n} "$line" >> "$BAG"
-	done
+	    isEOL=t
+	    while IFS=$'\n' read -r line || { isEOL=; [ -n "$line" ]; }
+	    do
+		printf %s${isEOL:+\\n} "$line" >> "$BAG"
+	    done
+	fi
 	;;
     *)
 	printf >&2 'ASSERT: Invalid action: %s\n' "$action"; exit 3

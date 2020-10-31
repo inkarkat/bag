@@ -27,6 +27,17 @@ third entry
 gets appended"
 }
 
+@test "prepending additional lines" {
+    echo -e 'first entry\nsecond entry\nand more' | bag
+    echo -e 'third entry\ngets prepended' | bag --prepend
+
+    assert_bag "third entry
+gets prepended
+first entry
+second entry
+and more"
+}
+
 @test "force reading from stdin via -" {
     echo 'first entry' | bag -
 
