@@ -101,8 +101,10 @@ HELPDESCRIPTION
     --exit-on NUM	Stop observing changes if COMMAND exits with NUM.
     --exit-unless NUM	Stop observing changes if COMMAND does not exit with
 			NUM.
-    --count|-n N	Stop observing changes after N changes.
-    -1			Stop observing after the first change.
+    --count|-n N	Stop observing changes after N changes. Output that is
+			retried is not counted.
+    -1			Stop observing after the first change. Output that is
+			retried is not counted.
     --retry-on-failure	Put back the output into the special file if COMMAND is
 			unsuccessful.
     --retry-on NUM	Put back the output into the special file if COMMAND
@@ -125,7 +127,7 @@ stopPattern=
 rateLimit=
 exitOn=
 exitComparison=-eq
-retryOn= #TODO
+retryOn=
 retryComparison=-eq
 typeset -a commands=()
 prefixCommand=
@@ -191,6 +193,9 @@ if [ ! "$isPrint" ] && [ ! "$count" ] && [ ${#commands[@]} -eq 0 ]; then
     echo 'ERROR: Need to pass either -1|-c|--count to count changes, --print to show updated files, or -c|--command to execute a command.'
     echo
     printShortUsage "$0"
+    exit 2
+elif [ -n "$exitOn" -a -n "$retryOn" -a "$exitOn" = "$retryOn" -a "$exitComparison" = "$retryComparison" ]; then
+    printf 'ERROR: Cannot exit and retry on the same exit status (%d).\n' "$exitOn"
     exit 2
 fi >&2
 if [ -n "$exitOn" -a -n "$isParallel" ]; then
@@ -295,6 +300,11 @@ triggerCommand()
 	if [ $exitStatus $exitComparison $exitOn ]; then
 	    [ "$isParallel" ] && kill -SIGUSR1 $$
 	    return $EXIT_SIGNAL
+	fi
+    elif [ "$retryOn" ]; then
+	if [ $exitStatus $retryComparison $retryOn ]; then
+	    printf '%s\n' "$@" | bag --append
+	    return $NOOP_SIGNAL
 	fi
     fi
 }
