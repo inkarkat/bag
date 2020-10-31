@@ -87,8 +87,10 @@ HELPDESCRIPTION
     --stop-on-empty|-S	Stop once the special file becomes empty / is deleted.
     --stop-on|-s PATTERN
 			Stop observing changes if the output (individual lines)
-			matches PATTERN. PATTERN is a Bash-style extended
-			regular expression.
+			matches PATTERN. When multiple lines are consumed, lines
+			before the match are still processed, and lines after
+			the match are put back into the special file. PATTERN is
+			a Bash-style extended regular expression.
     --parallel		Instead of waiting for one COMMAND to finish before
 			executing the next, run each one the moment the change
 			is triggered. The default is sequential invocation.
@@ -257,11 +259,26 @@ executeTrigger()
     readarray -t lines
     [ ${#lines[@]} -eq 0 ] && return $NOOP_SIGNAL   # Because of the pipeline, we're also invoked if bag fails due to an empty bag.
 
+    local signal=0
     if [ -n "$stopPattern" ]; then
-	local line
+	local line lineCnt=0
 	for line in "${lines[@]}"
 	do
-	    [[ "$line" =~ $stopPattern ]] && return $EXIT_SIGNAL
+	    let lineCnt+=1
+	    if [[ "$line" =~ $stopPattern ]]; then
+		# Optimization when no --max-lines configured.
+		[ ${#lines[@]} -eq 1 ] && return $EXIT_SIGNAL
+
+		# Need to process any previous read lines, and put back lines
+		# after the stop line. Do the latter first.
+		[ $lineCnt -lt ${#lines[@]} ] && printf '%s\n' "${lines[@]:$lineCnt}" | bag --append
+		if [ $lineCnt -eq 1 ]; then
+		    return $EXIT_SIGNAL
+		else
+		    lines=("${lines[@]:0:$((lineCnt-1))}")
+		    signal=$EXIT_SIGNAL
+		fi
+	    fi
 	done
     fi
 
@@ -272,12 +289,18 @@ executeTrigger()
 	if [ -n "$exitOn" -a -n "$isParallel" -a ! -e "$keepRunningMarkerFile" ]; then
 	    # The marker file is gone; this means we should not trigger anything
 	    # new, and instead exit the script.
-	    return $EXIT_SIGNAL
+	    signal=$EXIT_SIGNAL
+	else
+	    [ "$rateLimit" ] && sleep "$rateLimit"
+	    eval 'triggerCommand "${lines[@]}"' ${isParallel:+&}
+	    lines=()
 	fi
-
-	[ "$rateLimit" ] && sleep "$rateLimit"
-	eval 'triggerCommand "${lines[@]}"' ${isParallel:+&}
     fi
+
+    # Put back any lines that have been read but haven't been processed.
+    [ ${#lines[@]} -gt 0 ] && printf '%s\n' "${lines[@]}" | bag --append
+
+    return $signal
 }
 
 triggerCommand()
