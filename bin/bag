@@ -38,7 +38,6 @@ HELPTEXT
 
 typeset -a allArgs=("$@")
 typeset -a popArgs=()
-typeset -a teeArgs=()
 isQuiet=
 isAppend=
 isPrint=
@@ -55,7 +54,7 @@ do
 	-+([0-9]))	popArgs+=("$1"); shift;;
 	--delete-empty)	shift; popArgs+=(--delete);;
 	--delete|-d)	shift; action=delete;;
-	--append|-a)	isAppend=t; teeArgs+=("$1"); shift;;
+	--append|-a)	isAppend=t; shift;;
 	--transactional|-t)
 			isTransactional=t; shift;;
 	--)		shift; break;;
@@ -134,7 +133,15 @@ case "$action" in
 	eval 'printf %s\\n "$*"' ">${isAppend:+>}" '"$BAG"'
 	;;
     collect)
-	exec tee "${teeArgs[@]}" -- "$BAG"
+	if [ ! "$isAppend" ]; then
+	    > "$BAG" || exit $?
+	fi
+
+	isEOL=t
+	while IFS=$'\n' read -r line || { isEOL=; [ -n "$line" ]; }
+	do
+	    printf %s${isEOL:+\\n} "$line" >> "$BAG"
+	done
 	;;
     *)
 	printf >&2 'ASSERT: Invalid action: %s\n' "$action"; exit 3
