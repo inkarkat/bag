@@ -40,7 +40,8 @@ printLongUsage()
     # This is the long "man page" when launched with the help argument.
     # It is printed to stdout to allow paging with 'more'.
     cat <<HELPDESCRIPTION
-Observe a special file for added output and perform an action with this.
+Observe a special file for added output, consume it from the start (FIFO-style)
+in order to perform an action with it.
 HELPDESCRIPTION
     printShortUsage "$1"
     echo
@@ -94,8 +95,8 @@ HELPDESCRIPTION
     --parallel		Instead of waiting for one COMMAND to finish before
 			executing the next, run each one the moment the change
 			is triggered. The default is sequential invocation.
-    --rate-limit NUMBER[SUFFIX]]
-			Sleep for NUMBER[SUFFIX]] before triggering the next
+    --rate-limit NUMBER[SUFFIX]
+			Sleep for NUMBER[SUFFIX] before triggering the next
 			parallel execution of COMMAND. This can avoid triggering
 			too many simultaneous executions.
     --exit-on-success	Stop observing changes if COMMAND is successful.
@@ -115,7 +116,7 @@ HELPDESCRIPTION
 			does not exit with NUM.
 Example:
 HELPTEXT
-    printf '%q %s\n' "$(basename "$1")" "--exec scp $outputMarker user@host:/tmp/ \; *.sh"
+    printf '%q %s\n' "$(basename "$1")" '--bare -l 5 -s STOP --retry-on-failure -- wget {}'
 }
 
 typeset -a allArgs=("$@")
