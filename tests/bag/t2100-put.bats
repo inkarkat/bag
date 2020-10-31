@@ -39,3 +39,11 @@ multiple lines"
     assert_bag "first entry
 second entry"
 }
+
+@test "three passed arguments create three lines" {
+    bag 'first entry' 'second entry' 'last entry'
+
+    assert_bag "first entry
+second entry
+last entry"
+}

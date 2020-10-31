@@ -14,7 +14,8 @@ HELPTEXT
 
     echo
     cat <<HELPTEXT
-Print collected output from the special file.
+Print collected output from the special file. (Each argument as a separate
+line.)
 HELPTEXT
     echo
     printf 'Usage: %q %s [| ...]\n' "$(basename "$1")" '[-t|--transactional] [-p|--print] [-q|--quiet]'
@@ -130,7 +131,7 @@ case "$action" in
 	exec rm --force -- "$BAG"
 	;;
     put)
-	eval 'printf %s\\n "$*"' ">${isAppend:+>}" '"$BAG"'
+	eval 'printf %s\\n "$@"' ">${isAppend:+>}" '"$BAG"'
 	;;
     collect)
 	if [ ! "$isAppend" ]; then
