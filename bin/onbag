@@ -272,7 +272,7 @@ executeTrigger()
 
 		# Need to process any previous read lines, and put back lines
 		# after the stop line. Do the latter first.
-		[ $lineCnt -lt ${#lines[@]} ] && bag --prepend -- "${lines[@]}"
+		[ $lineCnt -lt ${#lines[@]} ] && bag "${bagArgs[@]}" --prepend -- "${lines[@]}"
 		if [ $lineCnt -eq 1 ]; then
 		    return $EXIT_SIGNAL
 		else
@@ -299,7 +299,7 @@ executeTrigger()
     fi
 
     # Put back any lines that have been read but haven't been processed.
-    [ ${#lines[@]} -gt 0 ] && bag --prepend -- "${lines[@]}"
+    [ ${#lines[@]} -gt 0 ] && bag "${bagArgs[@]}" --prepend -- "${lines[@]}"
 
     return $signal
 }
@@ -327,7 +327,7 @@ triggerCommand()
 	fi
     elif [ "$retryOn" ]; then
 	if [ $exitStatus $retryComparison $retryOn ]; then
-	    printf '%s\n' "$@" | bag --append
+	    printf '%s\n' "$@" | bag "${bagArgs[@]}" --append
 	    return $NOOP_SIGNAL
 	fi
     fi
