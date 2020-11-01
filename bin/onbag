@@ -154,7 +154,6 @@ do
 	--retry-on-failure)	shift; retryOn=0; retryComparison=-ne;;
 	--retry-on)		shift; retryOn="$1"; shift; retryComparison=-eq;;
 	--retry-unless)		shift; retryOn="$1"; shift; retryComparison=-ne;;
-	--poll)		shift; hasInotify=;;
 	--parallel)	shift; isParallel=t;;
 	--print)	shift; isPrint=t;;
 	--bare)		shift; isBare=t;;
@@ -225,7 +224,7 @@ pollForOutput()
 
     while :
     do
-	sleep "${interval:?}"
+	[ "${interval:?}" = 0 ] || sleep "$interval"
 
 	processBag
 	case $? in
