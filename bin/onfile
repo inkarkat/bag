@@ -307,9 +307,8 @@ handleFiles()
 executeTrigger()
 {
     let observedChanges+=1
-    local filespec="$1"
 
-    [ "$isPrint" ] && printf '%s\n' "$filespec"
+    [ "$isPrint" ] && printf '%s\n' "$@"
 
     if [ ${#commands[@]} -ge 1 ]; then
 	if [ -n "$exitOn" -a -n "$isParallel" -a ! -e "$keepRunningMarkerFile" ]; then
@@ -319,7 +318,7 @@ executeTrigger()
 	fi
 
 	[ "$rateLimit" ] && sleep "$rateLimit"
-	eval 'triggerFile "$filespec"' ${isParallel:+&}
+	eval 'triggerFile "$@"' ${isParallel:+&}
     fi
 
     if [ "$count" ]; then
