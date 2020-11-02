@@ -1,5 +1,6 @@
 #!/bin/bash
 set -o pipefail
+shopt -qs extglob
 
 [ ${BASH_VERSINFO[0]} -ge 4 ] || { echo >&2 "ERROR: This script requires Bash 4.0 or higher!"; exit 2; }
 
@@ -20,7 +21,7 @@ readonly NOOP_SIGNAL=124
 
 printShortUsage()
 {
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-n|--count N|-1] [--delay NUMBER[SUFFIX]] [--stabilization-time NUMBER[SUFFIX]] [-i|--interval NUMBER[SUFFIX] [-l|--max-files N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [--print] [[--bare|--no-capture-output] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on|-exit-unless NUM] [--delete-on-success|--delete-on-failure|--delete-on NUM|--delete-unless NUM] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '-d|--dir DIR [--accept-existing] [-n|--count N|-1] [--delay NUMBER[SUFFIX]] [--stabilization-time NUMBER[SUFFIX]] [-i|--interval NUMBER[SUFFIX] [-l|--max-files N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [--print] [[--bare|--no-capture-output] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on|-exit-unless NUM] [--delete-on-success|--delete-on-failure|--delete-on NUM|--delete-unless NUM] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -39,6 +40,11 @@ HELPDESCRIPTION
     printShortUsage "$1"
     echo
     cat <<HELPTEXT
+    --dir|-d DIR	The directory that is observed; subdirectories and
+			hidden files are ignored.
+    --accept-existing	Treat files that exist when the command starts as
+			added. Together with -1 this can be used to ensure that
+			a file exists (and wait for it).
     --print		Print the added filespecs.
     --bare		Do not print a status line before and after launching
 			the COMMAND.
@@ -107,11 +113,13 @@ HELPTEXT
     printf '%q %s\n' "$(basename "$1")" "--exec scp $fileMarker user@host:/tmp/ \; *.sh"
 }
 
+dir=
+isAcceptExisting=
 isParallel=
 count=
 delay=
 stabilizationTime=
-interval=
+interval=0.05
 maxFiles=1
 isStopOnEmpty=
 stopPattern=
@@ -130,8 +138,10 @@ while [ $# -ne 0 ]
 do
     case "$1" in
 	--help|-h|-\?)	shift; printLongUsage "$0"; exit 0;;
-	--count|-n)	shift; count="$1"; shift;;
-	-1)		shift; count=1;;
+	--dir|-d)		shift; dir="$1"; shift;;
+	--accept-existing)	shift; isAcceptExisting=t;;
+	--count|-n)		shift; count="$1"; shift;;
+	-1)			shift; count=1;;
 	--exit-on-success)	shift; exitOn=0; exitComparison=-eq;;
 	--exit-on-failure)	shift; exitOn=0; exitComparison=-ne;;
 	--exit-on)		shift; exitOn="$1"; shift; exitComparison=-eq;;
@@ -140,37 +150,42 @@ do
 	--delete-on-failure)	shift; deleteOn=0; deleteComparison=-ne;;
 	--delete-on)		shift; deleteOn="$1"; shift; deleteComparison=-eq;;
 	--delete-unless)	shift; deleteOn="$1"; shift; deleteComparison=-ne;;
-	--parallel)	shift; isParallel=t;;
-	--print)	shift; isPrint=t;;
-	--bare)		shift; isBare=t;;
-	--no-capture-output)
-			shift; isCaptureOutput=;;
-	--command|-c)	shift
-			if [ -n "$prefixCommandCommand" ]; then
-			    printf -v quotedCommand %q "$1"
-			    printf -v escapedFileMarker %q "$fileMarker" # %q escapes {}, we don't want that to have it interpolated later.
-			    commands+=(${commands:+;} "${prefixCommandCommand} --command ${quotedCommand//"$escapedFileMarker"/$fileMarker}")
-			else
-			    commands+=(${commands:+;} "${prefixCommand}$1")
-			fi
-			shift
-			;;
-	--prefix-command)
-			shift; prefixCommand="$1"; shift;;
+	--parallel)		shift; isParallel=t;;
+	--print)		shift; isPrint=t;;
+	--bare)			shift; isBare=t;;
+	--no-capture-output)	shift; isCaptureOutput=;;
+	--command|-c)		shift
+				if [ -n "$prefixCommandCommand" ]; then
+				    printf -v quotedCommand %q "$1"
+				    printf -v escapedFileMarker %q "$fileMarker" # %q escapes {}, we don't want that to have it interpolated later.
+				    commands+=(${commands:+;} "${prefixCommandCommand} --command ${quotedCommand//"$escapedFileMarker"/$fileMarker}")
+				else
+				    commands+=(${commands:+;} "${prefixCommand}$1")
+				fi
+				shift
+				;;
+	--prefix-command)	shift; prefixCommand="$1"; shift;;
 	--prefix-command-command)
-			shift; prefixCommandCommand="$1"; shift;;
-	--delay)	shift; delay="$1"; shift;;
-	--stabilization-time)
-			shift; stabilizationTime="$1"; shift;;
-	--interval|-i)	shift; interval="$1"; shift;;
-	--max-files|-f)	shift; maxFiles="$1"; shift;;
-	--stop-on-empty|-S)
-			shift; isStopOnEmpty=t;;
-	--stop-on|-s)	shift; stopPattern="$1"; shift;;
-	--rate-limit)	shift; rateLimit="$1"; shift;;
-	--)		shift; break;;
-	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printShortUsage "$0"; } >&2; exit 2;;
-	*)		break;;
+				shift; prefixCommandCommand="$1"; shift;;
+	--delay)		shift; delay="$1"; shift;;
+	--stabilization-time)	shift
+				case "$1" in
+				    +([0-9])?(s))   stabilizationTime="${1%s}";;
+				    +([0-9])m)	    stabilizationTime=$((${1%m} * 60));;
+				    +([0-9])h)	    stabilizationTime=$((${1%h} * 3600));;
+				    +([0-9])d)	    stabilizationTime=$((${1%d} * 86400));;
+				    *)		    printf >&2 'ERROR: Illegal number: %s\n' "$1"; exit 2;;
+				esac
+				shift
+				;;
+	--interval|-i)		shift; interval="$1"; shift;;
+	--max-files|-f)		shift; maxFiles="$1"; shift;;
+	--stop-on-empty|-S)	shift; isStopOnEmpty=t;;
+	--stop-on|-s)		shift; stopPattern="$1"; shift;;
+	--rate-limit)		shift; rateLimit="$1"; shift;;
+	--)			shift; break;;
+	-*)			{ echo "ERROR: Unknown option \"$1\"!"; echo; printShortUsage "$0"; } >&2; exit 2;;
+	*)			break;;
     esac
 done
 if [ $# -ne 0 ]; then
@@ -180,7 +195,17 @@ if [ $# -ne 0 ]; then
     printf -v escapedFileMarker %q "$fileMarker"
     commands+=(${commands:+;} "${prefixCommand}${quotedSimpleCommand//"$escapedFileMarker"/$fileMarker}")	# %q escapes {}, we don't want that to have it interpolated later.
 fi
-if [ ! "$isPrint" ] && [ ! "$count" ] && [ ${#commands[@]} -eq 0 ]; then
+if [ -z "$dir" ]; then
+    echo 'ERROR: No -d|--dir DIR passed.'
+    echo
+    printShortUsage "$0"
+    exit 2
+elif [ ! -d "$dir" ]; then
+    printf 'ERROR: The directory %s does not exist.\n' "$dir"
+    exit 2
+elif ! cd "$dir"; then
+    exit $?
+elif [ ! "$isPrint" ] && [ ! "$count" ] && [ ${#commands[@]} -eq 0 ]; then
     echo 'ERROR: Need to pass either -1|-c|--count to count changes, --print to show updated files, or -c|--command to execute a command.'
     echo
     printShortUsage "$0"
