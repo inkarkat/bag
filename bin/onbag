@@ -66,8 +66,9 @@ HELPDESCRIPTION
 			replaced by the added output. Multiple lines (via
 			--max-lines) are passed as individual arguments.
     --prefix-command PC	Put PC (directly) in front of the COMMAND(s) given by
-			(subsequent, but not previous) --command or --exec. This
-			can be used to inject a wrapper command.
+			(subsequent, but not previous) --command or
+			SIMPLECOMMAND. This can be used to inject a wrapper
+			command.
     --prefix-command-command PCC
 			Put PCC (directly) in front of the COMMAND(s) given by
 			(subsequent, but not previous) --command, and pass
