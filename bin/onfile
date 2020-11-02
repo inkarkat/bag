@@ -15,8 +15,7 @@ fi
 
 : ${ONFILE_FILE_MARKER='{}'}
 fileMarker="$ONFILE_FILE_MARKER"
-readonly EXIT_SIGNAL=125
-readonly NOOP_SIGNAL=124
+STABILIZED_TIME=2147483647
 
 
 printShortUsage()
@@ -176,6 +175,7 @@ do
 				    +([0-9])d)	    stabilizationTime=$((${1%d} * 86400));;
 				    *)		    printf >&2 'ERROR: Illegal number: %s\n' "$1"; exit 2;;
 				esac
+				SECONDS=$(date +%s) # Need to sync up only once; Bash will keep the epoch updated from then on.
 				shift
 				;;
 	--interval|-i)		shift; interval="$1"; shift;;
@@ -247,7 +247,13 @@ pollForAddedFiles()
 	[ "$isAcceptExisting" ] && addedFiles+=("$file")
     done
 
-    [ ${#addedFiles[@]} -gt 0 ] && handleAddedFiles "${addedFiles[@]}"
+    if [ ${#addedFiles[@]} -gt 0 ]; then
+	if [ -n "$stabilizationTime" ]; then
+	    handleStabilizedFiles
+	else
+	    handleFiles "${addedFiles[@]}"
+	fi
+    fi
 
     while :
     do
@@ -258,7 +264,7 @@ pollForAddedFiles()
 	do
 	    fileMtime=$(mtime "$file")
 	    prevMtime=${filesMtime["$file"]}
-	    if [ $fileMtime -ne $prevMtime ]; then
+	    if [ $fileMtime -ne $prevMtime -a $prevMtime -ne $STABILIZED_TIME ]; then
 		filesMtime["$file"]=$fileMtime
 		[ $prevMtime -eq -1 ] && addedFiles+=("$file")
 	    elif [ $fileMtime -eq -1 ]; then
@@ -266,12 +272,33 @@ pollForAddedFiles()
 	    fi
 	done
 
-	[ ${#addedFiles[@]} -gt 0 ] && handleAddedFiles "${addedFiles[@]}"
+	if [ -n "$stabilizationTime" ]; then
+	    handleStabilizedFiles
+	elif [ ${#addedFiles[@]} -gt 0 ]; then
+	    handleFiles "${addedFiles[@]}"
+	fi
     done
 }
 
 
-handleAddedFiles()
+handleStabilizedFiles()
+{
+    typeset -a stabilizedFiles=()
+    local file
+    for file in "${!filesMtime[@]}"
+    do
+	if [ $((SECONDS - ${filesMtime["$file"]})) -ge $stabilizationTime ]; then
+	    filesMtime["$file"]=$STABILIZED_TIME    # Avoid that the file gets picked up again on the next iteration if it doesn't get removed.
+	    stabilizedFiles+=("$file")
+	fi
+    done
+
+    if [ ${#stabilizedFiles[@]} -gt 0 ]; then
+	handleFiles "${stabilizedFiles[@]}"
+    fi
+}
+
+handleFiles()
 {
     # TODO: maxFiles
     executeTrigger "$@"
