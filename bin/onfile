@@ -226,3 +226,116 @@ if [ "$isParallel" ]; then
     [ "$isCaptureOutput" ] && runWithPromptArgs+=(--no-output-no-error)
     runWithPromptArgs+=(--no-count-on 99)
 fi
+
+
+
+mtime()
+{
+    stat --format=%Y "$@" 2>/dev/null || echo '-1'
+}
+
+pollForAddedFiles()
+{
+    let observedChanges=0
+    typeset -a addedFiles=()
+
+    typeset -A filesMtime=()
+    for file in *
+    do
+	fileMtime=$(mtime "$file")
+	filesMtime["$file"]=$fileMtime
+	[ "$isAcceptExisting" ] && addedFiles+=("$file")
+    done
+
+    [ ${#addedFiles[@]} -gt 0 ] && handleAddedFiles "${addedFiles[@]}"
+
+    while :
+    do
+	[ "${interval:?}" = 0 ] || sleep "$interval"
+
+	addedFiles=()
+	for file in *
+	do
+	    fileMtime=$(mtime "$file")
+	    prevMtime=${filesMtime["$file"]}
+	    if [ $fileMtime -ne $prevMtime ]; then
+		filesMtime["$file"]=$fileMtime
+		[ $prevMtime -eq -1 ] && addedFiles+=("$file")
+	    elif [ $fileMtime -eq -1 ]; then
+		unset filesMtime["$file"]
+	    fi
+	done
+
+	[ ${#addedFiles[@]} -gt 0 ] && handleAddedFiles "${addedFiles[@]}"
+    done
+}
+
+
+handleAddedFiles()
+{
+    # TODO: maxFiles
+    executeTrigger "$@"
+}
+
+executeTrigger()
+{
+    let observedChanges+=1
+    local filespec="$1"
+
+    [ "$isPrint" ] && printf '%s\n' "$filespec"
+
+    if [ ${#commands[@]} -ge 1 ]; then
+	if [ -n "$exitOn" -a -n "$isParallel" -a ! -e "$keepRunningMarkerFile" ]; then
+	    # The marker file is gone; this means we should not trigger anything
+	    # new, and instead exit the script.
+	    exit 0
+	fi
+
+	[ "$rateLimit" ] && sleep "$rateLimit"
+	eval 'triggerFile "$filespec"' ${isParallel:+&}
+    fi
+
+    if [ "$count" ]; then
+	[ $observedChanges -ge $count ] && exit 0
+    fi
+}
+triggerFile()
+{
+    local filespec="$1" quotedFilespec
+    printf -v quotedFilespec '%q' "$filespec"
+    typeset -a expandedCommands=("${commands[@]//"$fileMarker"/$quotedFilespec}")
+
+    [ "$delay" ] && sleep "$delay"
+
+    if [ "$isBare" ]; then
+	eval "${expandedCommands[@]}"
+    else
+	{ printf '%s ' "${expandedCommands[@]}"; printf '\n'; } | runWithPrompt "${runWithPromptArgs[@]}" --comment "$observedChanges"
+    fi <&6
+    exitStatus=$?
+
+    if [ "$exitOn" ]; then
+	if [ $exitStatus $exitComparison $exitOn ]; then
+	    [ "$isParallel" ] && kill -SIGUSR1 $$
+	    exit 0
+	fi
+    fi
+}
+
+shutdown()
+{
+    if [ -e "$keepRunningMarkerFile" ]; then
+	rm -f "$keepRunningMarkerFile"
+	wait    # Wait for running jobs to finish; this avoids the "Terminated" message and exit status 143.
+    fi
+    exit 0
+}
+
+trap "shutdown" SIGUSR1
+if [ -n "$pgid" ]; then
+    trap "kill -- -$pgid" EXIT  # If we're the leader, kill subshell processes when the script exits.
+else
+    trap "jobs -p | xargs kill --" EXIT  # Someone else is the leader; killing remaining jobs is all we can do here.
+fi
+exec 6<&0
+pollForAddedFiles "$@"
