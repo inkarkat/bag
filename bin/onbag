@@ -162,8 +162,8 @@ do
 	--command|-c)	shift
 			if [ -n "$prefixCommandCommand" ]; then
 			    printf -v quotedCommand %q "$1"
-			    printf -v escapedFileMarker %q "$outputMarker" # %q escapes {}, we don't want that to have it interpolated later.
-			    commands+=(${commands:+;} "${prefixCommandCommand} --command ${quotedCommand//"$escapedFileMarker"/$outputMarker}")
+			    printf -v escapedOutputMarker %q "$outputMarker" # %q escapes {}, we don't want that to have it interpolated later.
+			    commands+=(${commands:+;} "${prefixCommandCommand} --command ${quotedCommand//"$escapedOutputMarker"/$outputMarker}")
 			else
 			    commands+=(${commands:+;} "${prefixCommand}$1")
 			fi
@@ -188,8 +188,8 @@ if [ $# -ne 0 ]; then
     # Combine --command and SIMPLECOMMAND; need to quote SIMPLECOMMAND to
     # undo the effects of eval.
     printf -v quotedSimpleCommand '%q ' "$@"
-    printf -v escapedFileMarker %q "$outputMarker"
-    commands+=(${commands:+;} "${prefixCommand}${quotedSimpleCommand//"$escapedFileMarker"/$outputMarker}")	# %q escapes {}, we don't want that to have it interpolated later.
+    printf -v escapedOutputMarker %q "$outputMarker"
+    commands+=(${commands:+;} "${prefixCommand}${quotedSimpleCommand//"$escapedOutputMarker"/$outputMarker}")	# %q escapes {}, we don't want that to have it interpolated later.
 fi
 if [ ! "$isPrint" ] && [ ! "$count" ] && [ ${#commands[@]} -eq 0 ]; then
     echo 'ERROR: Need to pass either -1|-c|--count to count changes, --print to show updated files, or -c|--command to execute a command.'
