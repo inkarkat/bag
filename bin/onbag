@@ -310,8 +310,6 @@ triggerCommand()
 
     typeset -a expandedCommands=("${commands[@]//"$outputMarker"/$quotedLines}")
 
-    [ "$delay" ] && sleep "$delay"
-
     unset ONBAG_OUTPUT_MARKER
     if [ "$isBare" ]; then
 	eval "${expandedCommands[@]}"
