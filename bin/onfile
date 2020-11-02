@@ -107,3 +107,97 @@ HELPTEXT
     printf '%q %s\n' "$(basename "$1")" "--exec scp $fileMarker user@host:/tmp/ \; *.sh"
 }
 
+isParallel=
+count=
+delay=
+stabilizationTime=
+interval=
+maxFiles=1
+isStopOnEmpty=
+stopPattern=
+rateLimit=
+exitOn=
+exitComparison=-eq
+deleteOn=
+deleteComparison=-eq
+typeset -a commands=()
+prefixCommand=
+prefixCommandCommand=
+isPrint=
+isBare=
+isCaptureOutput=t
+while [ $# -ne 0 ]
+do
+    case "$1" in
+	--help|-h|-\?)	shift; printLongUsage "$0"; exit 0;;
+	--count|-n)	shift; count="$1"; shift;;
+	-1)		shift; count=1;;
+	--exit-on-success)	shift; exitOn=0; exitComparison=-eq;;
+	--exit-on-failure)	shift; exitOn=0; exitComparison=-ne;;
+	--exit-on)		shift; exitOn="$1"; shift; exitComparison=-eq;;
+	--exit-unless)		shift; exitOn="$1"; shift; exitComparison=-ne;;
+	--delete-on-success)	shift; deleteOn=0; deleteComparison=-eq;;
+	--delete-on-failure)	shift; deleteOn=0; deleteComparison=-ne;;
+	--delete-on)		shift; deleteOn="$1"; shift; deleteComparison=-eq;;
+	--delete-unless)	shift; deleteOn="$1"; shift; deleteComparison=-ne;;
+	--parallel)	shift; isParallel=t;;
+	--print)	shift; isPrint=t;;
+	--bare)		shift; isBare=t;;
+	--no-capture-output)
+			shift; isCaptureOutput=;;
+	--command|-c)	shift
+			if [ -n "$prefixCommandCommand" ]; then
+			    printf -v quotedCommand %q "$1"
+			    printf -v escapedFileMarker %q "$fileMarker" # %q escapes {}, we don't want that to have it interpolated later.
+			    commands+=(${commands:+;} "${prefixCommandCommand} --command ${quotedCommand//"$escapedFileMarker"/$fileMarker}")
+			else
+			    commands+=(${commands:+;} "${prefixCommand}$1")
+			fi
+			shift
+			;;
+	--prefix-command)
+			shift; prefixCommand="$1"; shift;;
+	--prefix-command-command)
+			shift; prefixCommandCommand="$1"; shift;;
+	--delay)	shift; delay="$1"; shift;;
+	--stabilization-time)
+			shift; stabilizationTime="$1"; shift;;
+	--interval|-i)	shift; interval="$1"; shift;;
+	--max-files|-f)	shift; maxFiles="$1"; shift;;
+	--stop-on-empty|-S)
+			shift; isStopOnEmpty=t;;
+	--stop-on|-s)	shift; stopPattern="$1"; shift;;
+	--rate-limit)	shift; rateLimit="$1"; shift;;
+	--)		shift; break;;
+	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printShortUsage "$0"; } >&2; exit 2;;
+	*)		break;;
+    esac
+done
+if [ $# -ne 0 ]; then
+    # Combine --command and SIMPLECOMMAND; need to quote SIMPLECOMMAND to
+    # undo the effects of eval.
+    printf -v quotedSimpleCommand '%q ' "$@"
+    printf -v escapedFileMarker %q "$fileMarker"
+    commands+=(${commands:+;} "${prefixCommand}${quotedSimpleCommand//"$escapedFileMarker"/$fileMarker}")	# %q escapes {}, we don't want that to have it interpolated later.
+fi
+if [ ! "$isPrint" ] && [ ! "$count" ] && [ ${#commands[@]} -eq 0 ]; then
+    echo 'ERROR: Need to pass either -1|-c|--count to count changes, --print to show updated files, or -c|--command to execute a command.'
+    echo
+    printShortUsage "$0"
+    exit 2
+fi >&2
+if [ -n "$exitOn" -a -n "$isParallel" ]; then
+    # Need a marker file to signal stopping; a variable won't do.
+    keepRunningMarkerFile=$(mktemp --tmpdir "$(basename -- "$0")-XXXXXX" 2>/dev/null || echo "${TEMP:-/tmp}/$(basename -- "$0").$$$RANDOM")
+    touch "$keepRunningMarkerFile"
+fi
+
+# Don't show a prompt if nothing was printed; this would just waste screen
+# space. Parallel execution is supposedly mostly used to control resource usage
+# (e.g. just one instance via singleton or not too frequent actions via
+# oncePer). In that case, ignore failing invocations altogether.
+typeset -a runWithPromptArgs=(); [ "$isCaptureOutput" ] && runWithPromptArgs+=(--no-output-no-prompt)
+if [ "$isParallel" ]; then
+    [ "$isCaptureOutput" ] && runWithPromptArgs+=(--no-output-no-error)
+    runWithPromptArgs+=(--no-count-on 99)
+fi
