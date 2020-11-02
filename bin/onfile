@@ -1,0 +1,109 @@
+#!/bin/bash
+set -o pipefail
+
+[ ${BASH_VERSINFO[0]} -ge 4 ] || { echo >&2 "ERROR: This script requires Bash 4.0 or higher!"; exit 2; }
+
+if [ -z "$PGID" ]; then # No parent script has become the process group leader yet.
+    pgid=$(($(ps -o pgid= -p "$$")))	# By defining this, we'll be killing subshell processes of this process group when we're done or interrupted. Any children with the same ambition will defer to us.
+    if [ $$ -eq $pgid ]; then
+	export PGID=$pgid   # We are (already / after setsid) in our own process group, announce our leadership to any children, so that they don't become leaders themselves and thereby decouple themselves from our lifetime control.
+    else
+	exec setsid --wait "${BASH_SOURCE[0]}" "$@" # Use setsid instead of set -m (...) to avoid having another subshell in between.
+    fi
+fi
+
+: ${ONFILE_FILE_MARKER='{}'}
+fileMarker="$ONFILE_FILE_MARKER"
+readonly EXIT_SIGNAL=125
+readonly NOOP_SIGNAL=124
+
+
+printShortUsage()
+{
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-n|--count N|-1] [--delay NUMBER[SUFFIX]] [--stabilization-time NUMBER[SUFFIX]] [-i|--interval NUMBER[SUFFIX] [-l|--max-files N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [--print] [[--bare|--no-capture-output] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on|-exit-unless NUM] [--delete-on-success|--delete-on-failure|--delete-on NUM|--delete-unless NUM] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+}
+printUsage()
+{
+    # This is the short help when launched with no or incorrect arguments.
+    # It is printed to stderr to avoid accidental processing.
+    printShortUsage "$1" >&2
+    printf >&2 'Try %q --help for more information.\n' "$(basename "$1")"
+}
+printLongUsage()
+{
+    # This is the long "man page" when launched with the help argument.
+    # It is printed to stdout to allow paging with 'more'.
+    cat <<HELPDESCRIPTION
+Observe DIR for added files and perform an action with them.
+HELPDESCRIPTION
+    printShortUsage "$1"
+    echo
+    cat <<HELPTEXT
+    --print		Print the added filespecs.
+    --bare		Do not print a status line before and after launching
+			the COMMAND.
+    --no-capture-output	By default, no status line is printed if the COMMAND did
+			not have any output, and failing parallel invocations
+			without output are ignored altogether. This option turns
+			this off and will print status lines (and consider
+			parallel failures) even without output. Some
+			(interactive) commands (like Vim) do not like having
+			their output not connected to the terminal, and can be
+			made to cooperate by passing this option.
+    --command|-c CMD	Execute CMD as a command-line. The string $fileMarker is
+			replaced by the added filespecs. Multiple files (via
+			--max-files) are passed as individual arguments.
+    --prefix-command PC	Put PC (directly) in front of the COMMAND(s) given by
+			(subsequent, but not previous) --command or
+			SIMPLECOMMAND. This can be used to inject a wrapper
+			command.
+    --prefix-command-command PCC
+			Put PCC (directly) in front of the COMMAND(s) given by
+			(subsequent, but not previous) --command, and pass
+			COMMAND via --command COMMAND to PCC. This can be used
+			to inject a wrapper command that itself takes a
+			--command argument.
+			This is different than --prefix-command when COMMAND
+			itself is a pipeline; here, the entire pipeline will be
+			passed to PCC; whereas PC would only cover the first
+			command inside the pipeline.
+    --delay NUMBER[SUFFIX]
+			Sleep for NUMBER[SUFFIX]] before executing COMMAND (to
+			allow the file to stabilize, for example).
+    --stabilization-time NUMBER[SUFFIX]
+			Wait until NUMBER[SUFFIX] has passed (with a granularity
+			of INTERVAL) after the last modification of the file
+			before recognizing the change.
+    --interval|-i INTERVAL[SUFFIX]
+			Wait for INTERVAL seconds between observations of DIR.
+			By default, any change is observed almost immediately.
+    --max-files|-l N	A maximum of N (default: 1) files are consumed and
+			passed to COMMAND at once (if available). The entire set
+			of files counts as one change (for --count).
+    --stop-on-empty|-S	Stop once DIR becomes empty / is deleted.
+    --stop-on|-s PATTERN
+			Stop observing if an added filename matches
+			PATTERN. PATTERN is a Bash-style extended regular
+			expression.
+    --parallel		Instead of waiting for one COMMAND to finish before
+			executing the next, run each one the moment the change
+			is triggered. The default is sequential invocation.
+    --rate-limit NUMBER[SUFFIX]]
+			Sleep for NUMBER[SUFFIX]] before triggering the next
+			parallel execution of COMMAND. This can avoid triggering
+			too many simultaneous executions.
+    --exit-on-success	Stop observing if COMMAND is successful.
+    --exit-on-failure	Stop observing if COMMAND is unsuccessful.
+    --exit-on NUM	Stop observing if COMMAND exits with NUM.
+    --exit-unless NUM	Stop observing if COMMAND does not exit with NUM.
+    --count|-n N	Stop observing after N additions.
+    -1			Stop observing after the first added file.
+    --delete-on-success	Delete the added file if COMMAND is successful.
+    --delete-on-failure	Delete the added file if COMMAND is unsuccessful.
+    --delete-on NUM	Delete the added file if COMMAND exits with NUM.
+    --delete-unless NUM	Delete the added file if COMMAND does not exit with NUM.
+Example:
+HELPTEXT
+    printf '%q %s\n' "$(basename "$1")" "--exec scp $fileMarker user@host:/tmp/ \; *.sh"
+}
+
