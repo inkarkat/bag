@@ -1,6 +1,6 @@
 #!/bin/bash
 set -o pipefail
-shopt -qs extglob
+shopt -qs extglob nullglob
 
 [ ${BASH_VERSINFO[0]} -ge 4 ] || { echo >&2 "ERROR: This script requires Bash 4.0 or higher!"; exit 2; }
 
@@ -264,6 +264,7 @@ pollForAddedFiles()
 	do
 	    fileMtime=$(mtime "$file")
 	    prevMtime=${filesMtime["$file"]}
+	    [ -n "$prevMtime" ] || prevMtime=-1
 	    if [ $fileMtime -ne $prevMtime -a $prevMtime -ne $STABILIZED_TIME ]; then
 		filesMtime["$file"]=$fileMtime
 		[ $prevMtime -eq -1 ] && addedFiles+=("$file")
@@ -288,20 +289,38 @@ handleStabilizedFiles()
     for file in "${!filesMtime[@]}"
     do
 	if [ $((SECONDS - ${filesMtime["$file"]})) -ge $stabilizationTime ]; then
-	    filesMtime["$file"]=$STABILIZED_TIME    # Avoid that the file gets picked up again on the next iteration if it doesn't get removed.
 	    stabilizedFiles+=("$file")
 	fi
     done
 
     if [ ${#stabilizedFiles[@]} -gt 0 ]; then
 	handleFiles "${stabilizedFiles[@]}"
+
+	# Avoid that the files get picked up again on the next iteration if it doesn't get removed.
+	for file in "${stabilizedFiles[@]}"
+	do
+	    filesMtime["$file"]=$STABILIZED_TIME
+	done
     fi
 }
 
 handleFiles()
 {
+    # Sort ascending by modification date; this is important for --count,
+    # --max-files, and --stop-on.
+    typeset -a files=()
+    readarray -t files < <(
+	SEP=/
+	# Use / as the field separator; as we're dealing with filenames, this
+	# cannot appear in $file.
+	for file
+	do
+	    printf "%s${SEP}%s\\n" "${filesMtime["$file"]}" "$file"
+	done | sort --field-separator "$SEP" --key 1,1n --key 2 | sed -e "s#^[^${SEP}]\\+${SEP}##"
+    )
+
     # TODO: maxFiles
-    executeTrigger "$@"
+    executeTrigger "${files[@]}"
 }
 
 executeTrigger()
