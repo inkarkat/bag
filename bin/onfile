@@ -179,7 +179,7 @@ do
 				shift
 				;;
 	--interval|-i)		shift; interval="$1"; shift;;
-	--max-files|-f)		shift; maxFiles="$1"; shift;;
+	--max-files|-l)		shift; maxFiles="$1"; shift;;
 	--stop-on-empty|-S)	shift; isStopOnEmpty=t;;
 	--stop-on|-s)		shift; stopPattern="$1"; shift;;
 	--rate-limit)		shift; rateLimit="$1"; shift;;
