@@ -322,8 +322,12 @@ handleFiles()
 	done | sort --field-separator "$SEP" --key 1,1n --key 2 | sed -e "s#^[^${SEP}]\\+${SEP}##"
     )
 
-    # TODO: maxFiles
-    executeTrigger "${files[@]}"
+    while [ ${#files[@]} -gt 0 ]
+    do
+	typeset -a fileSet=("${files[@]:0:$maxFiles}")
+	files=("${files[@]:$maxFiles}")
+	executeTrigger "${fileSet[@]}"
+    done
 }
 
 executeTrigger()
