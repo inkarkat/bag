@@ -20,7 +20,7 @@ STABILIZED_TIME=2147483647
 
 printShortUsage()
 {
-    printf 'Usage: %q %s\n' "$(basename "$1")" '-d|--dir DIR [--accept-existing] [-n|--count N|-1] [--delay NUMBER[SUFFIX]] [--stabilization-time NUMBER[SUFFIX]] [-i|--interval NUMBER[SUFFIX] [-l|--max-files N] [-D|--stop-on-empty-dir] [-S|--stop-on-empty-file] [-s|--stop-on-filename PATTERN] [--print] [[--bare|--no-capture-output] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on|-exit-unless NUM] [--delete-on-success|--delete-on-failure|--delete-on NUM|--delete-unless NUM] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '-d|--dir DIR [--accept-existing] [-n|--count N|-1] [--delay NUMBER[SUFFIX]] [--stabilization-time NUMBER[SUFFIX]] [-i|--interval NUMBER[SUFFIX] [-l|--max-files N] [-D|--stop-on-empty-dir] [-S|--stop-on-empty-file [--delete-empty-file]] [-s|--stop-on-filename PATTERN] [--print] [[--bare|--no-capture-output] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on|-exit-unless NUM] [--delete-on-success|--delete-on-failure|--delete-on NUM|--delete-unless NUM] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -90,6 +90,7 @@ HELPDESCRIPTION
     --stop-on-empty-file|-S
 			Stop once an empty (after any stabilization time) file
 			is added.
+    --delete-empty-file	Remove the empty marker file when stopping.
     --stop-on-filename|-s PATTERN
 			Stop observing if an added filename matches
 			PATTERN. PATTERN is a Bash-style extended regular
@@ -126,6 +127,7 @@ interval=0.05
 maxFiles=1
 isStopOnEmptyDir=
 isStopOnEmptyFile=
+isDeleteEmptyFile=
 stopFilenamePattern=
 rateLimit=
 exitOn=
@@ -188,6 +190,7 @@ do
 	--stop-on-empty-dir|-D)	shift; isStopOnEmptyDir=t;;
 	--stop-on-empty-file|-S)
 				shift; isStopOnEmptyFile=t;;
+	--delete-empty-file)	shift; isDeleteEmptyFile=t;;
 	--stop-on-filename|-s)	shift; stopFilenamePattern="$1"; shift;;
 	--rate-limit)		shift; rateLimit="$1"; shift;;
 	--)			shift; break;;
@@ -212,6 +215,9 @@ elif [ ! -d "$dir" ]; then
     exit 2
 elif ! cd "$dir"; then
     exit $?
+elif [ "$isDeleteEmptyFile" ] && [ ! "$isStopOnEmptyFile" ]; then
+    printShortUsage "$0"
+    exit 2
 elif [ ! "$isPrint" ] && [ ! "$count" ] && [ ${#commands[@]} -eq 0 ]; then
     echo 'ERROR: Need to pass either -1|-c|--count to count changes, --print to show updated files, or -c|--command to execute a command.'
     echo
@@ -341,12 +347,14 @@ executeTrigger()
 {
     local isExit=
     if [ -n "$stopFilenamePattern" ] || [ "$isStopOnEmptyFile" ]; then
-	local file fileCnt=0
+	local file fileCnt=0 isEncounteredEmptyFile=
 	for file
 	do
 	    let fileCnt+=1
 	    if { [ -n "$stopFilenamePattern" ] && [[ "$file" =~ $stopFilenamePattern ]]; } ||
-		{ [ "$isStopOnEmptyFile" ] && [ -e "$file" -a ! -s "$file" ]; }; then
+		{ [ "$isStopOnEmptyFile" ] && [ -e "$file" -a ! -s "$file" ] && isEncounteredEmptyFile=t; }; then
+		[ "$isEncounteredEmptyFile" ] && [ "$isDeleteEmptyFile" ] && rm -- "$file"
+
 		if [ $fileCnt -eq 1 ]; then
 		    # Optimization when the first file already is the stop file.
 		    # (When no --max-files is configured this is always the
