@@ -325,6 +325,29 @@ handleFiles()
 
 executeTrigger()
 {
+    local isExit=
+    if [ -n "$stopPattern" ]; then
+	local file fileCnt=0
+	for file
+	do
+	    let fileCnt+=1
+	    if [[ "$file" =~ $stopPattern ]]; then
+		if [ $fileCnt -eq 1 ]; then
+		    # Optimization when the first file already is the stop file.
+		    # (When no --max-files is configured this is always the
+		    # case.)
+		    exit 0
+		else
+		    # Need to still process any files added before the stop
+		    # file.
+		    set -- "${@:0:$((fileCnt-1))}"
+		    isExit=t
+		fi
+		break
+	    fi
+	done
+    fi
+
     let observedChanges+=1
 
     [ "$isPrint" ] && printf '%s\n' "$@"
@@ -340,7 +363,9 @@ executeTrigger()
 	eval 'triggerFile "$@"' ${isParallel:+&}
     fi
 
-    if [ "$count" ]; then
+    if [ "$isExit" ]; then
+	exit 0
+    elif [ "$count" ]; then
 	[ $observedChanges -ge $count ] && exit 0
     fi
 }
