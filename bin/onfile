@@ -378,9 +378,8 @@ executeTrigger()
 }
 triggerFile()
 {
-    local filespec="$1" quotedFilespec
-    printf -v quotedFilespec '%q' "$filespec"
-    typeset -a expandedCommands=("${commands[@]//"$fileMarker"/$quotedFilespec}")
+    local quotedFilespecs; printf -v quotedFilespecs '%q ' "$@"; quotedFilespecs=${quotedFilespecs% }
+    typeset -a expandedCommands=("${commands[@]//"$fileMarker"/$quotedFilespecs}")
 
     [ "$delay" ] && sleep "$delay"
 
