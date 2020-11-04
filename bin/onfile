@@ -388,7 +388,7 @@ triggerFile()
 	eval "${expandedCommands[@]}"
     else
 	{ printf '%s ' "${expandedCommands[@]}"; printf '\n'; } | runWithPrompt "${runWithPromptArgs[@]}" --comment "$observedChanges"
-    fi <&6
+    fi
     exitStatus=$?
 
     if [ "$exitOn" ]; then
@@ -414,5 +414,4 @@ if [ -n "$pgid" ]; then
 else
     trap "jobs -p | xargs kill --" EXIT  # Someone else is the leader; killing remaining jobs is all we can do here.
 fi
-exec 6<&0
 pollForAddedFiles "$@"
