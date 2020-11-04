@@ -279,6 +279,7 @@ executeTrigger()
 		    lines=("${lines[@]:0:$((lineCnt-1))}")
 		    signal=$EXIT_SIGNAL
 		fi
+		break
 	    fi
 	done
     fi
