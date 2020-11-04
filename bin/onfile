@@ -259,8 +259,11 @@ pollForAddedFiles()
     do
 	[ "${interval:?}" = 0 ] || sleep "$interval"
 
+	typeset -a filesInDir=(*)
+	[ "$isStopOnEmpty" ] && [ ${#filesInDir[@]} -eq 0 -a $observedChanges -gt 0 ] && break
+
 	addedFiles=()
-	for file in *
+	for file in "${filesInDir[@]}"
 	do
 	    fileMtime=$(mtime "$file")
 	    prevMtime=${filesMtime["$file"]}
