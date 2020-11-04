@@ -20,7 +20,7 @@ STABILIZED_TIME=2147483647
 
 printShortUsage()
 {
-    printf 'Usage: %q %s\n' "$(basename "$1")" '-d|--dir DIR [--accept-existing] [-n|--count N|-1] [--delay NUMBER[SUFFIX]] [--stabilization-time NUMBER[SUFFIX]] [-i|--interval NUMBER[SUFFIX] [-l|--max-files N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [--print] [[--bare|--no-capture-output] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on|-exit-unless NUM] [--delete-on-success|--delete-on-failure|--delete-on NUM|--delete-unless NUM] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '-d|--dir DIR [--accept-existing] [-n|--count N|-1] [--delay NUMBER[SUFFIX]] [--stabilization-time NUMBER[SUFFIX]] [-i|--interval NUMBER[SUFFIX] [-l|--max-files N] [-D|--stop-on-empty-dir] [-s|--stop-on-filename PATTERN] [--print] [[--bare|--no-capture-output] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on|-exit-unless NUM] [--delete-on-success|--delete-on-failure|--delete-on NUM|--delete-unless NUM] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -85,8 +85,9 @@ HELPDESCRIPTION
     --max-files|-l N	A maximum of N (default: 1) files are consumed and
 			passed to COMMAND at once (if available). The entire set
 			of files counts as one change (for --count).
-    --stop-on-empty|-S	Stop once DIR becomes empty / is deleted.
-    --stop-on|-s PATTERN
+    --stop-on-empty-dir|-D
+			Stop once DIR becomes empty / is deleted.
+    --stop-on-filename|-s PATTERN
 			Stop observing if an added filename matches
 			PATTERN. PATTERN is a Bash-style extended regular
 			expression.
@@ -120,8 +121,8 @@ delay=
 stabilizationTime=
 interval=0.05
 maxFiles=1
-isStopOnEmpty=
-stopPattern=
+isStopOnEmptyDir=
+stopFilenamePattern=
 rateLimit=
 exitOn=
 exitComparison=-eq
@@ -180,8 +181,8 @@ do
 				;;
 	--interval|-i)		shift; interval="$1"; shift;;
 	--max-files|-l)		shift; maxFiles="$1"; shift;;
-	--stop-on-empty|-S)	shift; isStopOnEmpty=t;;
-	--stop-on|-s)		shift; stopPattern="$1"; shift;;
+	--stop-on-empty-dir|-D)	shift; isStopOnEmptyDir=t;;
+	--stop-on-filename|-s)	shift; stopFilenamePattern="$1"; shift;;
 	--rate-limit)		shift; rateLimit="$1"; shift;;
 	--)			shift; break;;
 	-*)			{ echo "ERROR: Unknown option \"$1\"!"; echo; printShortUsage "$0"; } >&2; exit 2;;
@@ -260,7 +261,7 @@ pollForAddedFiles()
 	[ "${interval:?}" = 0 ] || sleep "$interval"
 
 	typeset -a filesInDir=(*)
-	[ "$isStopOnEmpty" ] && [ ${#filesInDir[@]} -eq 0 -a $observedChanges -gt 0 ] && break
+	[ "$isStopOnEmptyDir" ] && [ ${#filesInDir[@]} -eq 0 -a $observedChanges -gt 0 ] && break
 
 	addedFiles=()
 	for file in "${filesInDir[@]}"
@@ -333,12 +334,12 @@ handleFiles()
 executeTrigger()
 {
     local isExit=
-    if [ -n "$stopPattern" ]; then
+    if [ -n "$stopFilenamePattern" ]; then
 	local file fileCnt=0
 	for file
 	do
 	    let fileCnt+=1
-	    if [[ "$file" =~ $stopPattern ]]; then
+	    if [[ "$file" =~ $stopFilenamePattern ]]; then
 		if [ $fileCnt -eq 1 ]; then
 		    # Optimization when the first file already is the stop file.
 		    # (When no --max-files is configured this is always the
