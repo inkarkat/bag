@@ -348,7 +348,7 @@ executeTrigger()
 		else
 		    # Need to still process any files added before the stop
 		    # file.
-		    set -- "${@:0:$((fileCnt-1))}"
+		    set -- "${@:1:$((fileCnt-1))}"
 		    isExit=t
 		fi
 		break
