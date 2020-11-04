@@ -390,11 +390,12 @@ triggerFile()
     fi
     exitStatus=$?
 
-    if [ "$exitOn" ]; then
-	if [ $exitStatus $exitComparison $exitOn ]; then
-	    [ "$isParallel" ] && kill -SIGUSR1 $$
-	    exit 0
-	fi
+    if [ "$deleteOn" ] && [ $exitStatus $deleteComparison $deleteOn ]; then
+	rm -- "$@"
+    fi
+    if [ "$exitOn" ] && [ $exitStatus $exitComparison $exitOn ]; then
+	[ "$isParallel" ] && kill -SIGUSR1 $$
+	exit 0
     fi
 }
 
