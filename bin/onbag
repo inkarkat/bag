@@ -279,6 +279,7 @@ executeTrigger()
 		    lines=("${lines[@]:0:$((lineCnt-1))}")
 		    signal=$EXIT_SIGNAL
 		fi
+		break
 	    fi
 	done
     fi
@@ -309,8 +310,6 @@ triggerCommand()
     local quotedLines; printf -v quotedLines '%q ' "$@"; quotedLines=${quotedLines% }
 
     typeset -a expandedCommands=("${commands[@]//"$outputMarker"/$quotedLines}")
-
-    [ "$delay" ] && sleep "$delay"
 
     unset ONBAG_OUTPUT_MARKER
     if [ "$isBare" ]; then
