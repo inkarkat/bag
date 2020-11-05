@@ -20,7 +20,7 @@ STABILIZED_TIME=2147483647
 
 printShortUsage()
 {
-    printf 'Usage: %q %s\n' "$(basename "$1")" '-d|--dir DIR [--accept-existing] [-n|--count N|-1] [--delay NUMBER[SUFFIX]] [--stabilization-time NUMBER[SUFFIX]] [-i|--interval NUMBER[SUFFIX] [-l|--max-files N] [-D|--stop-on-empty-dir] [-S|--stop-on-empty-file [--delete-empty-file]] [-s|--stop-on-filename PATTERN] [--print] [[--bare|--no-capture-output] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on|-exit-unless NUM] [--delete-on-success|--delete-on-failure|--delete-on NUM|--delete-unless NUM] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" "-d|--dir DIR|-g|--glob 'GLOB' [-d|--dir DIR]|--source-command SOURCE-COMMAND [-d|--dir DIR] [--accept-existing] [-n|--count N|-1] [--delay NUMBER[SUFFIX]] [--stabilization-time NUMBER[SUFFIX]] [-i|--interval NUMBER[SUFFIX] [-l|--max-files N] [-D|--stop-on-empty-dir] [-S|--stop-on-empty-file [--delete-empty-file]] [-s|--stop-on-filename PATTERN] [--print] [[--bare|--no-capture-output] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on|-exit-unless NUM] [--delete-on-success|--delete-on-failure|--delete-on NUM|--delete-unless NUM] -c|--command \"COMMANDLINE\" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]"
 }
 printUsage()
 {
@@ -41,6 +41,12 @@ HELPDESCRIPTION
     cat <<HELPTEXT
     --dir|-d DIR	The directory that is observed; subdirectories and
 			hidden files are ignored.
+    --glob|-g 'GLOB'	Only files matching GLOB are observed. Can be combined
+			with --dir to go to DIR first.
+    --source-command SOURCE-COMMAND
+			SOURCE-COMMAND is invoked repeatedly and should return
+			the observed files one per line. Can be combined with
+			--dir to go to DIR first.
     --accept-existing	Treat files that exist when the command starts as
 			added. Together with -1 this can be used to ensure that
 			a file exists (and wait for it).
@@ -114,10 +120,12 @@ HELPDESCRIPTION
     --delete-unless NUM	Delete the added file if COMMAND does not exit with NUM.
 Example:
 HELPTEXT
-    printf '%q %s\n' "$(basename "$1")" "--exec scp $fileMarker user@host:/tmp/ \; *.sh"
+    printf '%q %s\n' "$(basename "$1")" "--glob '*.url' -i 5 --accept-existing --delete-on-success --stop-on-empty-file --delete-empty-file -- wget --input-file $fileMarker"
 }
 
 dir=
+glob=
+sourceCommand=
 isAcceptExisting=
 isParallel=
 count=
@@ -145,6 +153,8 @@ do
     case "$1" in
 	--help|-h|-\?)	shift; printLongUsage "$0"; exit 0;;
 	--dir|-d)		shift; dir="$1"; shift;;
+	--glob|-g)		shift; glob="$1"; shift;;
+	--source-command)	shift; sourceCommand="$1"; shift;;
 	--accept-existing)	shift; isAcceptExisting=t;;
 	--count|-n)		shift; count="$1"; shift;;
 	-1)			shift; count=1;;
@@ -205,15 +215,20 @@ if [ $# -ne 0 ]; then
     printf -v escapedFileMarker %q "$fileMarker"
     commands+=(${commands:+;} "${prefixCommand}${quotedSimpleCommand//"$escapedFileMarker"/$fileMarker}")	# %q escapes {}, we don't want that to have it interpolated later.
 fi
-if [ -z "$dir" ]; then
-    echo 'ERROR: No -d|--dir DIR passed.'
+if [ -z "${dir}${glob}${sourceCommand}" ]; then
+    echo 'ERROR: No -d|--dir DIR|-g|--glob 'GLOB'|--source-command SOURCE-COMMAND passed.'
     echo
     printShortUsage "$0"
     exit 2
-elif [ ! -d "$dir" ]; then
+elif [ -n "$glob" -a -n "$sourceCommand" ]; then
+    echo "ERROR: Can only pass either -g|--glob 'GLOB' or --source-command SOURCE-COMMAND."
+    echo
+    printShortUsage "$0"
+    exit 2
+elif [ -n "$dir" -a ! -d "$dir" ]; then
     printf 'ERROR: The directory %s does not exist.\n' "$dir"
     exit 2
-elif ! cd "$dir"; then
+elif [ -n "$dir" ] && ! cd "$dir"; then
     exit $?
 elif [ "$isDeleteEmptyFile" ] && [ ! "$isStopOnEmptyFile" ]; then
     printShortUsage "$0"
@@ -250,7 +265,13 @@ mtime()
 typeset -a existingFiles=()
 getExistingFiles()
 {
-    existingFiles=(*)
+    if [ -n "$glob" ]; then
+	existingFiles=($glob)
+    elif [ -n "$sourceCommand" ]; then
+	readarray -t existingFiles < <(eval "$sourceCommand")
+    elif [ -n "$dir" ]; then
+	existingFiles=(*)
+    fi
 }
 
 pollForAddedFiles()
