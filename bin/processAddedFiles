@@ -215,9 +215,9 @@ if [ ${#fileExtractor[@]} -gt 0 ]; then
 fi
 
 if [ "$isNeedEval" ]; then
-    printf -v quotedAddedFilespecs '%q ' "${addedFilespecs[@]}"; quotedAddedFilespecs=${quotedAddedFilespecs% }
+    printf -v quotedAddedFilespecs '%q ' "${addedFilespecs[@]}"; quotedAddedFilespecs="${quotedAddedFilespecs% }"
     typeset -a interpolatedCommands=("${commands[@]//"$fileMarker"/$quotedAddedFilespecs}")
-    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] && interpolatedCommands="$interpolatedCommands $quotedAddedFilespecs"
+    [ "${interpolatedCommands[*]}" = "${commands[*]}" ] && interpolatedCommands+=("$quotedAddedFilespecs")
 
     eval "${interpolatedCommands[@]}"
 else
