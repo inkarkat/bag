@@ -45,7 +45,8 @@ HELPDESCRIPTION
 			with --dir to go to DIR first.
     --source-command SOURCE-COMMAND
 			SOURCE-COMMAND is invoked repeatedly and should return
-			the observed files one per line. Can be combined with
+			the observed files one per line. A non-successful exit
+			status stops further observation. Can be combined with
 			--dir to go to DIR first.
     --accept-existing	Treat files that exist when the command starts as
 			added. Together with -1 this can be used to ensure that
@@ -268,7 +269,10 @@ getExistingFiles()
     if [ -n "$glob" ]; then
 	existingFiles=($glob)
     elif [ -n "$sourceCommand" ]; then
-	readarray -t existingFiles < <(eval "$sourceCommand")
+	readarray -t existingFiles < <(eval "$sourceCommand"; printf '\n%d\n' "$?")
+	[ ${existingFiles[-1]} -ne 0 ] && exit ${existingFiles[-1]}
+	unset 'existingFiles[-1]'
+	[ -z "${existingFiles[-1]}" ] && unset 'existingFiles[-1]'
     elif [ -n "$dir" ]; then
 	existingFiles=(*)
     fi
