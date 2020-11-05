@@ -247,13 +247,20 @@ mtime()
     stat --format=%Y "$@" 2>/dev/null || echo '-1'
 }
 
+typeset -a existingFiles=()
+getExistingFiles()
+{
+    existingFiles=(*)
+}
+
 pollForAddedFiles()
 {
     let observedChanges=0
     typeset -a addedFiles=()
 
     typeset -A filesMtime=()
-    for file in *
+    getExistingFiles
+    for file in "${existingFiles[@]}"
     do
 	fileMtime=$(mtime "$file")
 	filesMtime["$file"]=$fileMtime
@@ -272,11 +279,11 @@ pollForAddedFiles()
     do
 	[ "${interval:?}" = 0 ] || sleep "$interval"
 
-	typeset -a filesInDir=(*)
-	[ "$isStopOnEmptyDir" ] && [ ${#filesInDir[@]} -eq 0 -a $observedChanges -gt 0 ] && break
+	getExistingFiles
+	[ "$isStopOnEmptyDir" ] && [ ${#existingFiles[@]} -eq 0 -a $observedChanges -gt 0 ] && break
 
 	addedFiles=()
-	for file in "${filesInDir[@]}"
+	for file in "${existingFiles[@]}"
 	do
 	    fileMtime=$(mtime "$file")
 	    prevMtime=${filesMtime["$file"]}
