@@ -114,11 +114,12 @@ HELPDESCRIPTION
     --exit-on NUM	Stop observing if COMMAND exits with NUM.
     --exit-unless NUM	Stop observing if COMMAND does not exit with NUM.
     --count|-n N	Stop observing after N additions.
-    -1			Stop observing after the first added file.
-    --delete-on-success	Delete the added file if COMMAND is successful.
-    --delete-on-failure	Delete the added file if COMMAND is unsuccessful.
-    --delete-on NUM	Delete the added file if COMMAND exits with NUM.
-    --delete-unless NUM	Delete the added file if COMMAND does not exit with NUM.
+    -1			Stop observing after the first added [set of] file(s).
+    --delete-on-success	Delete the added file(s) if COMMAND is successful.
+    --delete-on-failure	Delete the added file(s) if COMMAND is unsuccessful.
+    --delete-on NUM	Delete the added file(s) if COMMAND exits with NUM.
+    --delete-unless NUM	Delete the added file(s) if COMMAND does not exit with
+			NUM.
 Example:
 HELPTEXT
     printf '%q %s\n' "$(basename "$1")" "--glob '*.url' -i 5 --accept-existing --delete-on-success --stop-on-empty-file --delete-empty-file -- wget --input-file $fileMarker"
