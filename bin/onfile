@@ -27,7 +27,7 @@ printUsage()
     # This is the short help when launched with no or incorrect arguments.
     # It is printed to stderr to avoid accidental processing.
     printShortUsage "$1" >&2
-    printf >&2 'Try %q --help for more information.\n' "$(basename "$1")"
+    printf >&2 '\nTry %q --help for more information.\n' "$(basename "$1")"
 }
 printLongUsage()
 {
@@ -206,7 +206,7 @@ do
 	--stop-on-filename|-s)	shift; stopFilenamePattern="$1"; shift;;
 	--rate-limit)		shift; rateLimit="$1"; shift;;
 	--)			shift; break;;
-	-*)			{ echo "ERROR: Unknown option \"$1\"!"; echo; printShortUsage "$0"; } >&2; exit 2;;
+	-*)			{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
 	*)			break;;
     esac
 done
@@ -220,12 +220,12 @@ fi
 if [ -z "${dir}${glob}${sourceCommand}" ]; then
     echo 'ERROR: No -d|--dir DIR|-g|--glob 'GLOB'|--source-command SOURCE-COMMAND passed.'
     echo
-    printShortUsage "$0"
+    printUsage "$0"
     exit 2
 elif [ -n "$glob" -a -n "$sourceCommand" ]; then
     echo "ERROR: Can only pass either -g|--glob 'GLOB' or --source-command SOURCE-COMMAND."
     echo
-    printShortUsage "$0"
+    printUsage "$0"
     exit 2
 elif [ -n "$dir" -a ! -d "$dir" ]; then
     printf 'ERROR: The directory %s does not exist.\n' "$dir"
@@ -233,12 +233,12 @@ elif [ -n "$dir" -a ! -d "$dir" ]; then
 elif [ -n "$dir" ] && ! cd "$dir"; then
     exit $?
 elif [ "$isDeleteEmptyFile" ] && [ ! "$isStopOnEmptyFile" ]; then
-    printShortUsage "$0"
+    printUsage "$0"
     exit 2
 elif [ ! "$isPrint" ] && [ ! "$count" ] && [ ${#commands[@]} -eq 0 ]; then
     echo 'ERROR: Need to pass either -1|-c|--count to count changes, --print to show updated files, or -c|--command to execute a command.'
     echo
-    printShortUsage "$0"
+    printUsage "$0"
     exit 2
 fi >&2
 if [ -n "$exitOn" -a -n "$isParallel" ]; then

@@ -16,7 +16,7 @@ printUsage()
     # This is the short help when launched with no or incorrect arguments.
     # It is printed to stderr to avoid accidental processing.
     printShortUsage "$1" >&2
-    printf >&2 'Try %q --help for more information.\n' "$(basename "$1")"
+    printf >&2 '\nTry %q --help for more information.\n' "$(basename "$1")"
 }
 printLongUsage()
 {
@@ -109,24 +109,24 @@ do
 	--post-line)	    shift; escapedLine="${1//\//\\/}"; postLines="${postLines}${postLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
 	--add-after)	    shift; addAfterAddress="$1"; shift;;
 	--)		    shift; break;;
-	-*)		    { echo "ERROR: Unknown option \"$1\"!"; echo; printShortUsage "$0"; } >&2; exit 2;;
+	-*)		    { echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
 	*)		    break;;
     esac
 done
 if [ -z "$line" ]; then
     echo >&2 'ERROR: No LINE passed.'
     echo >&2
-    printShortUsage "$0" >&2
+    printUsage "$0" >&2
     exit 2
 elif [ ${#sedInplaceArgs[@]} -gt 0 -a -n "$isTestOnly" ]; then
     echo >&2 'ERROR: Cannot combine --in-place and --test-only.'
     echo >&2
-    printShortUsage "\$1" >&2
+    printUsage "\$1" >&2
     exit 2
 elif [ -n "$isIgnoreNonexisting" -a -n "$isCreateNonexisting" ]; then
     echo >&2 'ERROR: Cannot combine --ignore-nonexisting and --create-nonexisting.'
     echo >&2
-    printShortUsage "\$1" >&2
+    printUsage "\$1" >&2
     exit 2
 fi
 

@@ -15,7 +15,7 @@ printUsage()
     # This is the short help when launched with no or incorrect arguments.
     # It is printed to stderr to avoid accidental processing.
     printShortUsage "$1" >&2
-    printf >&2 'Try %q --help for more information.\n' "$(basename "$1")"
+    printf >&2 '\nTry %q --help for more information.\n' "$(basename "$1")"
 }
 printLongUsage()
 {
@@ -74,7 +74,7 @@ abortLastNewest()
 
     echo >&2 'ERROR: Only one of -a|--after or -N|--newer can be passed.'
     echo >&2
-    printShortUsage "$1" >&2
+    printUsage "$1" >&2
     exit 2
 }
 abortFirstLastFilter()
@@ -84,7 +84,7 @@ abortFirstLastFilter()
 
     echo >&2 "ERROR: Only one of --${what}-first or --${what}-last can be passed."
     echo >&2
-    printShortUsage "$1" >&2
+    printUsage "$1" >&2
     exit 2
 }
 
@@ -148,12 +148,12 @@ fi
 if [ -z "$id" ]; then
     echo 'ERROR: No -i|--id ID passed.'
     echo
-    printShortUsage "$0"
+    printUsage "$0"
     exit 2
 elif [ ${#commands[@]} -eq 0 ]; then
     echo 'ERROR: No COMMAND(s) specified; need to pass -c|--command "COMMANDLINE", or SIMPLECOMMAND.'
     echo
-    printShortUsage "$0"
+    printUsage "$0"
     exit 2
 fi >&2
 

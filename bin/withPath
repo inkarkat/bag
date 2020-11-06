@@ -5,7 +5,9 @@ printShortUsage()
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
     printf 'Usage: %q %s\n' "$(basename "$1")" 'ADD-PATH [-C|--clean] -c|--command "COMMANDLINE" [-c ...] | [--] SIMPLECOMMAND [...] [-?|-h|--help]'
+    echo
     printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" 'ADD-PATH [-C|--clean] [--bare|[--trailing-prompt|--no-trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--no-success-no-count|--no-count-on N] [--emulate-prompt] [--worst-status]]'
+    echo
     printf 'Usage: %q %s <<EOF\n  COMMANDLINE\n...\nEOF\n' "$(basename "$1")" 'ADD-PATH [...]'
 }
 printUsage()
@@ -13,7 +15,7 @@ printUsage()
     # This is the short help when launched with no or incorrect arguments.
     # It is printed to stderr to avoid accidental processing.
     printShortUsage "$1" >&2
-    printf >&2 'Try %q --help for more information.\n' "$(basename "$1")"
+    printf >&2 '\nTry %q --help for more information.\n' "$(basename "$1")"
 }
 printLongUsage()
 {
@@ -38,10 +40,11 @@ case "$1" in
 esac
 
 if [ $# -eq 0 ]; then
-    echo >&2 'ERROR: No ADD-PATH passed.'
-    printShortUsage "$0" >&2
+    echo 'ERROR: No ADD-PATH passed.'
+    echo
+    printUsage "$0"
     exit 2
-fi
+fi >&2
 pathAdd="${1?}"
 export PATH_OVERRIDE=true
 export PATH="${pathAdd}:$PATH"; shift
@@ -60,7 +63,7 @@ do
 	--no-trailing-prompt|--trailing-prompt|--no-output-no-prompt|--no-output-no-error|--no-success-no-count|--emulate-prompt|--worst-status)  runWithPromptArgs+=("$1"); shift;;
 	--no-count-on)	runWithPromptArgs+=("$1" "$2"); shift; shift;;
 	--)		shift; break;;
-	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printShortUsage "$0"; } >&2; exit 2;;
+	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
 	*)		break;;
     esac
 done
