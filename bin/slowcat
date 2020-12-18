@@ -8,9 +8,9 @@ printShortUsage()
     # skim the long one.
     printf 'Usage: %q %s\n' "$(basename "$1")" '[-i|--initial NUMBER[SUFFIX]] [-l|--line NUMBER[SUFFIX]|TIMESPAN[SUFFIX][ADJUSTMENT]] [-c|--char NUMBER[SUFFIX]|TIMESPAN[SUFFIX][ADJUSTMENT]] FILE [...] [-?|-h|--help]'
     echo
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i|--initial NUMBER[SUFFIX]] [-L|--line-total|-C|--char-total TIMESPAN[SUFFIX]] FILE [...]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i|--initial NUMBER[SUFFIX]] [-L|--line-total|-C|--char-total TIMESPAN[SUFFIX]] FILE [...] [-?|-h|--help]'
     echo
-    printf 'Usage: cat FILE [...] | %q %s\n' "$(basename "$1")" '[...] [-?|-h|--help]'
+    printf 'Usage: cat FILE [...] | %q %s\n' "$(basename "$1")" '[...]'
 }
 printUsage()
 {
