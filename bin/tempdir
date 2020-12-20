@@ -4,9 +4,9 @@ printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-d|--or-existing DIRSPEC [...]] [-n|--name NAME] [-c|--command "COMMANDLINE" [-c ...] | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-d|--or-existing DIRSPEC [...] [-c|--create-subdir SUBDIR]] [-n|--name NAME] [-c|--command "COMMANDLINE" [-c ...] | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
     echo
-    printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '[-d|--or-existing DIRSPEC [...]] [-n|--name NAME] -|--stdin'
+    printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '[-d|--or-existing DIRSPEC [...] [-c|--create-subdir SUBDIR]] [-n|--name NAME] -|--stdin'
     echo
     printf 'Usage: %q %s <<EOF\n  COMMANDLINE\n...\nEOF\n' "$(basename "$1")" '[...] -|--stdin'
 }
@@ -30,12 +30,15 @@ HELPDESCRIPTION
     --or-existing|-d DIRSPEC	Use DIRSPEC if it exists (and keep it
 				afterwards) instead of creating a new temporary
 				directory.
+    --create-subdir|-c SUBDIR	In an existing DIRSPEC, create and use SUBDIR
+				inside it.
     --name|-n NAME		Use NAME as the temp dir prefix.
 HELPTEXT
 }
 
 prefix="$(basename -- "$0")"
 typeset -a tmpDirspecs=()
+createSubdir=
 isStdin=
 isNeedEval=
 typeset -a commands=()
@@ -45,6 +48,8 @@ do
 	--help|-h|-\?)	shift; printLongUsage "$0"; exit 0;;
 	--or-existing|-d)
 			shift; tmpDirspecs+=("${1:?}"); shift;;
+	--create-subdir|-c)
+			shift; createSubdir="${1:?}"; shift;;
 	--name|-n)	shift; prefix="${1:?}"; shift;;
 	--command|-c)	shift; commands+=(${commands:+;} "$1"); isNeedEval=t; shift;;
 	--stdin|-)	shift; isStdin=t;;
@@ -78,7 +83,12 @@ hasTempDir()
     return 1
 }
 
-if ! hasTempDir; then
+if hasTempDir; then
+    if [ -n "$createSubdir" ]; then
+	tmpDirspec="${tmpDirspec%/}/${createSubdir#/}"
+	mkdir --parents -- "$tmpDirspec" || exit $?
+    fi
+else
     tmpDirspec="$(mktemp --directory --tmpdir "${prefix}-XXXXXX" 2>/dev/null || { dirspec="${TEMP:-/tmp}/${prefix}.$$$RANDOM"; mkdir -p -- "$dirspec" && printf %s "$dirspec"; })" || exit $?
     cleanup()
     {
