@@ -4,9 +4,9 @@ printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-d|--or-existing DIRSPEC] [-n|--name NAME] [-c|--command "COMMANDLINE" [-c ...] | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-d|--or-existing DIRSPEC [...]] [-n|--name NAME] [-c|--command "COMMANDLINE" [-c ...] | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
     echo
-    printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '[-d|--or-existing DIRSPEC] [-n|--name NAME] -|--stdin'
+    printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '[-d|--or-existing DIRSPEC [...]] [-n|--name NAME] -|--stdin'
     echo
     printf 'Usage: %q %s <<EOF\n  COMMANDLINE\n...\nEOF\n' "$(basename "$1")" '[...] -|--stdin'
 }
@@ -35,7 +35,7 @@ HELPTEXT
 }
 
 prefix="$(basename -- "$0")"
-tmpDirspec=
+typeset -a tmpDirspecs=()
 isStdin=
 isNeedEval=
 typeset -a commands=()
@@ -44,7 +44,7 @@ do
     case "$1" in
 	--help|-h|-\?)	shift; printLongUsage "$0"; exit 0;;
 	--or-existing|-d)
-			shift; tmpDirspec="$1"; shift;;
+			shift; tmpDirspecs+=("${1:?}"); shift;;
 	--name|-n)	shift; prefix="${1:?}"; shift;;
 	--command|-c)	shift; commands+=(${commands:+;} "$1"); isNeedEval=t; shift;;
 	--stdin|-)	shift; isStdin=t;;
@@ -69,8 +69,16 @@ elif [ "$isStdin" ]; then
     { exec 0</dev/tty; } 2>/dev/null
 fi
 
+hasTempDir()
+{
+    for tmpDirspec in "${tmpDirspecs[@]}"
+    do
+	[ -d "$tmpDirspec" ] && return 0
+    done
+    return 1
+}
 
-if [ ! -d "$tmpDirspec" ]; then
+if ! hasTempDir; then
     tmpDirspec="$(mktemp --directory --tmpdir "${prefix}-XXXXXX" 2>/dev/null || { dirspec="${TEMP:-/tmp}/${prefix}.$$$RANDOM"; mkdir -p -- "$dirspec" && printf %s "$dirspec"; })" || exit $?
     cleanup()
     {
