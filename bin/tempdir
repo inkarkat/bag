@@ -9,6 +9,8 @@ printShortUsage()
     printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '[-d|--or-existing DIRSPEC [...] [-c|--create-subdir SUBDIR]] [-n|--name NAME] -|--stdin'
     echo
     printf 'Usage: %q %s <<EOF\n  COMMANDLINE\n...\nEOF\n' "$(basename "$1")" '[...] -|--stdin'
+    echo
+    printf 'Usage: TEMPDIR="$(%q %s)" && cd "$TEMPDIR" || exit $?; ...; rm -rf -- "$TEMPDIR" 2>/dev/null\n' "$(basename "$1")" '[...] -p|--print'
 }
 printUsage()
 {
@@ -26,6 +28,7 @@ Open a new shell in a temporary directory that is removed on exit.
 HELPDESCRIPTION
     echo
     printShortUsage "$1"
+    echo
     cat <<HELPTEXT
     --or-existing|-d DIRSPEC	Use DIRSPEC if it exists (and keep it
 				afterwards) instead of creating a new temporary
@@ -33,6 +36,8 @@ HELPDESCRIPTION
     --create-subdir|-c SUBDIR	In an existing DIRSPEC, create and use SUBDIR
 				inside it.
     --name|-n NAME		Use NAME as the temp dir prefix.
+    --print|-p			Just print the temporary directory. Any cleanup
+				has to be done by the client.
 HELPTEXT
 }
 
@@ -41,6 +46,7 @@ typeset -a tmpDirspecs=()
 createSubdir=
 isStdin=
 isNeedEval=
+isPrint=
 typeset -a commands=()
 while [ $# -ne 0 ]
 do
@@ -53,12 +59,18 @@ do
 	--name|-n)	shift; prefix="${1:?}"; shift;;
 	--command|-c)	shift; commands+=(${commands:+;} "$1"); isNeedEval=t; shift;;
 	--stdin|-)	shift; isStdin=t;;
+	--print|-p)	shift; isPrint=t;;
 	--)		shift; break;;
 	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
 	*)		break;;
     esac
 done
 if [ $# -ne 0 ]; then
+    if [ "$isStdin" ] || [ "$isPrint" ]; then
+	printUsage "$0"
+	exit 2
+    fi >&2
+
     if [ "$isNeedEval" ]; then
 	# Combine --command and SIMPLECOMMAND; need to quote SIMPLECOMMAND to
 	# undo the effects of eval.
@@ -67,6 +79,11 @@ if [ $# -ne 0 ]; then
 	commands=("$@")
     fi
 elif [ "$isStdin" ]; then
+    if [ "$isPrint" ]; then
+	printUsage "$0"
+	exit 2
+    fi >&2
+
     commands+=("$(< /dev/stdin)")
     [ ${#commands[@]} -gt 0 ] || exit 1
 
@@ -90,11 +107,19 @@ if hasTempDir; then
     fi
 else
     tmpDirspec="$(mktemp --directory --tmpdir "${prefix}-XXXXXX" 2>/dev/null || { dirspec="${TEMP:-/tmp}/${prefix}.$$$RANDOM"; mkdir -p -- "$dirspec" && printf %s "$dirspec"; })" || exit $?
-    cleanup()
-    {
-	rm -rf "$tmpDirspec" 2>/dev/null
-    }
-    [ "${DEBUG:-}" ] || trap 'cleanup' EXIT
+
+    if [ ! "$isPrint" ]; then
+	cleanup()
+	{
+	    rm -rf "$tmpDirspec" 2>/dev/null
+	}
+	[ "${DEBUG:-}" ] || trap 'cleanup' EXIT
+    fi
+fi
+
+if [ "$isPrint" ]; then
+    printf '%s\n' "$tmpDirspec"
+    exit 0
 fi
 
 cd "$tmpDirspec" || exit $?
