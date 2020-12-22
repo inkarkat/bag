@@ -126,8 +126,14 @@ if [ ${#commands[@]} -eq 0 ]; then
     exit 2
 fi >&2
 
+getOctalFilePermissions()
+{
+    stat --format %#a -- "$@" 2>/dev/null
+}
+
 tempFilespec="$(mktemp ${tempDirspec:+--tmpdir="$tempDirspec"} "${prefix}-XXXXXX" 2>/dev/null || { tempfile="${tempDirspec:-${TEMP:-/tmp}}/${prefix}.$$$RANDOM"; touch -- "$tempfile" && printf %s "$tempfile"; })" || exit 125
 [ -f "$tempFilespec" ] || exit 125
+[ -n "$renameOp" -a -n "$tempDirspec" ] && tempFilePermissions="$(getOctalFilePermissions "$tempFilespec")"
 [ -z "$targetFilespec" ] || [ "$isMove" ] || targetFilespec="$(dirname -- "$tempFilespec")/${targetFilespec}"
 
 typeset -a f=("$tempFilespec")
@@ -140,6 +146,16 @@ finally()
 {
     local originalStatus=$status
     if [ -n "$renameOp" ] && [ $originalStatus $renameOp 0 ]; then
+	if [ -n "$tempDirspec" ]; then
+	    # mktemp uses limited u+rw permissions, but when moving we want the
+	    # default umask to apply (unless COMMAND(s) have already changed
+	    # them).
+	    if [ "${tempFilePermissions?}" = "$(getOctalFilePermissions "$tempFilespec")" ]; then
+		defaultPermissions="$(printf '%o\n' "$((0666 & ~0$(umask)))")"
+		[ -n "$defaultPermissions" ] && chmod "$defaultPermissions" -- "$tempFilespec" 2>/dev/null
+	    fi
+	fi
+
 	mv --force -- "$tempFilespec" "$targetFilespec" && exit $status || status=124
     fi
     if [ -z "$keepOp" ] || ! [ $originalStatus $keepOp 0 ]; then
