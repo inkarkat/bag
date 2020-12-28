@@ -114,8 +114,8 @@ do
 			;;
 	--newer|-N)	shift
 			abortLastNewest "$0"
-			addedFileCommand=(newerFiles --include-epoch --newer-than)
-			allFileCommand=(newerFiles --include-epoch --newer-than 0)
+			addedFileCommand=(newestFiles --include-epoch --newer-than)
+			allFileCommand=(newestFiles --include-epoch --newer-than 0)
 			fileExtractor=(cut -f 2-)
 			lastExtractor=(cut -f 1)
 			;;
