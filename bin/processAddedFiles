@@ -22,17 +22,19 @@ printLongUsage()
     # This is the long "man page" when launched with the help argument.
     # It is printed to stdout to allow paging with 'more'.
     cat <<HELPDESCRIPTION
-Any files that have been added / updated in DIRSPEC(s) between the previous run
-and now are passed to COMMANDLINE. If that execution succeeds, the new baseline
-is stored for the following run. This allows processing of any additions, even
-when the invocation interval is irregular (e.g. triggered by anacron).
+Any files that have been added / updated in the current directory / passed
+DIRSPEC(s) between the previous run and now are passed to COMMANDLINE. If that
+execution succeeds, the new baseline is stored for the following run. This
+allows processing of any additions, even when the invocation interval is
+irregular (e.g. triggered by anacron).
 HELPDESCRIPTION
     echo
     printShortUsage "$1"
     cat <<HELPTEXT
     --id|-i ID		Identifier under which the state of the last processed
 			file is stored.
-    --dir|-d DIRSPEC	Observe DIRSPEC for added files.
+    --dir|-d DIRSPEC	Observe DIRSPEC for added files instead of the current
+			directory.
     --after|-a		Added files are identified by alphabetically larger
 			filenames; e.g. when the file name contains a timestamp
 			in the form YYYY-MM-DD. The file modification dates are
