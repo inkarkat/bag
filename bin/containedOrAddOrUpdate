@@ -4,7 +4,7 @@ printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
-    printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--command-name NAME] [-i[SUFFIX]|--in-place[=SUFFIX]] [--ignore-nonexisting|--create-nonexisting] [--add-after ADDRESS] -l|--line LINE [-a|--accept-match ACCEPT-PATTERN -u|--update-match PATTERN [-r|--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--command-name NAME] [-i[SUFFIX]|--in-place[=SUFFIX]] [--ignore-nonexisting|--create-nonexisting] [--add-after ADDRESS] -l|--line LINE [-a|--accept-match ACCEPT-PATTERN -u|--update-match PATTERN [-r|--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
 }
 printUsage()
 {
