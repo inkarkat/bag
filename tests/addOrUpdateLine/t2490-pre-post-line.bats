@@ -13,7 +13,7 @@ stuff"
 
 stuff"
     POSTLINE2="# new footer"
-    run addOrUpdate --pre-line "$PRELINE1" --post-line "$POSTLINE1" --pre-line "$PRELINE2" --post-line "$POSTLINE2" --line "$UPDATE" "$FILE"
+    run addOrUpdateLine --pre-line "$PRELINE1" --post-line "$POSTLINE1" --pre-line "$PRELINE2" --post-line "$POSTLINE2" --line "$UPDATE" "$FILE"
     [ "$output" = "$(cat "$INPUT")
 $PRELINE1
 $PRELINE2

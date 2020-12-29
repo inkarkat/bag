@@ -5,7 +5,7 @@ load temp
 @test "update with nonmatching pattern appends at the end" {
     init
     UPDATE="foo=new"
-    run addOrUpdate --line "$UPDATE" --accept-match "foosball=never" "$FILE"
+    run addOrUpdateLine --line "$UPDATE" --accept-match "foosball=never" "$FILE"
     [ $status -eq 0 ]
     [ "$output" = "$(cat "$INPUT")
 $UPDATE" ]
@@ -13,21 +13,21 @@ $UPDATE" ]
 
 @test "update with literal-like pattern keeps contents and returns 1" {
     init
-    run addOrUpdate --line "foo=new" --accept-match "foo=h" "$FILE"
+    run addOrUpdateLine --line "foo=new" --accept-match "foo=h" "$FILE"
     [ $status -eq 1 ]
     [ "$output" = "$(cat "$INPUT")" ]
 }
 
 @test "update with anchored pattern keeps contents and returns 1" {
     init
-    run addOrUpdate --line "foo=new" --accept-match "^fo\+=[ghi].*$" "$FILE"
+    run addOrUpdateLine --line "foo=new" --accept-match "^fo\+=[ghi].*$" "$FILE"
     [ $status -eq 1 ]
     [ "$output" = "$(cat "$INPUT")" ]
 }
 
 @test "update with pattern containing forward and backslash keeps contents and returns 1" {
     init
-    run addOrUpdate --line 'foo=/e\' --accept-match "^.*/.=.*\\.*" "$FILE"
+    run addOrUpdateLine --line 'foo=/e\' --accept-match "^.*/.=.*\\.*" "$FILE"
     [ $status -eq 1 ]
     [ "$output" = "$(cat "$INPUT")" ]
 }

@@ -6,7 +6,7 @@ load temp
     init
     PRELINE="# new header"
     UPDATE="foo=new"
-    run addOrUpdate --pre-line "$PRELINE" --line "$UPDATE" "$FILE"
+    run addOrUpdateLine --pre-line "$PRELINE" --line "$UPDATE" "$FILE"
     [ $status -eq 0 ]
     [ "$output" = "$(cat "$INPUT")
 $PRELINE
@@ -19,7 +19,7 @@ $UPDATE" ]
     PRELINE2=''
     PRELINE3="# third header"
     UPDATE="foo=new"
-    run addOrUpdate --pre-line "$PRELINE1" --pre-line "$PRELINE2" --pre-line "$PRELINE3" --line "$UPDATE" "$FILE"
+    run addOrUpdateLine --pre-line "$PRELINE1" --pre-line "$PRELINE2" --pre-line "$PRELINE3" --line "$UPDATE" "$FILE"
     [ $status -eq 0 ]
     [ "$output" = "$(cat "$INPUT")
 $PRELINE1
@@ -37,7 +37,7 @@ $UPDATE" ]
     PRELINE2=''
     PRELINE3="# third header"
     UPDATE="foo=new"
-    run addOrUpdate --pre-line "$PRELINE" --line "$UPDATE" "$FILE"
+    run addOrUpdateLine --pre-line "$PRELINE" --line "$UPDATE" "$FILE"
     [ $status -eq 0 ]
     [ "$output" = "$(cat "$INPUT")
 $PRELINE1
@@ -49,7 +49,7 @@ $UPDATE" ]
 @test "empty pre line" {
     init
     UPDATE="foo=new"
-    run addOrUpdate --pre-line '' --line "$UPDATE" "$FILE"
+    run addOrUpdateLine --pre-line '' --line "$UPDATE" "$FILE"
     [ $status -eq 0 ]
     [ "$output" = "$(cat "$INPUT")
 
@@ -60,7 +60,7 @@ $UPDATE" ]
     init
     PRELINE=" "
     UPDATE="foo=new"
-    run addOrUpdate --pre-line "$PRELINE" --line "$UPDATE" "$FILE"
+    run addOrUpdateLine --pre-line "$PRELINE" --line "$UPDATE" "$FILE"
     [ $status -eq 0 ]
     [ "$output" = "$(cat "$INPUT")
 $PRELINE

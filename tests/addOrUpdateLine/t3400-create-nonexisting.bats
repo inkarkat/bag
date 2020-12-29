@@ -6,7 +6,7 @@ load temp
     init
     CONTENTS="# useless"
     UPDATE="foo=new"
-    output="$(echo "$CONTENTS" | addOrUpdate --create-nonexisting --line "$UPDATE")"
+    output="$(echo "$CONTENTS" | addOrUpdateLine --create-nonexisting --line "$UPDATE")"
     [ "$output" = "$CONTENTS
 $UPDATE" ]
 }
@@ -14,7 +14,7 @@ $UPDATE" ]
 @test "update with nonexisting first file creates and appends there" {
     init
     UPDATE="foo=new"
-    run addOrUpdate --create-nonexisting --in-place --line "$UPDATE" --update-match "foo=bar" "$NONE" "$FILE" "$NONE2" "$FILE2"
+    run addOrUpdateLine --create-nonexisting --in-place --line "$UPDATE" --update-match "foo=bar" "$NONE" "$FILE" "$NONE2" "$FILE2"
     [ $status -eq 0 ]
     [ "$output" = "" ]
     [ -e "$NONE" ]
@@ -27,7 +27,7 @@ $UPDATE" ]
 @test "update with all nonexisting files creates and appends to the first one" {
     init
     UPDATE="foo=new"
-    run addOrUpdate --create-nonexisting --in-place --line "$UPDATE" --update-match "foo=bar" "$NONE" "$NONE2"
+    run addOrUpdateLine --create-nonexisting --in-place --line "$UPDATE" --update-match "foo=bar" "$NONE" "$NONE2"
     [ $status -eq 0 ]
     [ "$output" = "" ]
     [ -e "$NONE" ]
@@ -39,7 +39,7 @@ $UPDATE" ]
     init
     PRELINE="# new header"
     UPDATE="foo=new"
-    run addOrUpdate --create-nonexisting --in-place --pre-line "$PRELINE" --line "$UPDATE" "$NONE"
+    run addOrUpdateLine --create-nonexisting --in-place --pre-line "$PRELINE" --line "$UPDATE" "$NONE"
     [ $status -eq 0 ]
     [ "$(cat "$NONE")" = "$PRELINE
 $UPDATE" ]
@@ -49,7 +49,7 @@ $UPDATE" ]
     init
     POSTLINE="# new footer"
     UPDATE="foo=new"
-    run addOrUpdate --create-nonexisting --in-place --post-line "$POSTLINE" --line "$UPDATE" "$NONE"
+    run addOrUpdateLine --create-nonexisting --in-place --post-line "$POSTLINE" --line "$UPDATE" "$NONE"
     [ $status -eq 0 ]
     [ "$(cat "$NONE")" = "$UPDATE
 $POSTLINE" ]
@@ -66,7 +66,7 @@ stuff"
 
 stuff"
     POSTLINE2="# new footer"
-    run addOrUpdate --create-nonexisting --in-place --pre-line "$PRELINE1" --post-line "$POSTLINE1" --pre-line "$PRELINE2" --post-line "$POSTLINE2" --line "$UPDATE" "$NONE"
+    run addOrUpdateLine --create-nonexisting --in-place --pre-line "$PRELINE1" --post-line "$POSTLINE1" --pre-line "$PRELINE2" --post-line "$POSTLINE2" --line "$UPDATE" "$NONE"
     [ $status -eq 0 ]
     [ "$output" = "" ]
     [ -e "$NONE" ]
@@ -80,7 +80,7 @@ $POSTLINE2" ]
 @test "update with nonexisting files and --all creates and appends each" {
     init
     UPDATE="foo=new"
-    run addOrUpdate --create-nonexisting --all --in-place --line "$UPDATE" --update-match "foo=bar" "$NONE" "$FILE" "$NONE2" "$FILE2"
+    run addOrUpdateLine --create-nonexisting --all --in-place --line "$UPDATE" --update-match "foo=bar" "$NONE" "$FILE" "$NONE2" "$FILE2"
     [ $status -eq 0 ]
     [ "$output" = "" ]
     [ -e "$NONE" ]
@@ -100,7 +100,7 @@ foo=moo bar baz" ]
 @test "update with all nonexisting files and --all creates and appends to each" {
     init
     UPDATE="foo=new"
-    run addOrUpdate --create-nonexisting --all --in-place --line "$UPDATE" --update-match "foo=bar" "$NONE" "$NONE2"
+    run addOrUpdateLine --create-nonexisting --all --in-place --line "$UPDATE" --update-match "foo=bar" "$NONE" "$NONE2"
     [ $status -eq 0 ]
     [ "$output" = "" ]
     [ -e "$NONE" ]

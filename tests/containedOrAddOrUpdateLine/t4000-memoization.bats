@@ -6,12 +6,12 @@ load temp
     init
     UPDATE="foo=new"
     export MEMOIZEDECISION_CHOICE=c
-    run containedOrAddOrUpdate --memoize-group containedOrAddOrUpdate --in-place --line "$UPDATE" "$FILE"
+    run containedOrAddOrUpdateLine --memoize-group containedOrAddOrUpdateLine --in-place --line "$UPDATE" "$FILE"
     [ $status -eq 0 ]
     [[ "$output" =~ $(basename "$FILE")\ does\ not\ yet\ contain\ \'$UPDATE\'\.\ Shall\ I\ update\ it\? ]]
 
     cp -f "$INPUT" "$FILE"  # Restore original file.
-    run containedOrAddOrUpdate --memoize-group containedOrAddOrUpdate --in-place --line "$UPDATE" "$FILE"
+    run containedOrAddOrUpdateLine --memoize-group containedOrAddOrUpdateLine --in-place --line "$UPDATE" "$FILE"
     [ $status -eq 0 ]
     [[ "$output" =~ $(basename "$FILE")\ does\ not\ yet\ contain\ \'$UPDATE\'\.\ Shall\ I\ update\ it\? ]]
 }
@@ -20,13 +20,13 @@ load temp
     init
     UPDATE="foo=new"
     export MEMOIZEDECISION_CHOICE=y
-    run containedOrAddOrUpdate --memoize-group containedOrAddOrUpdate --in-place --line "$UPDATE" "$FILE"
+    run containedOrAddOrUpdateLine --memoize-group containedOrAddOrUpdateLine --in-place --line "$UPDATE" "$FILE"
     [ $status -eq 0 ]
     [[ "$output" =~ $(basename "$FILE")\ does\ not\ yet\ contain\ \'$UPDATE\'\.\ Shall\ I\ update\ it\? ]]
 
     cp -f "$INPUT" "$FILE"  # Restore original file.
     MEMOIZEDECISION_CHOICE=
-    run containedOrAddOrUpdate --memoize-group containedOrAddOrUpdate --in-place --line "$UPDATE" "$FILE"
+    run containedOrAddOrUpdateLine --memoize-group containedOrAddOrUpdateLine --in-place --line "$UPDATE" "$FILE"
     [ $status -eq 0 ]
     [[ "$output" =~ $(basename "$FILE")\ does\ not\ yet\ contain\ \'foo=new\'\.\ Will\ update\ it\ now\. ]]
 }
@@ -35,12 +35,12 @@ load temp
     init
     UPDATE="foo=new"
     export MEMOIZEDECISION_CHOICE=y
-    run containedOrAddOrUpdate --memoize-group containedOrAddOrUpdate --in-place --line "$UPDATE" "$FILE"
+    run containedOrAddOrUpdateLine --memoize-group containedOrAddOrUpdateLine --in-place --line "$UPDATE" "$FILE"
     [ $status -eq 0 ]
     [[ "$output" =~ $(basename "$FILE")\ does\ not\ yet\ contain\ \'$UPDATE\'\.\ Shall\ I\ update\ it\? ]]
 
     MEMOIZEDECISION_CHOICE=y
-    run containedOrAddOrUpdate --memoize-group containedOrAddOrUpdate --in-place --line "$UPDATE" "$FILE2"
+    run containedOrAddOrUpdateLine --memoize-group containedOrAddOrUpdateLine --in-place --line "$UPDATE" "$FILE2"
     [ $status -eq 0 ]
     [[ "$output" =~ $(basename "$FILE2")\ does\ not\ yet\ contain\ \'$UPDATE\'\.\ Shall\ I\ update\ it\? ]]
 }
@@ -49,12 +49,12 @@ load temp
     init
     UPDATE="foo=new"
     export MEMOIZEDECISION_CHOICE=a
-    run containedOrAddOrUpdate --memoize-group containedOrAddOrUpdate --in-place --line "$UPDATE" "$FILE"
+    run containedOrAddOrUpdateLine --memoize-group containedOrAddOrUpdateLine --in-place --line "$UPDATE" "$FILE"
     [ $status -eq 0 ]
     [[ "$output" =~ $(basename "$FILE")\ does\ not\ yet\ contain\ \'$UPDATE\'\.\ Shall\ I\ update\ it\? ]]
 
     MEMOIZEDECISION_CHOICE=n
-    run containedOrAddOrUpdate --memoize-group containedOrAddOrUpdate --in-place --line "$UPDATE" "$FILE2"
+    run containedOrAddOrUpdateLine --memoize-group containedOrAddOrUpdateLine --in-place --line "$UPDATE" "$FILE2"
     [ $status -eq 0 ]
     [[ "$output" =~ $(basename "$FILE2")\ does\ not\ yet\ contain\ \'foo=new\'\.\ Will\ update\ it\ now\. ]]
 }

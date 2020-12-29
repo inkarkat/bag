@@ -4,14 +4,14 @@ load temp
 
 @test "returns 1 if the file already contains the line" {
     init
-    run containedOrAddOrUpdate --in-place --line "foo=bar" "$FILE"
+    run containedOrAddOrUpdateLine --in-place --line "foo=bar" "$FILE"
     [ $status -eq 1 ]
     [ "$output" = "" ]
 }
 
 @test "returns 4 if none of the passed files exist" {
     init
-    run containedOrAddOrUpdate --in-place --line "foo=bar" "$NONE" "$NONE2"
+    run containedOrAddOrUpdateLine --in-place --line "foo=bar" "$NONE" "$NONE2"
     [ $status -eq 4 ]
     [ "$output" = "" ]
 }

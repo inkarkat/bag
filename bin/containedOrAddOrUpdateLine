@@ -45,9 +45,9 @@ HELPTEXT
     printf '%q %s\n' "$(basename "$1")" '-i.bak --line "AcceptEnv FOO" /etc/ssh/sshd_config && service ssh restart'
 }
 
-typeset -a addOrUpdateArgs=()
-typeset -a addOrUpdateInplaceArg=()
-typeset -a addOrUpdateTestOnlyArg=()
+typeset -a addOrUpdateLineArgs=()
+typeset -a addOrUpdateLineInplaceArg=()
+typeset -a addOrUpdateLineTestOnlyArg=()
 typeset -a memoizeDecisionArgs=()
 commandName=
 isAll=
@@ -58,15 +58,15 @@ do
 	--help|-h|-\?)		    shift; printLongUsage "$0"; exit 0;;
 	--memoize-group|-g)	    memoizeDecisionArgs+=("$1" "$2"); shift; shift;;
 	--command-name|-n)	    shift; commandName="$1"; shift;;
-	--in-place|--inplace=*|-i*) addOrUpdateInplaceArg+=("$1"); shift;;
-	--test-only|-t)		    addOrUpdateTestOnlyArg+=("$1"); shift;;
-	--all|-a)		    addOrUpdateArgs+=("$1"); shift; isAll=t;;
-	--line|-l)		    addOrUpdateArgs+=("$1" "$2"); line="$2"; shift; shift;;
+	--in-place|--inplace=*|-i*) addOrUpdateLineInplaceArg+=("$1"); shift;;
+	--test-only|-t)		    addOrUpdateLineTestOnlyArg+=("$1"); shift;;
+	--all|-a)		    addOrUpdateLineArgs+=("$1"); shift; isAll=t;;
+	--line|-l)		    addOrUpdateLineArgs+=("$1" "$2"); line="$2"; shift; shift;;
 	--ignore-nonexisting|--create-nonexisting)
-				    addOrUpdateArgs+=("$1"); shift;;
+				    addOrUpdateLineArgs+=("$1"); shift;;
 	--accept-match|-a|--update-match|-u|--replacement|-r|--pre-line|--post-line|--add-after)
-				    addOrUpdateArgs+=("$1" "$2"); shift; shift;;
-	--)			    addOrUpdateArgs+=("$1"); shift; break;;
+				    addOrUpdateLineArgs+=("$1" "$2"); shift; shift;;
+	--)			    addOrUpdateLineArgs+=("$1"); shift; break;;
 	-)			    break;;
 	-*)			    { echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
 	*)			    break;;
@@ -85,9 +85,9 @@ if [ $# -eq 0 -o "$1" = '-' ]; then # Note: This doesn't handle a later - argume
     set -- "$TMPFILE"	# Note: We trust that the user didn't erroneously passed --in-place. Normally, sed would complain ("no input files" or "can't read -: No such file or directory", but as we convert into a temporary file, this doesn't happen now.
 fi
 
-# Note: Omit addOrUpdateInplaceArg here, as that would conflict with
+# Note: Omit addOrUpdateLineInplaceArg here, as that would conflict with
 # --test-only.
-addOrUpdate --test-only "${addOrUpdateArgs[@]}" "$@" || exit $?
+addOrUpdateLine --test-only "${addOrUpdateLineArgs[@]}" "$@" || exit $?
 
 
 verb="does not"
@@ -107,7 +107,7 @@ fi
 memoizeDecision "${memoizeDecisionArgs[@]}" --subject "${commandName:-$subject}" --verb "$verb" --state "yet contain '$line'" --action "$action"
 status=$?
 case $status in
-    0)	exec addOrUpdate "${addOrUpdateInplaceArg[@]}" "${addOrUpdateTestOnlyArg[@]}" "${addOrUpdateArgs[@]}" "$@";;
+    0)	exec addOrUpdateLine "${addOrUpdateLineInplaceArg[@]}" "${addOrUpdateLineTestOnlyArg[@]}" "${addOrUpdateLineArgs[@]}" "$@";;
     1)	exit 6;;
     *)	exit $status;;
 esac

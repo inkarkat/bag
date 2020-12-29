@@ -6,7 +6,7 @@ load temp
     init
     UPDATE="foo=new"
     export MEMOIZEDECISION_CHOICE=y
-    run containedOrAddOrUpdate --in-place --line "$UPDATE" "$FILE"
+    run containedOrAddOrUpdateLine --in-place --line "$UPDATE" "$FILE"
     [[ "$output" =~ does\ not\ yet\ contain\ \'$UPDATE\'\.\ Shall\ I\ update\ it\? ]]
 }
 
@@ -14,7 +14,7 @@ load temp
     init
     UPDATE="foo=new"
     export MEMOIZEDECISION_CHOICE=y
-    run containedOrAddOrUpdate --in-place --line "$UPDATE" "$FILE" "$FILE2" "$FILE3"
+    run containedOrAddOrUpdateLine --in-place --line "$UPDATE" "$FILE" "$FILE2" "$FILE3"
     [[ "$output" =~ At\ least\ one\ of\ .*\ does\ not\ yet\ contain\ \'$UPDATE\'\.\ Shall\ I\ update\ it\? ]]
 }
 
@@ -22,7 +22,7 @@ load temp
     init
     UPDATE="foo=new"
     export MEMOIZEDECISION_CHOICE=y
-    run containedOrAddOrUpdate --all --in-place --line "$UPDATE" "$FILE"
+    run containedOrAddOrUpdateLine --all --in-place --line "$UPDATE" "$FILE"
     [[ "$output" =~ does\ not\ yet\ contain\ \'$UPDATE\'\.\ Shall\ I\ update\ it\? ]]
 }
 
@@ -30,7 +30,7 @@ load temp
     init
     UPDATE="foo=new"
     export MEMOIZEDECISION_CHOICE=y
-    run containedOrAddOrUpdate --all --in-place --line "$UPDATE" "$FILE" "$FILE2" "$FILE3"
+    run containedOrAddOrUpdateLine --all --in-place --line "$UPDATE" "$FILE" "$FILE2" "$FILE3"
     [[ "$output" =~ All\ of\ .*\ do\ not\ yet\ contain\ \'$UPDATE\'\.\ Shall\ I\ update\ them\? ]]
 }
 

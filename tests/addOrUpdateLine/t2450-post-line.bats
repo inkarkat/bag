@@ -6,7 +6,7 @@ load temp
     init
     POSTLINE="# new footer"
     UPDATE="foo=new"
-    run addOrUpdate --post-line "$POSTLINE" --line "$UPDATE" "$FILE"
+    run addOrUpdateLine --post-line "$POSTLINE" --line "$UPDATE" "$FILE"
     [ $status -eq 0 ]
     [ "$output" = "$(cat "$INPUT")
 $UPDATE
@@ -19,7 +19,7 @@ $POSTLINE" ]
     POSTLINE2=''
     POSTLINE3="# third footer"
     UPDATE="foo=new"
-    run addOrUpdate --post-line "$POSTLINE1" --post-line "$POSTLINE2" --post-line "$POSTLINE3" --line "$UPDATE" "$FILE"
+    run addOrUpdateLine --post-line "$POSTLINE1" --post-line "$POSTLINE2" --post-line "$POSTLINE3" --line "$UPDATE" "$FILE"
     [ $status -eq 0 ]
     [ "$output" = "$(cat "$INPUT")
 $UPDATE
@@ -37,7 +37,7 @@ $POSTLINE3" ]
     POSTLINE2=''
     POSTLINE3="# third footer"
     UPDATE="foo=new"
-    run addOrUpdate --post-line "$POSTLINE" --line "$UPDATE" "$FILE"
+    run addOrUpdateLine --post-line "$POSTLINE" --line "$UPDATE" "$FILE"
     [ $status -eq 0 ]
     [ "$output" = "$(cat "$INPUT")
 $UPDATE
@@ -46,14 +46,14 @@ $POSTLINE2
 $POSTLINE3" ]
 }
 
-addOrUpdateWithPeriod()
+addOrUpdateLineWithPeriod()
 {
-    addOrUpdate "$@"; printf .
+    addOrUpdateLine "$@"; printf .
 }
 @test "empty post line" {
     init
     UPDATE="foo=new"
-    run addOrUpdateWithPeriod --post-line '' --line "$UPDATE" "$FILE"
+    run addOrUpdateLineWithPeriod --post-line '' --line "$UPDATE" "$FILE"
     [ $status -eq 0 ]
     [ "${output}" = "$(cat "$INPUT")
 $UPDATE
@@ -65,7 +65,7 @@ $UPDATE
     init
     POSTLINE=" "
     UPDATE="foo=new"
-    run addOrUpdateWithPeriod --post-line "$POSTLINE" --line "$UPDATE" "$FILE"
+    run addOrUpdateLineWithPeriod --post-line "$POSTLINE" --line "$UPDATE" "$FILE"
     [ $status -eq 0 ]
     [ "${output}" = "$(cat "$INPUT")
 $UPDATE

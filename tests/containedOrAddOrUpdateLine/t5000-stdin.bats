@@ -5,7 +5,7 @@ load temp
 pipedContainedOrAddOrUpdate()
 {
     local input="$1"; shift
-    printf '%s\n' "$input" | containedOrAddOrUpdate "$@"
+    printf '%s\n' "$input" | containedOrAddOrUpdateLine "$@"
 }
 
 @test "returns 1 and no output if implicit stdin already contains the line" {

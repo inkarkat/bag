@@ -3,7 +3,7 @@
 @test "updating not-writable existing file returns 5" {
     IMMUTABLE='/etc/hosts'
     [ -e "$IMMUTABLE" -a ! -w "$IMMUTABLE" ]
-    run addOrUpdate --in-place --line "foo=new" "$IMMUTABLE"
+    run addOrUpdateLine --in-place --line "foo=new" "$IMMUTABLE"
     [ $status -eq 5 ]
     [ "${#lines[@]}" -eq 1 ]
     [[ "$output" =~ ^sed: ]]
@@ -14,7 +14,7 @@
     [ -d "$IMMUTABLE_DIR" -a ! -w "$IMMUTABLE_DIR" ]
     IMMUTABLE="${IMMUTABLE_DIR}/doesNotExist"
     [ ! -e "$IMMUTABLE" ]
-    run addOrUpdate --create-nonexisting --in-place --line "foo=new" "$IMMUTABLE"
+    run addOrUpdateLine --create-nonexisting --in-place --line "foo=new" "$IMMUTABLE"
     [ $status -eq 5 ]
     [ "${#lines[@]}" -eq 1 ]
     [[ "$output" =~ /etc/doesNotExist:\ Permission\ denied$ ]]
@@ -24,7 +24,7 @@
     TARGET_DIR="${BATS_TMPDIR}/doesNotExist"
     [ ! -e "$TARGET_DIR" ]
     NONEXISTING="${TARGET_DIR}/doesNotExistEither"
-    run addOrUpdate --create-nonexisting --in-place --line "foo=new" "$NONEXISTING"
+    run addOrUpdateLine --create-nonexisting --in-place --line "foo=new" "$NONEXISTING"
     [ $status -eq 5 ]
     [ "${#lines[@]}" -eq 1 ]
     [[ "$output" =~ /doesNotExist/doesNotExistEither:\ No\ such\ file\ or\ directory$ ]]

@@ -6,7 +6,7 @@ load temp
     init
     UPDATE="foo=new"
     export MEMOIZEDECISION_CHOICE=y
-    run containedOrAddOrUpdate --in-place --line "$UPDATE" "$FILE"
+    run containedOrAddOrUpdateLine --in-place --line "$UPDATE" "$FILE"
     [ $status -eq 0 ]
     [[ "$output" =~ does\ not\ yet\ contain\ \'$UPDATE\'\.\ Shall\ I\ update\ it\? ]]
     [ "$(cat "$FILE")" = "$(cat "$INPUT")
@@ -17,7 +17,7 @@ $UPDATE" ]
     init
     UPDATE="foo=new"
     export MEMOIZEDECISION_CHOICE=y
-    run containedOrAddOrUpdate --in-place --update-match "foo=b" --line "$UPDATE" "$FILE"
+    run containedOrAddOrUpdateLine --in-place --update-match "foo=b" --line "$UPDATE" "$FILE"
     [ $status -eq 0 ]
     [[ "$output" =~ does\ not\ yet\ contain\ \'$UPDATE\'\.\ Shall\ I\ update\ it\? ]]
     [ "$(cat "$FILE")" = "sing/e=wha\\ever
