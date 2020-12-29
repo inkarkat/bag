@@ -103,7 +103,7 @@ typeset -a commands=()
 while [ $# -ne 0 ]
 do
     case "$1" in
-	--help|-h|-\?)	shift; printUsage "$0"; exit 0;;
+	--help|-h|-\?)	shift; printLongUsage "$0"; exit 0;;
 	--id|-i)	shift; id="$1"; shift;;
 	--dir|-d)	shift; dirspecs+=("$1"); shift;;
 	--after|-a)	shift
