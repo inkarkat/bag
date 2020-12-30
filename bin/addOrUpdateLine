@@ -130,8 +130,8 @@ elif [ -n "$isIgnoreNonexisting" -a -n "$isCreateNonexisting" ]; then
 fi >&2
 
 insertableLine="${line//\\/\\\\}"
-literalLine="^$(printf %s "$line" | literalPattern)\$"
-[ "$updateMatch" ] || updateMatch="$literalLine"
+literalLinePattern="^$(printf %s "$line" | literalPattern)\$"
+[ "$updateMatch" ] || updateMatch="$literalLinePattern"
 
 [ $# -eq 0 ] && set -- -    # Read from stdin if no FILE is passed.
 create()
@@ -198,7 +198,7 @@ process()
 	# changed line, no processing actually has happened, and we indicate an
 	# error. If the hold space isn't empty, skip further processing (i.e.
 	# appending), as we've already done the update.
-	-e "${addAfterAddress}{ x; /^\\n\$\\|${literalLine//\//\\/}/{ x; q 98 }; /./{ x; b; }; x; }"
+	-e "${addAfterAddress}{ x; /^\\n\$\\|${literalLinePattern//\//\\/}/{ x; q 98 }; /./{ x; b; }; x; }"
     )
 
     if [ "$isAppend" ]; then
