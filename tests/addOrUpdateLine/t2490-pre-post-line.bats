@@ -21,3 +21,15 @@ $UPDATE
 $POSTLINE1
 $POSTLINE2" ]
 }
+
+@test "append with pre and post lines that contain backslashes" {
+    init
+    PRELINE='/new header\'
+    UPDATE="foo=new"
+    POSTLINE='\new footer/'
+    run addOrUpdateLine --pre-line "$PRELINE" --post-line "$POSTLINE" --line "$UPDATE" "$FILE"
+    [ "$output" = "$(cat "$INPUT")
+$PRELINE
+$UPDATE
+$POSTLINE" ]
+}

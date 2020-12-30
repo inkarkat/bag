@@ -104,8 +104,8 @@ do
 	--accept-match|-a)  shift; acceptMatch="$1"; shift;;
 	--update-match|-u)  shift; updateMatch="$1"; shift;;
 	--replacement|-r)   shift; replacement="$1"; shift;;
-	--pre-line)	    shift; escapedLine="${1//\//\\/}"; preLines="${preLines}${preLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
-	--post-line)	    shift; escapedLine="${1//\//\\/}"; postLines="${postLines}${postLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
+	--pre-line)	    shift; escapedLine="${1//\\/\\\\}"; preLines="${preLines}${preLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
+	--post-line)	    shift; escapedLine="${1//\\/\\\\}"; postLines="${postLines}${postLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
 	--add-after)	    shift; addAfterAddress="$1"; shift;;
 	--)		    shift; break;;
 	-*)		    { echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
