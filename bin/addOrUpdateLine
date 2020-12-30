@@ -120,12 +120,12 @@ if [ -z "$line" ]; then
 elif [ ${#sedInplaceArgs[@]} -gt 0 -a -n "$isTestOnly" ]; then
     echo 'ERROR: Cannot combine --in-place and --test-only.'
     echo
-    printUsage "\$1"
+    printUsage "$0"
     exit 2
 elif [ -n "$isIgnoreNonexisting" -a -n "$isCreateNonexisting" ]; then
     echo 'ERROR: Cannot combine --ignore-nonexisting and --create-nonexisting.'
     echo
-    printUsage "\$1"
+    printUsage "$0"
     exit 2
 fi >&2
 
