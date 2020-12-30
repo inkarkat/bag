@@ -1,0 +1,75 @@
+#!/bin/bash
+
+printShortUsage()
+{
+    # Note: short followed by long option; if the user knows the short one, she can
+    # skim the long one.
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i[SUFFIX]|--in-place[=SUFFIX]|-t|--test-only] [--ignore-nonexisting|--create-nonexisting] [--add-after ADDRESS] -m|-marker WHAT|(--begin-marker BEGIN-LINE --end-marker END-LINE) -b|--block-text BLOCK-TEXT|-B|--block-file BLOCK-FILE [-a|--accept-match ACCEPT-PATTERN] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
+}
+printUsage()
+{
+    # This is the short help when launched with no or incorrect arguments.
+    # It is printed to stderr to avoid accidental processing.
+    printShortUsage "$1" >&2
+    printf >&2 '\nTry %q --help for more information.\n' "$(basename "$1")"
+}
+printLongUsage()
+{
+    # This is the long "man page" when launched with the help argument.
+    # It is printed to stdout to allow paging with 'more'.
+    cat <<HELPDESCRIPTION
+Tries to locate a sequence of lines that starts with BEGIN-LINE and ends with
+END-LINE in at least one (all with --all) of the passed FILE(s), updates with
+BLOCK contents (in the first to match), or appends (in the last FILE, surrounded
+by BEGIN-LINE and END-LINE) if it does not exist yet.
+HELPDESCRIPTION
+    echo
+    printShortUsage "$1"
+    cat <<HELPTEXT
+    --in-place[=SUFFIX]|-i[SUFFIX]
+			    Edit FILE(s) in place (makes backup if SUFFIX
+			    supplied).
+    --test-only|-t	    Just check whether an update would be made. Does not
+			    modify the FILE(s).
+    --all|-a		    Instead of just updating the first to match or
+			    appending to the last FILE, make sure that each FILE
+			    gets updated.
+    --ignore-nonexisting    Succeed instead of complaining if (none of the)
+			    FILE(s) does not exist yet.
+    --create-nonexisting    Create the first (each with --all) passed FILE if it
+			    does not exist yet, (and insert the BLOCK-FILE
+			    there).
+    --add-after ADDRESS	    Do the update after ADDRESS instead of at the end of
+			    the FILE.
+    --marker|-m WHAT	    Synthesize BEGIN-LINE and END-LINE based on WHAT:
+			    # BEGIN WHAT
+			    # END WHAT
+    --begin-marker BEGIN-LINE
+			    The line that marks the beginning of the block.
+    --end-marker END-LINE   The line that marks the end of the block.
+    --block-text|-b BLOCK-TEXT
+			    The block contents (one or multiple lines, excluding
+			    the BEGIN-LINE and END-LINE markers).
+    --block-file|-B BLOCK-FILE
+			    The text file containing the block contents
+			    (excluding the BEGIN-LINE and END-LINE markers).
+    --accept-match|-a ACCEPT-PATTERN
+			    Don't update if ACCEPT-PATTERN already matches
+			    somewhere (previously) in the FILE.
+    --pre-line PRETEXT	    When a fresh BLOCK is added, put PRETEXT before it.
+			    This does not apply to the update of existing lines.
+			    (This is assumed to be for comments or headers that
+			    would already be there.)
+    --post-line POSTTEXT    When a fresh BLOCK is added, put POSTTEXT after it.
+EXIT STATUS:
+    0	An update has happened.
+    1	The BLOCK already existed, no modifications were made.
+    2	Bad invocation, wrong or missing command-line arguments.
+    3	Internal error or failed assertion.
+    4	None of the passed FILE(s) exist; no modifications could be made.
+    5	A FILE could not be created / modified (due to problems with sed).
+
+Example:
+HELPTEXT
+    printf '%q %s\n' "$(basename "$1")" '-i.bak --marker "home network" --block path/to/myhosts.txt /etc/hosts'
+}
