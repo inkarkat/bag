@@ -42,8 +42,7 @@ HELPDESCRIPTION
 			    FILE(s) does not exist yet.
     --create-nonexisting    Create the first (each with --all) passed FILE if it
 			    does not exist yet, (and insert the LINE there).
-    --add-after ADDRESS
-			    Do the update after ADDRESS instead of at the end of
+    --add-after ADDRESS	    Do the update after ADDRESS instead of at the end of
 			    the FILE.
     --line|-l LINE	    Search for (literal, full) LINE and add LINE if that
 			    doesn't exist yet.
