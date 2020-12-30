@@ -129,6 +129,7 @@ elif [ -n "$isIgnoreNonexisting" -a -n "$isCreateNonexisting" ]; then
     exit 2
 fi >&2
 
+insertableLine="${line//\\/\\\\}"
 literalLine="^$(printf %s "$line" | literalPattern)\$"
 [ "$updateMatch" ] || updateMatch="$literalLine"
 
@@ -143,7 +144,7 @@ create()
 
     local content=
     [ -n "${preLines+t}" ] && content="${content}${preLines}\\${NL}"
-    content="${content}${line//\\/\\\\}"
+    content="${content}${insertableLine}"
     [ -n "${postLines+t}" ] && content="${content}\\${NL}${postLines}"
     typeset -a sedProgram=(
 	-e "\$c\\${NL}${content}"
@@ -187,7 +188,7 @@ process()
     else
 	sedProgram+=(
 	    # Do the update with LINE.
-	    -e "/${updateMatch//\//\\/}/c\\${NL}${line//\\/\\\\}"
+	    -e "/${updateMatch//\//\\/}/c\\${NL}${insertableLine}"
 	)
     fi
 
@@ -208,7 +209,7 @@ process()
 	    )
 	fi
 	sedProgram+=(
-	    -e "${addAfterAddress}a\\${NL}${line//\\/\\\\}"
+	    -e "${addAfterAddress}a\\${NL}${insertableLine}"
 	)
 	if [ -n "${postLines+t}" ]; then
 	    sedProgram+=(
