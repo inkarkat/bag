@@ -23,6 +23,13 @@ load temp
     [ "${lines[1]%% *}" = "Usage:" ]
 }
 
+@test "error begin marker is equal to end marker" {
+    run addOrUpdateBlock --begin-marker SAME --end-marker SAME --block-text $'new\nblock' "$FILE"
+    [ $status -eq 2 ]
+    [ "${lines[0]}" = "ERROR: BEGIN-LINE and END-LINE must be different." ]
+    [ "${lines[1]%% *}" = "Usage:" ]
+}
+
 @test "error when combining --in-place and --test-only" {
     run addOrUpdateBlock --in-place --test-only --marker test --block-text $'new\nblock' "$FILE"
     [ $status -eq 2 ]
