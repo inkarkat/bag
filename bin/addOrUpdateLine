@@ -113,21 +113,21 @@ do
     esac
 done
 if [ -z "$line" ]; then
-    echo >&2 'ERROR: No LINE passed.'
-    echo >&2
-    printUsage "$0" >&2
+    echo 'ERROR: No LINE passed.'
+    echo
+    printUsage "$0"
     exit 2
 elif [ ${#sedInplaceArgs[@]} -gt 0 -a -n "$isTestOnly" ]; then
-    echo >&2 'ERROR: Cannot combine --in-place and --test-only.'
-    echo >&2
-    printUsage "\$1" >&2
+    echo 'ERROR: Cannot combine --in-place and --test-only.'
+    echo
+    printUsage "\$1"
     exit 2
 elif [ -n "$isIgnoreNonexisting" -a -n "$isCreateNonexisting" ]; then
-    echo >&2 'ERROR: Cannot combine --ignore-nonexisting and --create-nonexisting.'
-    echo >&2
-    printUsage "\$1" >&2
+    echo 'ERROR: Cannot combine --ignore-nonexisting and --create-nonexisting.'
+    echo
+    printUsage "\$1"
     exit 2
-fi
+fi >&2
 
 literalLine="^$(printf %s "$line" | literalPattern)\$"
 [ "$updateMatch" ] || updateMatch="$literalLine"
