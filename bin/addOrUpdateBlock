@@ -73,3 +73,69 @@ Example:
 HELPTEXT
     printf '%q %s\n' "$(basename "$1")" '-i.bak --marker "home network" --block path/to/myhosts.txt /etc/hosts'
 }
+
+isTestOnly=
+isAll=
+isIgnoreNonexisting=
+isCreateNonexisting=
+typeset -a sedInplaceArgs=()
+beginMarker=
+endMarker=
+blockText=
+blockFilespec=
+acceptMatch=
+unset preLines
+unset postLines
+addAfterAddress='$'
+while [ $# -ne 0 ]
+do
+    case "$1" in
+	--help|-h|-\?)	    shift; printLongUsage "$0"; exit 0;;
+	--in-place|--inplace=*|-i*)
+			    sedInplaceArgs+=("$1"); shift;;
+	--test-only|-t)	    shift; isTestOnly=t;;
+	--all|-a)	    shift; isAll=t;;
+	--ignore-nonexisting)
+			    shift; isIgnoreNonexisting=t;;
+	--create-nonexisting)
+			    shift; isCreateNonexisting=t;;
+	--marker|-m)	    shift; beginMarker="# BEGIN${1:+ }$1"; endMarker="# END${1:+ }$1"; shift;;
+	--begin-marker)	    shift; beginMarker="$1"; shift;;
+	--end-marker)	    shift; endMarker="$1"; shift;;
+	--block-text|-b)    shift; blockText="$1"; shift;;
+	--block-file|-B)    shift; blockFilespec="$1"; shift;;
+	--accept-match|-a)  shift; acceptMatch="$1"; shift;;
+	--pre-line)	    shift; escapedLine="${1//\//\\/}"; preLines="${preLines}${preLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
+	--post-line)	    shift; escapedLine="${1//\//\\/}"; postLines="${postLines}${postLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
+	--add-after)	    shift; addAfterAddress="$1"; shift;;
+	--)		    shift; break;;
+	-*)		    { echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
+	*)		    break;;
+    esac
+done
+if [ -z "$blockText" -a -z "$blockFilespec" ]; then
+    echo 'ERROR: No BLOCK passed; use either -b|--block-text BLOCK-TEXT or -B|--block-file BLOCK-FILE.'
+    echo
+    printUsage "$0"
+    exit 2
+elif [ -z "$beginMarker" ]; then
+    echo 'ERROR: No BEGIN-LINE; use either --begin-marker BEGIN-LINE or -m|--marker WHAT.'
+    echo
+    printUsage "$0"
+    exit 2
+elif [ -z "$endMarker" ]; then
+    echo 'ERROR: No END-LINE; use --end-marker END-LINE.'
+    echo
+    printUsage "$0"
+    exit 2
+elif [ ${#sedInplaceArgs[@]} -gt 0 -a -n "$isTestOnly" ]; then
+    echo 'ERROR: Cannot combine --in-place and --test-only.'
+    echo
+    printUsage "\$1"
+    exit 2
+elif [ -n "$isIgnoreNonexisting" -a -n "$isCreateNonexisting" ]; then
+    echo 'ERROR: Cannot combine --ignore-nonexisting and --create-nonexisting.'
+    echo
+    printUsage "\$1"
+    exit 2
+fi >&2
