@@ -28,3 +28,9 @@ $UPDATE
 foo=hi" ]
 }
 
+@test "update with existing line after the passed line keeps contents and returns 1" {
+    init
+    run addOrUpdateLine --line "foo=bar" --add-after 3 "$FILE"
+    [ $status -eq 1 ]
+    [ "$output" = "$(cat "$INPUT")" ]
+}

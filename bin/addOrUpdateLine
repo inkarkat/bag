@@ -198,7 +198,7 @@ process()
 	# changed line, no processing actually has happened, and we indicate an
 	# error. If the hold space isn't empty, skip further processing (i.e.
 	# appending), as we've already done the update.
-	-e "${addAfterAddress}{ x; /^\\n\$\\|${literalLinePattern//\//\\/}/{ x; q 98 }; /./{ x; b; }; x; }"
+	-e "${addAfterAddress}{ x; /^\\n\$\\|${literalLinePattern//\//\\/}/{ x; b slurpToEndAndQuit }; /./{ x; b; }; x; }"
     )
 
     if [ "$isAppend" ]; then
@@ -222,6 +222,13 @@ process()
 	    -e '$q 99'
 	)
     fi
+
+    sedProgram+=(
+	-e 'b'
+	-e ':slurpToEndAndQuit'
+	-e '$!{ N; b slurpToEndAndQuit }'
+	-e '$q 98'
+    )
 #echo >&3 "****"  "${sedProgram[@]}"
     sed "${sedInplaceArgs[@]}" \
 	"${sedProgram[@]}" \
