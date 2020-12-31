@@ -232,7 +232,21 @@ process()
 	# space; this serves as a marker that we have done an update and also
 	# that we don't need to append the line at the end.
 	# Then exchange the previous block with the new block and the end marker.
-	-e "h; s/.*//; c\\${NL}${insertableBlockText}\\${NL}${endMarker//\\/\\\\}"
+	# Unfortunately, the "c" command starts a new cycle, but we still need
+	# to check the hold space. Therefore, use "i".
+	-e "h; s/.*//; i\\${NL}${insertableBlockText}\\${NL}${endMarker//\\/\\\\}"
+	# For lines other than the add-after address, we can simply "d" so that
+	# "i" + "d" = "c".
+	-e "${addAfterAddress}!d"
+	# At the add-after address and if we need to signal no change, if this
+	# is before the last line, join with the next line, remove the first
+	# line (effectively emulating "d" but staying in the current cycle), and
+	# then also jump to :slurpToEndAndQuit. On the last line, use the GNU
+	# sed "Q" to quit with the special exit status while suppressing the
+	# current line.
+	# At the add-after address and if we don't need to signal no change,
+	# simply "d" now as well.
+	-e "${addAfterAddress}{ x; /^\\n\$\\|^${literalBlockTextPattern//\//\\/}\\n${literalEndMarkerPattern//\//\\/}\$/{ x; \$! { N; s/^[^\\n]*\\n//; b slurpToEndAndQuit }; Q 98 }; d; }"
     )
 
     sedProgram+=(
