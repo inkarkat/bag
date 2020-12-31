@@ -3,11 +3,11 @@
 load temp
 
 @test "update with nonexisting marker and single-line block appends the block" {
-    run addOrUpdateBlock --marker test --block-text "single-line" "$FILE"
+    run addOrUpdateBlock --marker test --block-text "$TEXT" "$FILE"
     [ $status -eq 0 ]
     [ "$output" = "$(cat "$FRESH")
 # BEGIN test
-single-line
+$TEXT
 # END test" ]
 }
 
