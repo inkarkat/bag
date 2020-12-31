@@ -1,5 +1,10 @@
 #!/bin/bash
 
+export TEXT='single-line'
+export BLOCK="# BEGIN test
+$TEXT
+# END test"
+
 export FRESH="${BATS_TEST_DIRNAME}/fresh.txt"
 export EXISTING="${BATS_TEST_DIRNAME}/existing.txt"
 export ANOTHER="${BATS_TEST_DIRNAME}/another.txt"
