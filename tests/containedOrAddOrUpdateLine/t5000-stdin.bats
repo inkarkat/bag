@@ -2,7 +2,7 @@
 
 load temp
 
-pipedContainedOrAddOrUpdate()
+pipedContainedOrAddOrUpdateLine()
 {
     local input="$1"; shift
     printf '%s\n' "$input" | containedOrAddOrUpdateLine "$@"
@@ -13,7 +13,8 @@ pipedContainedOrAddOrUpdate()
     INPUT="SOME line
 foo=bar
 more"
-    run pipedContainedOrAddOrUpdate "$INPUT" --line "foo=bar"
+    export MEMOIZEDECISION_CHOICE=n
+    run pipedContainedOrAddOrUpdateLine "$INPUT" --line "foo=bar"
     [ $status -eq 1 ]
     [ "$output" = "" ]
 }
@@ -23,7 +24,8 @@ more"
     INPUT="Some line
 foo=bar
 more"
-    run pipedContainedOrAddOrUpdate "$INPUT" --line "foo=bar" -
+    export MEMOIZEDECISION_CHOICE=n
+    run pipedContainedOrAddOrUpdateLine "$INPUT" --line "foo=bar" -
     [ $status -eq 1 ]
     [ "$output" = "" ]
 }
@@ -33,7 +35,7 @@ more"
     INPUT="foo=bar"
     UPDATE="foo=new"
     export MEMOIZEDECISION_CHOICE=n
-    run pipedContainedOrAddOrUpdate "$INPUT" --line "$UPDATE" -
+    run pipedContainedOrAddOrUpdateLine "$INPUT" --line "$UPDATE" -
     [ $status -eq 99 ]
     [[ "$output" =~ does\ not\ yet\ contain\ \'$UPDATE\'\.\ Shall\ I\ update\ it\? ]]
 }
@@ -44,7 +46,7 @@ more"
 foo=bar"
     UPDATE="foo=new"
     export MEMOIZEDECISION_CHOICE=y
-    run pipedContainedOrAddOrUpdate "$INPUT" --update-match "foo=b" --line "$UPDATE" -
+    run pipedContainedOrAddOrUpdateLine "$INPUT" --update-match "foo=b" --line "$UPDATE" -
     [ $status -eq 0 ]
     [[ "${lines[0]}" =~ does\ not\ yet\ contain\ \'$UPDATE\'\.\ Shall\ I\ update\ it\? ]]
     [ "${lines[1]}" = "Some line" ]
