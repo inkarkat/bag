@@ -258,7 +258,7 @@ process()
 	    -e '$q 99'
 	)
     fi
-#echo >&3 "****"  "${sedProgram[@]}"
+#dump-args -v 2>&3 "${sedProgram[@]}"
     sed "${sedInplaceArgs[@]}" \
 	"${sedProgram[@]}" \
 	-- "$filespec"

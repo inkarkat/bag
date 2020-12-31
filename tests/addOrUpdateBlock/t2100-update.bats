@@ -49,8 +49,8 @@ Testing again
 Somehoe
 # END test
 
-#BEGIN final and empty
-#END final and empty
+# BEGIN final and empty
+# END final and empty
 last line" ]
 }
 
@@ -82,7 +82,7 @@ Testing again
 Somehoe
 # END test
 
-#BEGIN final and empty
-#END final and empty
+# BEGIN final and empty
+# END final and empty
 last line" ]
 }
