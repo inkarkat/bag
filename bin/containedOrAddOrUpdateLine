@@ -4,7 +4,7 @@ printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--command-name NAME] [-i[SUFFIX]|--in-place[=SUFFIX]] [--ignore-nonexisting|--create-nonexisting] [--add-after ADDRESS] -l|--line LINE [-a|--accept-match ACCEPT-PATTERN -u|--update-match PATTERN [-r|--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--name NAME] [-i[SUFFIX]|--in-place[=SUFFIX]] [--ignore-nonexisting|--create-nonexisting] [--add-after ADDRESS] -l|--line LINE [-a|--accept-match ACCEPT-PATTERN -u|--update-match PATTERN [-r|--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -28,17 +28,17 @@ HELPDESCRIPTION
     --memoize-group|-g GROUP
 			    Optional application / use case for this tool's use.
 			    Determines the configuration directory.
-    --command-name|-n NAME  Optional human-readable characterization of COMMAND
-			    that will be used for querying (and memoizing the
-			    decision).
+    --name|-n NAME	    Optional human-readable characterization of the
+			    FILE(s) (will be used for querying and memoizing the
+			    decision). Defaults to the passed FILE(s) themselves.
 EXIT STATUS:
-    0	An update has happened.
+    0	An update has happened (with --all: in at least one FILE).
     1	The LINE already existed, no modifications were made.
     2	Bad invocation, wrong or missing command-line arguments.
     3	Internal error or failed assertion.
     4	None of the passed FILE(s) exist; no modifications could be made.
     5	A FILE could not be created / modified (due to problems with sed).
-    6	Update was declined by the user.
+    99	Update was declined by the user.
 
 Example:
 HELPTEXT
@@ -49,7 +49,7 @@ typeset -a addOrUpdateLineArgs=()
 typeset -a addOrUpdateLineInplaceArg=()
 typeset -a addOrUpdateLineTestOnlyArg=()
 typeset -a memoizeDecisionArgs=()
-commandName=
+name=
 isAll=
 line=
 while [ $# -ne 0 ]
@@ -57,7 +57,7 @@ do
     case "$1" in
 	--help|-h|-\?)		    shift; printLongUsage "$0"; exit 0;;
 	--memoize-group|-g)	    memoizeDecisionArgs+=("$1" "$2"); shift; shift;;
-	--command-name|-n)	    shift; commandName="$1"; shift;;
+	--name|-n)		    shift; name="$1"; shift;;
 	--in-place|--inplace=*|-i*) addOrUpdateLineInplaceArg+=("$1"); shift;;
 	--test-only|-t)		    addOrUpdateLineTestOnlyArg+=("$1"); shift;;
 	--all|-a)		    addOrUpdateLineArgs+=("$1"); shift; isAll=t;;
@@ -104,10 +104,10 @@ else
     subject="$*"
 fi
 [ "$memoizeDecisionArgs" ] || memoizeDecisionArgs=(--memoize-group "$(basename -- "$0").$PPID")
-memoizeDecision "${memoizeDecisionArgs[@]}" --subject "${commandName:-$subject}" --verb "$verb" --state "yet contain '$line'" --action "$action"
+memoizeDecision "${memoizeDecisionArgs[@]}" --subject "${name:-$subject}" --verb "$verb" --state "yet contain '$line'" --action "$action"
 status=$?
 case $status in
     0)	exec addOrUpdateLine "${addOrUpdateLineInplaceArg[@]}" "${addOrUpdateLineTestOnlyArg[@]}" "${addOrUpdateLineArgs[@]}" "$@";;
-    1)	exit 6;;
+    1)	exit 99;;
     *)	exit $status;;
 esac
