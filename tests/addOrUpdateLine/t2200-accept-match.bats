@@ -2,7 +2,7 @@
 
 load temp
 
-@test "update with nonmatching pattern appends at the end" {
+@test "update with nonmatching accepted pattern appends at the end" {
     UPDATE="foo=new"
     run addOrUpdateLine --line "$UPDATE" --accept-match "foosball=never" "$FILE"
     [ $status -eq 0 ]

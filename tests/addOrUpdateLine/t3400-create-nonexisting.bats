@@ -2,7 +2,7 @@
 
 load temp
 
-@test "processing standard input works" {
+@test "processing standard input with creation of nonexisting works" {
     CONTENTS="# useless"
     UPDATE="foo=new"
     output="$(echo "$CONTENTS" | addOrUpdateLine --create-nonexisting --line "$UPDATE")"
