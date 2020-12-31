@@ -181,7 +181,7 @@ create()
 
     local insertableContent=
     [ -n "${insertablePreLines+t}" ] && insertableContent="${insertableContent}${insertablePreLines}\\${NL}"
-    insertableContent="${insertableContent}${insertableBlockText}"
+    insertableContent="${insertableContent}${insertableBeginMarker}\\${NL}${insertableBlockText}\\${NL}${insertableEndMarker}"
     [ -n "${insertablePostLines+t}" ] && insertableContent="${insertableContent}\\${NL}${insertablePostLines}"
     typeset -a sedProgram=(
 	-e "\$c\\${NL}${insertableContent}"
