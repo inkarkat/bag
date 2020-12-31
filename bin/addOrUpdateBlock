@@ -30,7 +30,7 @@ printLongUsage()
     cat <<HELPDESCRIPTION
 Tries to locate a sequence of lines that starts with BEGIN-LINE and ends with
 END-LINE in at least one (all with --all) of the passed FILE(s), updates with
-BLOCK contents (in the first block to match, and only the first such matching
+BLOCK contents (in the first file to match, and only the first such matching
 block there), or appends (at the end of the last FILE, surrounded by BEGIN-LINE
 and END-LINE) if it does not exist yet.
 HELPDESCRIPTION
@@ -87,7 +87,7 @@ EXIT STATUS:
 
 Example:
 HELPTEXT
-    printf '%q %s\n' "$(basename "$1")" '-i.bak --marker "home network" --block path/to/myhosts.txt /etc/hosts'
+    printf '%q %s\n' "$(basename "$1")" '-i.bak --marker "home network" --block-file path/to/myhosts.txt /etc/hosts'
 }
 
 readonly NL=$'\n'
