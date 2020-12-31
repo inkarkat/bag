@@ -48,6 +48,16 @@ $UPDATE" ]
 $UPDATE" ]
 }
 
+@test "update with existing line in one file appends at the end of the two other files only" {
+    UPDATE="foo=hoo bar baz"
+    addOrUpdateLine --all --in-place --line "$UPDATE" "$FILE2" "$FILE3" "$FILE"
+    [ "$(cat "$FILE2")" = "$(cat "$MORE2")
+$UPDATE" ]
+    [ "$(cat "$FILE3")" = "$(cat "$MORE3")
+$UPDATE" ]
+    cmp "$FILE" "$INPUT"
+}
+
 @test "update with nonexisting line appends to all files" {
     UPDATE="foo=new"
     addOrUpdateLine --all --in-place --line "$UPDATE" "$FILE" "$FILE2" "$FILE3"
