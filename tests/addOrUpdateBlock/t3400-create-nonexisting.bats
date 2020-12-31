@@ -2,7 +2,7 @@
 
 load temp
 
-@test "processing standard input works" {
+@test "processing standard input with creation of nonexisting works" {
     CONTENTS="# useless"
     output="$(echo "$CONTENTS" | addOrUpdateBlock --create-nonexisting --marker test --block-text "$TEXT")"
     [ "$output" = "$CONTENTS
@@ -39,7 +39,7 @@ $BLOCK" ]
 $BLOCK" ]
 }
 
-@test "update nonexisting file with pre line" {
+@test "update nonexisting file with post line" {
     POSTLINE="# new footer"
     run addOrUpdateBlock --create-nonexisting --in-place --post-line "$POSTLINE" --marker test --block-text "$TEXT" "$NONE"
     [ $status -eq 0 ]

@@ -2,7 +2,7 @@
 
 load temp
 
-@test "update in first file also updates or appends in following files" {
+@test "update all in first file also updates or appends in following files" {
     addOrUpdateBlock --all --in-place --marker test --block-text "$TEXT" "$FILE3" "$FILE2" "$FILE4"
     [ "$(cat "$FILE3")" = "# BEGIN test
 single-line
@@ -38,7 +38,7 @@ Single line
 end" ]
 }
 
-@test "update with match in second file appends to previous and following files" {
+@test "update all with match in second file appends to previous and following files" {
     addOrUpdateBlock --all --in-place --marker 'final and empty' --block-text "$TEXT" "$FILE3" "$FILE2" "$FILE4"
     [ "$(cat "$FILE3")" = "# BEGIN test
 The same stuff
@@ -83,14 +83,14 @@ single-line
 # END final and empty" ]
 }
 
-@test "update with existing block in all files keeps contents and returns 1" {
+@test "update all with existing block in all files keeps contents and returns 1" {
     run addOrUpdateBlock --all --in-place --marker subsequent --block-text "Single line" "$FILE2" "$FILE4"
     [ $status -eq 1 ]
     cmp "$FILE2" "$EXISTING"
     cmp "$FILE4" "$LAST"
 }
 
-@test "update with existing block in first two files updates at the end of the last file only" {
+@test "update all with existing block in first two files updates at the end of the last file only" {
     addOrUpdateBlock --all --in-place --marker subsequent --block-text "Single line" "$FILE2" "$FILE4" "$FILE3"
     cmp "$FILE2" "$EXISTING"
     cmp "$FILE4" "$LAST"
@@ -100,7 +100,7 @@ Single line
 # END subsequent" ]
 }
 
-@test "update with existing block in two files updates at the end of the other two files only" {
+@test "update all with existing block in two files updates at the end of the other two files only" {
     run addOrUpdateBlock --all --in-place --marker subsequent --block-text "Single line" "$FILE" "$FILE2" "$FILE3" "$FILE4"
     [ "$(cat "$FILE")" = "$(cat "$FRESH")
 # BEGIN subsequent
@@ -114,7 +114,7 @@ Single line
     cmp "$FILE4" "$LAST"
 }
 
-@test "update with nonexisting block appends at the end of all files" {
+@test "update all with nonexisting block appends at the end of all files" {
     addOrUpdateBlock --all --in-place --marker 'totally new' --block-text "$TEXT" "$FILE2" "$FILE3" "$FILE4"
     [ "$(cat "$FILE2")" = "$(cat "$EXISTING")
 # BEGIN totally new

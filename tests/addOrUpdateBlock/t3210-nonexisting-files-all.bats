@@ -33,7 +33,7 @@ last line" ]
     [ ! -e "$NONE2" ]
 }
 
-@test "all nonexisting files returns 4" {
+@test "all nonexisting all files returns 4" {
     run addOrUpdateBlock --all --in-place --marker test --block-text "$TEXT" "$NONE" "$NONE2"
     [ $status -eq 4 ]
     [ "$output" = "" ]
