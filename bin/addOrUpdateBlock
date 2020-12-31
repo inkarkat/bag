@@ -3,8 +3,7 @@
 literalPattern()
 {
     sed -e ':loop' \
-	-e '$!N' \
-	-e '$!b loop' \
+	-e '$!{ N; b loop }' \
 	-e 's/[][\$*.^]/\\&/g' \
 	-e 's/\n/\\n/g'
 }
@@ -212,6 +211,11 @@ process()
 	# next), don't update following lines. Else, search for the end marker.
 	-e "/^${literalBeginMarkerPattern//\//\\/}\$/{ x; /./{ x; b last; }; x; p; s/.*//; ${addAfterAddress}b last; N; s/^\\n//; b searchForEnd }"
 	-e 'b last'
+
+	-e ':slurpToEndAndQuit'
+	-e '$!{ N; b slurpToEndAndQuit }'
+	-e '$q 98'
+
 	-e ':searchForEnd'
 	# Another begin marker resets the search.
 	-e "/\\(^\\|\\n\\)${literalBeginMarkerPattern//\//\\/}\$/{ p; s/.*//; ${addAfterAddress}b last; N; s/^\\n//; b searchForEnd }"
@@ -230,7 +234,7 @@ process()
 	# new block, no processing actually has happened, and we indicate an
 	# error. If the hold space isn't empty, skip further processing (i.e.
 	# appending), as we've already done the update.
-	-e "${addAfterAddress}{ x; /^\\n\$\\|^${literalBlockTextPattern//\//\\/}\\n${literalEndMarkerPattern//\//\\/}\$/{ x; q 98 }; /./{ x; b; }; x; }"
+	-e "${addAfterAddress}{ x; /^\\n\$\\|^${literalBlockTextPattern//\//\\/}\\n${literalEndMarkerPattern//\//\\/}\$/{ x; b slurpToEndAndQuit }; /./{ x; b; }; x; }"
     )
 
     if [ "$isAppend" ]; then
