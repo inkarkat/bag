@@ -8,10 +8,15 @@ export FILE2="${BATS_TMPDIR}/existing.txt"
 export FILE3="${BATS_TMPDIR}/bad.txt"
 export NONE="${BATS_TMPDIR}/none.txt"
 export NONE2="${BATS_TMPDIR}/none2.txt"
-init()
+
+tempSetup()
 {
     cp -f "$FRESH" "$FILE"
     cp -f "$EXISTING" "$FILE2"
     cp -f "$BAD" "$FILE3"
     rm -f "$NONE" "$NONE2" 2>/dev/null
+}
+setup()
+{
+    tempSetup
 }
