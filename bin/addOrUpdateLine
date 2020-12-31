@@ -24,17 +24,19 @@ printLongUsage()
     # It is printed to stdout to allow paging with 'more'.
     cat <<HELPDESCRIPTION
 Tries to locate passed LINE / PATTERN in at least one (all with --all) of the
-passed FILE(s), updates with REPLACEMENT (in the first to match), or appends (in
-the last FILE) if it does not exist yet.
+passed FILE(s), updates with REPLACEMENT (in the first file to match, and only
+the first such matching line there), or appends (at the end of the last FILE) if
+it does not exist yet.
 HELPDESCRIPTION
     echo
     printShortUsage "$1"
+    echo
     cat <<HELPTEXT
     --in-place[=SUFFIX]|-i[SUFFIX]
 			    Edit FILE(s) in place (makes backup if SUFFIX
-			    supplied).
+			    supplied) instead of printing to standard output.
     --test-only|-t	    Just check whether an update would be made. Does not
-			    modify the FILE(s).
+			    modify the FILE(s) or output the result.
     --all|-a		    Instead of just updating the first to match or
 			    appending to the last FILE, make sure that each FILE
 			    gets updated.
@@ -42,9 +44,9 @@ HELPDESCRIPTION
 			    FILE(s) does not exist yet.
     --create-nonexisting    Create the first (each with --all) passed FILE if it
 			    does not exist yet, (and insert the LINE there).
-    --add-after ADDRESS
-			    Do the update after ADDRESS instead of at the end of
-			    the FILE.
+    --add-after ADDRESS	    Do the update after ADDRESS instead of at the end of
+			    the FILE. Any existing blocks that follow that line
+			    won't be considered!
     --line|-l LINE	    Search for (literal, full) LINE and add LINE if that
 			    doesn't exist yet.
     --accept-match|-a ACCEPT-PATTERN
@@ -64,7 +66,7 @@ HELPDESCRIPTION
 			    would already be there.)
     --post-line POSTTEXT    When a fresh LINE is added, put POSTTEXT after it.
 EXIT STATUS:
-    0	An update has happened.
+    0	An update has happened (with --all: in at least one FILE).
     1	The LINE already existed, no modifications were made.
     2	Bad invocation, wrong or missing command-line arguments.
     3	Internal error or failed assertion.
@@ -105,8 +107,8 @@ do
 	--accept-match|-a)  shift; acceptMatch="$1"; shift;;
 	--update-match|-u)  shift; updateMatch="$1"; shift;;
 	--replacement|-r)   shift; replacement="$1"; shift;;
-	--pre-line)	    shift; escapedLine="${1//\//\\/}"; preLines="${preLines}${preLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
-	--post-line)	    shift; escapedLine="${1//\//\\/}"; postLines="${postLines}${postLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
+	--pre-line)	    shift; escapedLine="${1//\\/\\\\}"; preLines="${preLines}${preLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
+	--post-line)	    shift; escapedLine="${1//\\/\\\\}"; postLines="${postLines}${postLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
 	--add-after)	    shift; addAfterAddress="$1"; shift;;
 	--)		    shift; break;;
 	-*)		    { echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
@@ -114,24 +116,25 @@ do
     esac
 done
 if [ -z "$line" ]; then
-    echo >&2 'ERROR: No LINE passed.'
-    echo >&2
-    printUsage "$0" >&2
+    echo 'ERROR: No LINE passed.'
+    echo
+    printUsage "$0"
     exit 2
 elif [ ${#sedInplaceArgs[@]} -gt 0 -a -n "$isTestOnly" ]; then
-    echo >&2 'ERROR: Cannot combine --in-place and --test-only.'
-    echo >&2
-    printUsage "\$1" >&2
+    echo 'ERROR: Cannot combine --in-place and --test-only.'
+    echo
+    printUsage "$0"
     exit 2
 elif [ -n "$isIgnoreNonexisting" -a -n "$isCreateNonexisting" ]; then
-    echo >&2 'ERROR: Cannot combine --ignore-nonexisting and --create-nonexisting.'
-    echo >&2
-    printUsage "\$1" >&2
+    echo 'ERROR: Cannot combine --ignore-nonexisting and --create-nonexisting.'
+    echo
+    printUsage "$0"
     exit 2
-fi
+fi >&2
 
-literalLine="^$(printf %s "$line" | literalPattern)\$"
-[ "$updateMatch" ] || updateMatch="$literalLine"
+insertableLine="${line//\\/\\\\}"
+literalLinePattern="^$(printf %s "$line" | literalPattern)\$"
+[ "$updateMatch" ] || updateMatch="$literalLinePattern"
 
 [ $# -eq 0 ] && set -- -    # Read from stdin if no FILE is passed.
 create()
@@ -144,7 +147,7 @@ create()
 
     local content=
     [ -n "${preLines+t}" ] && content="${content}${preLines}\\${NL}"
-    content="${content}${line//\\/\\\\}"
+    content="${content}${insertableLine}"
     [ -n "${postLines+t}" ] && content="${content}\\${NL}${postLines}"
     typeset -a sedProgram=(
 	-e "\$c\\${NL}${content}"
@@ -188,7 +191,7 @@ process()
     else
 	sedProgram+=(
 	    # Do the update with LINE.
-	    -e "/${updateMatch//\//\\/}/c\\${NL}${line//\\/\\\\}"
+	    -e "/${updateMatch//\//\\/}/c\\${NL}${insertableLine}"
 	)
     fi
 
@@ -198,7 +201,7 @@ process()
 	# changed line, no processing actually has happened, and we indicate an
 	# error. If the hold space isn't empty, skip further processing (i.e.
 	# appending), as we've already done the update.
-	-e "${addAfterAddress}{ x; /^\\n\$\\|${literalLine//\//\\/}/{ x; q 98 }; /./{ x; b; }; x; }"
+	-e "${addAfterAddress}{ x; /^\\n\$\\|${literalLinePattern//\//\\/}/{ x; b slurpToEndAndQuit }; /./{ x; b; }; x; }"
     )
 
     if [ "$isAppend" ]; then
@@ -209,7 +212,7 @@ process()
 	    )
 	fi
 	sedProgram+=(
-	    -e "${addAfterAddress}a\\${NL}${line//\\/\\\\}"
+	    -e "${addAfterAddress}a\\${NL}${insertableLine}"
 	)
 	if [ -n "${postLines+t}" ]; then
 	    sedProgram+=(
@@ -222,12 +225,20 @@ process()
 	    -e '$q 99'
 	)
     fi
+
+    sedProgram+=(
+	-e 'b'
+	-e ':slurpToEndAndQuit'
+	-e '$!{ N; b slurpToEndAndQuit }'
+	-e '$q 98'
+    )
 #echo >&3 "****"  "${sedProgram[@]}"
     sed "${sedInplaceArgs[@]}" \
 	"${sedProgram[@]}" \
 	-- "$filespec"
 }
 
+hadSuccess=
 let existingCount=0
 for ((i = 1; i <= $#; i++))
 do
@@ -252,7 +263,7 @@ do
     eval 'process "$isAppend" "$filespec"' "${isTestOnly:+>/dev/null}"
     status=$?
     case $status in
-	0)	[ "$isAll" ] || exit $status;;
+	0)	[ "$isAll" ] && hadSuccess=t || exit $status;;
 	98|99)	status=1;;
 	*)	status=5;;
     esac
@@ -265,4 +276,4 @@ if [ $existingCount -eq 0 ]; then
 	status=4
     fi
 fi
-exit $status
+[ "$hadSuccess" ] || exit $status

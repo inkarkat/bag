@@ -2,8 +2,7 @@
 
 load temp
 
-@test "processing standard input works" {
-    init
+@test "processing standard input with creation of nonexisting works" {
     CONTENTS="# useless"
     UPDATE="foo=new"
     output="$(echo "$CONTENTS" | addOrUpdateLine --create-nonexisting --line "$UPDATE")"
@@ -12,7 +11,6 @@ $UPDATE" ]
 }
 
 @test "update with nonexisting first file creates and appends there" {
-    init
     UPDATE="foo=new"
     run addOrUpdateLine --create-nonexisting --in-place --line "$UPDATE" --update-match "foo=bar" "$NONE" "$FILE" "$NONE2" "$FILE2"
     [ $status -eq 0 ]
@@ -25,7 +23,6 @@ $UPDATE" ]
 }
 
 @test "update with all nonexisting files creates and appends to the first one" {
-    init
     UPDATE="foo=new"
     run addOrUpdateLine --create-nonexisting --in-place --line "$UPDATE" --update-match "foo=bar" "$NONE" "$NONE2"
     [ $status -eq 0 ]
@@ -36,7 +33,6 @@ $UPDATE" ]
 }
 
 @test "update nonexisting file with pre line" {
-    init
     PRELINE="# new header"
     UPDATE="foo=new"
     run addOrUpdateLine --create-nonexisting --in-place --pre-line "$PRELINE" --line "$UPDATE" "$NONE"
@@ -46,7 +42,6 @@ $UPDATE" ]
 }
 
 @test "update nonexisting file with post line" {
-    init
     POSTLINE="# new footer"
     UPDATE="foo=new"
     run addOrUpdateLine --create-nonexisting --in-place --post-line "$POSTLINE" --line "$UPDATE" "$NONE"
@@ -56,7 +51,6 @@ $POSTLINE" ]
 }
 
 @test "update nonexisting file with pre and post lines" {
-    init
     PRELINE1="# new header"
     PRELINE2="more
 
@@ -78,7 +72,6 @@ $POSTLINE2" ]
 }
 
 @test "update with nonexisting files and --all creates and appends each" {
-    init
     UPDATE="foo=new"
     run addOrUpdateLine --create-nonexisting --all --in-place --line "$UPDATE" --update-match "foo=bar" "$NONE" "$FILE" "$NONE2" "$FILE2"
     [ $status -eq 0 ]
@@ -98,7 +91,6 @@ foo=moo bar baz" ]
 }
 
 @test "update with all nonexisting files and --all creates and appends to each" {
-    init
     UPDATE="foo=new"
     run addOrUpdateLine --create-nonexisting --all --in-place --line "$UPDATE" --update-match "foo=bar" "$NONE" "$NONE2"
     [ $status -eq 0 ]

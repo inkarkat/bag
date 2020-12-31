@@ -3,7 +3,6 @@
 load temp
 
 @test "append with one post line" {
-    init
     POSTLINE="# new footer"
     UPDATE="foo=new"
     run addOrUpdateLine --post-line "$POSTLINE" --line "$UPDATE" "$FILE"
@@ -14,7 +13,6 @@ $POSTLINE" ]
 }
 
 @test "append with three separate post lines" {
-    init
     POSTLINE1="# first footer"
     POSTLINE2=''
     POSTLINE3="# third footer"
@@ -29,7 +27,6 @@ $POSTLINE3" ]
 }
 
 @test "append with one multi-line post line" {
-    init
     POSTLINE="# first footer
 
 # third footer"
@@ -51,7 +48,6 @@ addOrUpdateLineWithPeriod()
     addOrUpdateLine "$@"; printf .
 }
 @test "empty post line" {
-    init
     UPDATE="foo=new"
     run addOrUpdateLineWithPeriod --post-line '' --line "$UPDATE" "$FILE"
     [ $status -eq 0 ]
@@ -62,7 +58,6 @@ $UPDATE
 }
 
 @test "single space post line" {
-    init
     POSTLINE=" "
     UPDATE="foo=new"
     run addOrUpdateLineWithPeriod --post-line "$POSTLINE" --line "$UPDATE" "$FILE"
@@ -72,4 +67,3 @@ $UPDATE
 ${POSTLINE}
 ." ]
 }
-

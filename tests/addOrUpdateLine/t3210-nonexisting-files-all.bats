@@ -3,7 +3,6 @@
 load temp
 
 @test "update in all existing files skips nonexisting files" {
-    init
     UPDATE="foo=new"
     run addOrUpdateLine --all --in-place --line "$UPDATE" --update-match "foo=bar" "$NONE" "$FILE" "$NONE2" "$FILE2"
     [ $status -eq 0 ]
@@ -20,8 +19,7 @@ foo=moo bar baz" ]
     [ ! -e "$NONE2" ]
 }
 
-@test "all nonexisting files returns 4" {
-    init
+@test "all nonexisting all files returns 4" {
     UPDATE="foo=new"
     run addOrUpdateLine --all --in-place --line "$UPDATE" --update-match "foo=bar" "$NONE" "$NONE2"
     [ $status -eq 4 ]

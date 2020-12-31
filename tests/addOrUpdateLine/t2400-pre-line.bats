@@ -3,7 +3,6 @@
 load temp
 
 @test "append with one pre line" {
-    init
     PRELINE="# new header"
     UPDATE="foo=new"
     run addOrUpdateLine --pre-line "$PRELINE" --line "$UPDATE" "$FILE"
@@ -14,7 +13,6 @@ $UPDATE" ]
 }
 
 @test "append with three separate pre lines" {
-    init
     PRELINE1="# first header"
     PRELINE2=''
     PRELINE3="# third header"
@@ -29,7 +27,6 @@ $UPDATE" ]
 }
 
 @test "append with one multi-line pre line" {
-    init
     PRELINE="# first header
 
 # third header"
@@ -47,7 +44,6 @@ $UPDATE" ]
 }
 
 @test "empty pre line" {
-    init
     UPDATE="foo=new"
     run addOrUpdateLine --pre-line '' --line "$UPDATE" "$FILE"
     [ $status -eq 0 ]
@@ -57,7 +53,6 @@ $UPDATE" ]
 }
 
 @test "single space pre line" {
-    init
     PRELINE=" "
     UPDATE="foo=new"
     run addOrUpdateLine --pre-line "$PRELINE" --line "$UPDATE" "$FILE"
@@ -66,4 +61,3 @@ $UPDATE" ]
 $PRELINE
 $UPDATE" ]
 }
-
