@@ -2,7 +2,11 @@
 
 literalPattern()
 {
-    sed -e 's/[][\$*.^]/\\&/g'
+    sed -e ':loop' \
+	-e '$!N' \
+	-e '$!b loop' \
+	-e 's/[][\$*.^]/\\&/g' \
+	-e 's/\n/\\n/g'
 }
 
 printShortUsage()
@@ -114,11 +118,11 @@ do
 			    text="$(<"$1")" || exit 6
 			    shift
 			    escapedText="${text//\\/\\\\}"; insertableBlockText="${insertableBlockText}${insertableBlockText:+\\$NL}${escapedText//${NL}/\\$NL}"
-			    literalBlockTextPattern="${literalBlockTextPattern}${literalBlockTextPattern:+\\n}$(printf %s "${text//${NL}/\\n}" | literalPattern)"
+			    literalBlockTextPattern="${literalBlockTextPattern}${literalBlockTextPattern:+\\n}$(printf %s "$text" | literalPattern)"
 			    ;;
 	--block-text|-b)    shift
 			    escapedText="${1//\\/\\\\}"; insertableBlockText="${insertableBlockText}${insertableBlockText:+\\$NL}${escapedText//${NL}/\\$NL}"
-			    literalBlockTextPattern="${literalBlockTextPattern}${literalBlockTextPattern:+\\n}$(printf %s "${1//${NL}/\\n}" | literalPattern)"
+			    literalBlockTextPattern="${literalBlockTextPattern}${literalBlockTextPattern:+\\n}$(printf %s "$1" | literalPattern)"
 			    shift
 			    ;;
 	--accept-match|-a)  shift; acceptMatch="$1"; shift;;
