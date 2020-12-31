@@ -3,7 +3,6 @@
 load temp
 
 @test "append with pre and post lines" {
-    init
     PRELINE1="# new header"
     PRELINE2="more
 
@@ -23,7 +22,6 @@ $POSTLINE2" ]
 }
 
 @test "append with pre and post lines that contain backslashes" {
-    init
     PRELINE='/new header\'
     UPDATE="foo=new"
     POSTLINE='\new footer/'

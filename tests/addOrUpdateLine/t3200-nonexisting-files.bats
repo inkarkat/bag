@@ -3,7 +3,6 @@
 load temp
 
 @test "processing standard input works" {
-    init
     CONTENTS="# useless"
     UPDATE="foo=new"
     output="$(echo "$CONTENTS" | addOrUpdateLine --line "$UPDATE")"
@@ -12,7 +11,6 @@ $UPDATE" ]
 }
 
 @test "nonexisting file and standard input works" {
-    init
     CONTENTS="# useless"
     UPDATE="foo=new"
     output="$(echo "$CONTENTS" | addOrUpdateLine --line "$UPDATE" "$NONE" -)"
@@ -21,7 +19,6 @@ $UPDATE" ]
 }
 
 @test "update in first existing file skips nonexisting files" {
-    init
     UPDATE="foo=new"
     run addOrUpdateLine --in-place --line "$UPDATE" --update-match "foo=bar" "$NONE" "$FILE" "$NONE2" "$FILE2"
     [ $status -eq 0 ]
@@ -37,7 +34,6 @@ foo=hi" ]
 }
 
 @test "all nonexisting files returns 4" {
-    init
     UPDATE="foo=new"
     run addOrUpdateLine --in-place --line "$UPDATE" --update-match "foo=bar" "$NONE" "$NONE2"
     [ $status -eq 4 ]

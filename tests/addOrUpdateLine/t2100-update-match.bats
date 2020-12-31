@@ -3,7 +3,6 @@
 load temp
 
 @test "update with nonmatching pattern appends at the end" {
-    init
     UPDATE="foo=new"
     run addOrUpdateLine --line "$UPDATE" --update-match "foosball=never" "$FILE"
     [ $status -eq 0 ]
@@ -12,7 +11,6 @@ $UPDATE" ]
 }
 
 @test "update with literal-like pattern updates first matching line" {
-    init
     run addOrUpdateLine --line "foo=new" --update-match "foo=h" "$FILE"
     [ $status -eq 0 ]
     [ "$output" = 'sing/e=wha\ever
@@ -23,7 +21,6 @@ foo=hi' ]
 }
 
 @test "update with anchored pattern updates first matching line" {
-    init
     run addOrUpdateLine --line "foo=new" --update-match "^fo\+=[ghi].*$" "$FILE"
     [ $status -eq 0 ]
     [ "$output" = 'sing/e=wha\ever
@@ -34,7 +31,6 @@ foo=hi' ]
 }
 
 @test "update with pattern containing forward and backslash updates first matching line" {
-    init
     run addOrUpdateLine --line 'foo=/e\' --update-match "^.*/.=.*\\.*" "$FILE"
     [ $status -eq 0 ]
     [ "$output" = 'foo=/e\
@@ -43,4 +39,3 @@ foo=hoo bar baz
 # SECTION
 foo=hi' ]
 }
-

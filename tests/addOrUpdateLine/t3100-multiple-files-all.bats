@@ -3,7 +3,6 @@
 load temp
 
 @test "update in first file appends to all other files" {
-    init
     UPDATE="foo=new"
     addOrUpdateLine --all --in-place --line "$UPDATE" --update-match "foo=bar" "$FILE" "$FILE2" "$FILE3"
     [ "$(cat "$FILE")" = "sing/e=wha\\ever
@@ -20,7 +19,6 @@ foo=no bar baz" ]
 }
 
 @test "update with match in second file appends to previous and following files" {
-    init
     UPDATE="quux=updated"
     addOrUpdateLine --all --in-place --line "$UPDATE" --update-match "quux=" "$FILE" "$FILE2" "$FILE3"
     [ "$(cat "$FILE")" = "$(cat "$INPUT")
@@ -33,7 +31,6 @@ $UPDATE" ]
 }
 
 @test "update with existing line in all files keeps contents and returns 1" {
-    init
     run addOrUpdateLine --all --in-place --line "foo=bar" "$FILE" "$FILE2" "$FILE3"
     [ $status -eq 1 ]
     cmp "$FILE" "$INPUT"
@@ -42,7 +39,6 @@ $UPDATE" ]
 }
 
 @test "update with existing line in first file appends at the end of the other files" {
-    init
     UPDATE="foo=hoo bar baz"
     addOrUpdateLine --all --in-place --line "$UPDATE" "$FILE" "$FILE2" "$FILE3"
     cmp "$FILE" "$INPUT"
@@ -53,7 +49,6 @@ $UPDATE" ]
 }
 
 @test "update with nonexisting line appends to all files" {
-    init
     UPDATE="foo=new"
     addOrUpdateLine --all --in-place --line "$UPDATE" "$FILE" "$FILE2" "$FILE3"
     [ "$(cat "$FILE")" = "$(cat "$INPUT")
