@@ -28,30 +28,31 @@ printLongUsage()
     cat <<HELPDESCRIPTION
 Tries to locate a sequence of lines that starts with BEGIN-LINE and ends with
 END-LINE in at least one (all with --all) of the passed FILE(s), updates with
-BLOCK contents (in the first to match), or appends (in the last FILE, surrounded
-by BEGIN-LINE and END-LINE) if it does not exist yet.
+BLOCK contents (in the first block to match), or appends (in the last FILE,
+surrounded by BEGIN-LINE and END-LINE) if it does not exist yet.
 HELPDESCRIPTION
     echo
     printShortUsage "$1"
+    echo
     cat <<HELPTEXT
     --in-place[=SUFFIX]|-i[SUFFIX]
 			    Edit FILE(s) in place (makes backup if SUFFIX
-			    supplied).
+			    supplied) instead of printing to standard output.
     --test-only|-t	    Just check whether an update would be made. Does not
-			    modify the FILE(s).
+			    modify the FILE(s) or output the result.
     --all|-a		    Instead of just updating the first to match or
 			    appending to the last FILE, make sure that each FILE
 			    gets updated.
     --ignore-nonexisting    Succeed instead of complaining if (none of the)
 			    FILE(s) does not exist yet.
     --create-nonexisting    Create the first (each with --all) passed FILE if it
-			    does not exist yet, (and insert the BLOCK-FILE
-			    there).
+			    does not exist yet, (and insert the BLOCK there).
     --add-after ADDRESS	    Do the update after ADDRESS instead of at the end of
-			    the FILE.
+			    the FILE. Any existing blocks that follow that line
+			    won't be considered!
     --marker|-m WHAT	    Synthesize BEGIN-LINE and END-LINE based on WHAT:
-			    # BEGIN WHAT
-			    # END WHAT
+				# BEGIN WHAT
+				# END WHAT
     --begin-marker BEGIN-LINE
 			    The line that marks the beginning of the block.
     --end-marker END-LINE   The line that marks the end of the block.
