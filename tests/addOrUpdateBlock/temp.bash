@@ -4,6 +4,7 @@ export TEXT='single-line'
 export BLOCK="# BEGIN test
 $TEXT
 # END test"
+export CONTENTS="# useless"
 
 export FRESH="${BATS_TEST_DIRNAME}/fresh.txt"
 export EXISTING="${BATS_TEST_DIRNAME}/existing.txt"

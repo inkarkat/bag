@@ -3,7 +3,6 @@
 load temp
 
 @test "processing standard input with creation of nonexisting works" {
-    CONTENTS="# useless"
     output="$(echo "$CONTENTS" | addOrUpdateBlock --create-nonexisting --marker test --block-text "$TEXT")"
     [ "$output" = "$CONTENTS
 $BLOCK" ]

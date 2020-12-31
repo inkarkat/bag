@@ -3,14 +3,12 @@
 load temp
 
 @test "processing standard input works" {
-    CONTENTS="# useless"
     output="$(echo "$CONTENTS" | addOrUpdateBlock --marker test --block-text "$TEXT")"
     [ "$output" = "$CONTENTS
 $BLOCK" ]
 }
 
 @test "nonexisting file and standard input works" {
-    CONTENTS="# useless"
     output="$(echo "$CONTENTS" | addOrUpdateBlock --marker test --block-text "$TEXT" "$NONE" -)"
     [ "$output" = "$CONTENTS
 $BLOCK" ]
