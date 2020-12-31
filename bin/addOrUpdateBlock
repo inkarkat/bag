@@ -206,13 +206,13 @@ process()
     sedProgram+=(
 	# If there already has been a match (determined via the hold space, see
 	# next), don't update following lines. Else, search for the end marker.
-	-e "/^${literalBeginMarkerPattern//\//\\/}\$/{ x; /./{ x; b last; }; x; p; s/.*//; \$b; N; s/^\\n//; b searchForEnd }"
-	-e 'b'
+	-e "/^${literalBeginMarkerPattern//\//\\/}\$/{ x; /./{ x; b last; }; x; p; s/.*//; \$b last; N; s/^\\n//; b searchForEnd }"
+	-e 'b last'
 	-e ':searchForEnd'
 	# Another begin marker resets the search.
-	-e "/\\(^\\|\\n\\)${literalBeginMarkerPattern//\//\\/}\$/{ p; s/.*//; \$b; N; s/^\\n//; b searchForEnd }"
+	-e "/\\(^\\|\\n\\)${literalBeginMarkerPattern//\//\\/}\$/{ p; s/.*//; \$b last; N; s/^\\n//; b searchForEnd }"
 	# Keep reading until we find the end marker.
-	-e "/\\(^\\|\\n\\)${literalEndMarkerPattern//\//\\/}\$/!{ \$b; N; b searchForEnd }"
+	-e "/\\(^\\|\\n\\)${literalEndMarkerPattern//\//\\/}\$/!{ \$b last; N; b searchForEnd }"
 	# If we find the end marker, duplicate the previous block into the hold
 	# space; this serves as a marker that we have done an update and also
 	# that we don't need to append the line at the end.
@@ -226,22 +226,22 @@ process()
 	# new block, no processing actually has happened, and we indicate an
 	# error. If the hold space isn't empty, skip further processing (i.e.
 	# appending), as we've already done the update.
-	-e "${addAfterAddress}{ x; /^\\n\$\\|^${literalBlockTextPattern//\//\\/}\\n${literalEndMarkerPattern//\//\\/}\$/{ x; q 98 }; /./{ x; b; }; x; }"
+	-e "\${ x; /^\\n\$\\|^${literalBlockTextPattern//\//\\/}\\n${literalEndMarkerPattern//\//\\/}\$/{ x; q 98 }; /./{ x; b; }; x; }"
     )
 
     if [ "$isAppend" ]; then
 	# Else append LINE.
 	if [ -n "${insertablePreLines+t}" ]; then
 	    sedProgram+=(
-		-e "${addAfterAddress}a\\${NL}${insertablePreLines}"
+		-e "\$a\\${NL}${insertablePreLines}"
 	    )
 	fi
 	sedProgram+=(
-	    -e "${addAfterAddress}a\\${NL}${insertableBeginMarker}\\${NL}${insertableBlockText}\\${NL}${insertableEndMarker}"
+	    -e "\$a\\${NL}${insertableBeginMarker}\\${NL}${insertableBlockText}\\${NL}${insertableEndMarker}"
 	)
 	if [ -n "${insertablePostLines+t}" ]; then
 	    sedProgram+=(
-		-e "${addAfterAddress}a\\${NL}${insertablePostLines}"
+		-e "\$a\\${NL}${insertablePostLines}"
 	    )
 	fi
     else
