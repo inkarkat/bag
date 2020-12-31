@@ -200,9 +200,10 @@ process()
     if [ "$acceptMatch" ]; then
 	sedProgram+=(
 	    # If ACCEPT-PATTERN matches, put a newline (as that can never be
-	    # matched as a previous block) into the hold space to signal that
-	    # there's already a match.
-	    -e "/${acceptMatch//\//\\/}/{ x; s/.*/\\n/; x; b last; }"
+	    # matched as a previous block) into the hold space (if the hold
+	    # space is still empty; i.e. if no block has been updated yet)  to
+	    # signal that there's already a match.
+	    -e "/${acceptMatch//\//\\/}/{ x; s/^$/\\n/; x; b last; }"
 	)
     fi
 
