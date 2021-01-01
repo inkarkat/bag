@@ -2,7 +2,10 @@
 
 literalPattern()
 {
-    sed -e 's/[][\$*.^]/\\&/g'
+    sed -e ':loop' \
+	-e '$!{ N; b loop }' \
+	-e 's/[][\$*.^]/\\&/g' \
+	-e 's/\n/\\n/g'
 }
 
 printShortUsage()
@@ -133,6 +136,7 @@ elif [ -n "$isIgnoreNonexisting" -a -n "$isCreateNonexisting" ]; then
 fi >&2
 
 insertableLine="${line//\\/\\\\}"
+insertableLine="${insertableLine//${NL}/\\${NL}}"
 literalLinePattern="^$(printf %s "$line" | literalPattern)\$"
 [ "$updateMatch" ] || updateMatch="$literalLinePattern"
 
@@ -192,6 +196,7 @@ process()
 	replaceableLine="$line"
 	replaceableLine="${replaceableLine//\\/\\\\}"
 	replaceableLine="${replaceableLine//&/\\&}"
+	replaceableLine="${replaceableLine//${NL}/\\n}"
 
 	sedProgram+=(
 	    # Do the update with LINE.
@@ -238,7 +243,7 @@ process()
 	-e '$!{ N; b slurpToEndAndQuit }'
 	-e '$q 98'
     )
-#echo >&3 "****"  "${sedProgram[@]}"
+#dump-args -v 2>&3 "${sedProgram[@]}"
     sed "${sedInplaceArgs[@]}" \
 	"${sedProgram[@]}" \
 	-- "$filespec"
