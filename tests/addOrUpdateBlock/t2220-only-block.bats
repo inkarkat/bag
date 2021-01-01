@@ -17,13 +17,13 @@ load temp
 }
 
 @test "update of file with the identical block ending on the add-after line returns 1" {
-    run addOrUpdateBlock --marker test --block-text 'Final testing' "$FILE4"
+    run addOrUpdateBlock --marker test --block-text 'Final testing' --add-after 4 "$FILE4"
     [ $status -eq 1 ]
     [ "$output" = "$(cat "$LAST")" ]
 }
 
 @test "in-place update of file with the identical block ending on the add-after line returns 1" {
-    run addOrUpdateBlock --in-place --marker test --block-text 'Final testing' "$FILE4"
+    run addOrUpdateBlock --in-place --marker test --block-text 'Final testing' --add-after 4 "$FILE4"
     [ $status -eq 1 ]
     [ "$output" = "" ]
     cmp "$LAST" "$FILE4"
