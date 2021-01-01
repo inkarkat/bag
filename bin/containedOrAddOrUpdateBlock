@@ -32,7 +32,8 @@ HELPDESCRIPTION
 			    Determines the configuration directory.
     --name|-n NAME	    Optional human-readable characterization of the
 			    FILE(s) (will be used for querying and memoizing the
-			    decision). Defaults to the passed FILE(s) themselves.
+			    decision). Defaults to the passed FILE(s)
+			    themselves.
     --what WHAT		    Optional human-readable characterization of the
 			    BLOCK (will be used for querying and memoizing the
 			    decision). Defaults to the --marker|-m WHAT

@@ -30,7 +30,8 @@ HELPDESCRIPTION
 			    Determines the configuration directory.
     --name|-n NAME	    Optional human-readable characterization of the
 			    FILE(s) (will be used for querying and memoizing the
-			    decision). Defaults to the passed FILE(s) themselves.
+			    decision). Defaults to the passed FILE(s)
+			    themselves.
 EXIT STATUS:
     0	An update has happened (with --all: in at least one FILE).
     1	The LINE already existed, no modifications were made.
