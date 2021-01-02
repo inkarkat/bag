@@ -34,7 +34,10 @@ HELPDESCRIPTION
 				afterwards) instead of creating a new temporary
 				directory.
     --create-subdir|-c SUBDIR	In an existing DIRSPEC, create and use SUBDIR
-				inside it.
+				inside it. If SUBDIR contains at least 3
+				consecutive 'X's in its last path component, a
+				temporary directory is created (and removed on
+				exit, too).
     --name|-n NAME		Use NAME as the temp dir prefix.
     --print|-p			Just print the temporary directory. Any cleanup
 				has to be done by the client.
@@ -108,7 +111,14 @@ cleanup()
 if hasTempDir; then
     if [ -n "$createSubdir" ]; then
 	tmpDirspec="${tmpDirspec%/}/${createSubdir#/}"
-	mkdir --parents -- "$tmpDirspec" || exit $?
+	if [[ "$tmpDirspec" =~ X{3,}[^/]*$ ]]; then
+	    mkdir --parents -- "$(dirname -- "$tmpDirspec")" || exit $?
+	    tmpDirspec="$(mktemp --directory --tmpdir "$tmpDirspec" 2>/dev/null || ( shopt -qs extglob; dirspec="${tmpDirspec/XX+(X)/$$$RANDOM}"; mkdir -p -- "$dirspec" && printf %s "$dirspec"; ))" || exit 3
+
+	    [ ! "$isPrint" ] && [ -z "${DEBUG:-}" ] && trap 'cleanup' EXIT
+	else
+	    mkdir --parents -- "$tmpDirspec" || exit $?
+	fi
     fi
 else
     tmpDirspec="$(mktemp --directory --tmpdir "${prefix}-XXXXXX" 2>/dev/null || { dirspec="${TEMP:-/tmp}/${prefix}.$$$RANDOM"; mkdir -p -- "$dirspec" && printf %s "$dirspec"; })" || exit $?
