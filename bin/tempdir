@@ -100,6 +100,11 @@ hasTempDir()
     return 1
 }
 
+cleanup()
+{
+    rm -rf "$tmpDirspec" 2>/dev/null
+}
+
 if hasTempDir; then
     if [ -n "$createSubdir" ]; then
 	tmpDirspec="${tmpDirspec%/}/${createSubdir#/}"
@@ -108,13 +113,7 @@ if hasTempDir; then
 else
     tmpDirspec="$(mktemp --directory --tmpdir "${prefix}-XXXXXX" 2>/dev/null || { dirspec="${TEMP:-/tmp}/${prefix}.$$$RANDOM"; mkdir -p -- "$dirspec" && printf %s "$dirspec"; })" || exit $?
 
-    if [ ! "$isPrint" ]; then
-	cleanup()
-	{
-	    rm -rf "$tmpDirspec" 2>/dev/null
-	}
-	[ "${DEBUG:-}" ] || trap 'cleanup' EXIT
-    fi
+    [ ! "$isPrint" ] && [ -z "${DEBUG:-}" ] && trap 'cleanup' EXIT
 fi
 
 if [ "$isPrint" ]; then
