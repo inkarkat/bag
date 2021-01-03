@@ -100,6 +100,8 @@ hasTempDir()
     do
 	[ -d "$tmpDirspec" -a -w "$tmpDirspec" ] && return 0
     done
+
+    tmpDirspec=''
     return 1
 }
 
@@ -108,19 +110,22 @@ cleanup()
     rm -rf "$tmpDirspec" 2>/dev/null
 }
 
+tmpDirspec=
 if hasTempDir; then
     if [ -n "$createSubdir" ]; then
 	tmpDirspec="${tmpDirspec%/}/${createSubdir#/}"
 	if [[ "$tmpDirspec" =~ X{3,}[^/]*$ ]]; then
-	    mkdir --parents -- "$(dirname -- "$tmpDirspec")" || exit $?
-	    tmpDirspec="$(mktemp --directory --tmpdir "$tmpDirspec" 2>/dev/null || ( shopt -qs extglob; dirspec="${tmpDirspec/XX+(X)/$$$RANDOM}"; mkdir -p -- "$dirspec" && printf %s "$dirspec"; ))" || exit 3
+	    mkdir --parents -- "$(dirname -- "$tmpDirspec")" && \
+		tmpDirspec="$(mktemp --directory --tmpdir "$tmpDirspec" 2>/dev/null || ( shopt -qs extglob; dirspec="${tmpDirspec/XX+(X)/$$$RANDOM}"; mkdir -p -- "$dirspec" && printf %s "$dirspec"; ))" || \
+		tmpDirspec=''
 
 	    [ ! "$isPrint" ] && [ -z "${DEBUG:-}" ] && trap 'cleanup' EXIT
 	else
-	    mkdir --parents -- "$tmpDirspec" || exit $?
+	    mkdir --parents -- "$tmpDirspec" || tmpDirspec=''
 	fi
     fi
-else
+fi
+if [ -z "$tmpDirspec" ]; then
     tmpDirspec="$(mktemp --directory --tmpdir "${prefix}-XXXXXX" 2>/dev/null || { dirspec="${TEMP:-/tmp}/${prefix}.$$$RANDOM"; mkdir -p -- "$dirspec" && printf %s "$dirspec"; })" || exit $?
 
     [ ! "$isPrint" ] && [ -z "${DEBUG:-}" ] && trap 'cleanup' EXIT
