@@ -98,7 +98,7 @@ hasTempDir()
 {
     for tmpDirspec in "${tmpDirspecs[@]}"
     do
-	[ -d "$tmpDirspec" ] && return 0
+	[ -d "$tmpDirspec" -a -w "$tmpDirspec" ] && return 0
     done
     return 1
 }
