@@ -36,6 +36,7 @@ printLongUsage()
     cat <<HELPDESCRIPTION
 Observe DIR for added files and perform an action with them.
 HELPDESCRIPTION
+    echo
     printShortUsage "$1"
     echo
     cat <<HELPTEXT
@@ -120,6 +121,8 @@ HELPDESCRIPTION
     --delete-on NUM	Delete the added file(s) if COMMAND exits with NUM.
     --delete-unless NUM	Delete the added file(s) if COMMAND does not exit with
 			NUM.
+SUFFIX may be 's' for seconds (the default), 'm' for minutes, 'h' for hours or
+'d' for days.
 Example:
 HELPTEXT
     printf '%q %s\n' "$(basename "$1")" "--glob '*.url' -i 5 --accept-existing --delete-on-success --stop-on-empty-file --delete-empty-file -- wget --input-file $fileMarker"
