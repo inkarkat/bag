@@ -125,6 +125,18 @@ HELPTEXT
     printf '%q %s\n' "$(basename "$1")" "--glob '*.url' -i 5 --accept-existing --delete-on-success --stop-on-empty-file --delete-empty-file -- wget --input-file $fileMarker"
 }
 
+timeToSeconds()
+{
+    case "$1" in
+	+([0-9])?(s))   time="${1%s}";;
+	+([0-9])m)	time=$((${1%m} * 60));;
+	+([0-9])h)	time=$((${1%h} * 3600));;
+	+([0-9])d)	time=$((${1%d} * 86400));;
+	*)		printf >&2 "ERROR: Illegal ${2:-timeout}: %s\\n" "$1"; exit 2;;
+    esac
+    printf %s "$time"
+}
+
 dir=
 glob=
 sourceCommand=
@@ -153,7 +165,7 @@ isCaptureOutput=t
 while [ $# -ne 0 ]
 do
     case "$1" in
-	--help|-h|-\?)	shift; printLongUsage "$0"; exit 0;;
+	--help|-h|-\?)		shift; printLongUsage "$0"; exit 0;;
 	--dir|-d)		shift; dir="$1"; shift;;
 	--glob|-g)		shift; glob="$1"; shift;;
 	--source-command)	shift; sourceCommand="$1"; shift;;
@@ -186,16 +198,8 @@ do
 	--prefix-command-command)
 				shift; prefixCommandCommand="$1"; shift;;
 	--delay)		shift; delay="$1"; shift;;
-	--stabilization-time)	shift
-				case "$1" in
-				    +([0-9])?(s))   stabilizationTime="${1%s}";;
-				    +([0-9])m)	    stabilizationTime=$((${1%m} * 60));;
-				    +([0-9])h)	    stabilizationTime=$((${1%h} * 3600));;
-				    +([0-9])d)	    stabilizationTime=$((${1%d} * 86400));;
-				    *)		    printf >&2 'ERROR: Illegal number: %s\n' "$1"; exit 2;;
-				esac
+	--stabilization-time)	shift; stabilizationTime="$(timeToSeconds "$1" number)" || exit $?; shift
 				SECONDS=$(date +%s) # Need to sync up only once; Bash will keep the epoch updated from then on.
-				shift
 				;;
 	--interval|-i)		shift; interval="$1"; shift;;
 	--max-files|-l)		shift; maxFiles="$1"; shift;;
