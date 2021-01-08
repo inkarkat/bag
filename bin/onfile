@@ -280,7 +280,7 @@ typeset -a existingFiles=()
 getExistingFiles()
 {
     if [ -n "$glob" ]; then
-	existingFiles=($glob)
+	eval "existingFiles=($glob)"
     elif [ -n "$sourceCommand" ]; then
 	readarray -t existingFiles < <(eval "$sourceCommand"; printf '\n%d\n' "$?")
 	[ ${existingFiles[-1]} -ne 0 ] && exit ${existingFiles[-1]}
