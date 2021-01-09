@@ -1,5 +1,6 @@
 #!/bin/bash
 set -o pipefail
+shopt -qs extglob
 
 : ${ONBAG_OUTPUT_MARKER='{}'}
 outputMarker="$ONBAG_OUTPUT_MARKER"
@@ -126,6 +127,18 @@ HELPTEXT
     printf '%q %s\n' "$(basename "$1")" '--bare -l 5 -s STOP --retry-on-failure -- wget {}'
 }
 
+timeToSeconds()
+{
+    case "$1" in
+	+([0-9])?(s))   time="${1%s}";;
+	+([0-9])m)	time=$((${1%m} * 60));;
+	+([0-9])h)	time=$((${1%h} * 3600));;
+	+([0-9])d)	time=$((${1%d} * 86400));;
+	*)		printf >&2 "ERROR: Illegal ${2:-timeout}: %s\\n" "$1"; exit 2;;
+    esac
+    printf %s "$time"
+}
+
 typeset -a allArgs=("$@")
 typeset -a bagArgs=()
 isParallel=
@@ -134,6 +147,7 @@ interval=
 maxLines=1
 isStopOnEmpty=
 stopPattern=
+stopAfter=
 rateLimit=
 exitOn=
 exitComparison=-eq
@@ -187,7 +201,9 @@ do
 			shift; isStopOnEmpty=t; onchangeExitOnArg=(--exit-on $EXIT_SIGNAL);;
 	--stop-on|-s)	shift; stopPattern="$1"; shift; onchangeExitOnArg=(--exit-on $EXIT_SIGNAL);;
 	--stop-after|-t)
-			onchangeArgs+=("$1" "$2"); shift; shift;;
+			onchangeArgs+=("$1" "$2"); shift
+			stopAfter="$(timeToSeconds "$1")" || exit $?; shift
+			;;
 	--rate-limit)	shift; rateLimit="$1"; shift;;
 	--)		shift; break;;
 	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
@@ -230,6 +246,7 @@ fi
 
 pollForOutput()
 {
+    SECONDS=0
     let observedChanges=0
 
     while :
@@ -241,12 +258,14 @@ pollForOutput()
 	    $EXIT_SIGNAL)
 		return 0;;
 	    $NOOP_SIGNAL)
+		[ -n "$stopAfter" ] && [ $SECONDS -ge $stopAfter ] && break
 		;;
 	    0)
 		let observedChanges+=1
 		if [ "$count" ]; then
 		    [ $observedChanges -ge $count ] && return 0
 		fi
+		SECONDS=0
 		;;
 	esac
     done
