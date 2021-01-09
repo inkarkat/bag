@@ -20,7 +20,7 @@ STABILIZED_TIME=2147483647
 
 printShortUsage()
 {
-    printf 'Usage: %q %s\n' "$(basename "$1")" "-d|--dir DIR|-g|--glob 'GLOB' [-d|--dir DIR]|--source-command SOURCE-COMMAND [-d|--dir DIR] [--accept-existing] [-n|--count N|-1] [--delay NUMBER[SUFFIX]] [--stabilization-time NUMBER[SUFFIX]] [-i|--interval NUMBER[SUFFIX] [-l|--max-files N] [-D|--stop-on-empty-dir] [-S|--stop-on-empty-file [--delete-empty-file]] [-s|--stop-on-filename PATTERN] [--print] [[--bare|--no-capture-output] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on|-exit-unless NUM] [--delete-on-success|--delete-on-failure|--delete-on NUM|--delete-unless NUM] -c|--command \"COMMANDLINE\" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]"
+    printf 'Usage: %q %s\n' "$(basename "$1")" "-d|--dir DIR|-g|--glob 'GLOB' [-d|--dir DIR]|--source-command SOURCE-COMMAND [-d|--dir DIR] [--accept-existing] [-n|--count N|-1] [--delay NUMBER[SUFFIX]] [--stabilization-time NUMBER[SUFFIX]] [-i|--interval NUMBER[SUFFIX] [-l|--max-files N] [-D|--stop-on-empty-dir] [-S|--stop-on-empty-file [--delete-empty-file]] [-s|--stop-on-filename PATTERN] [-t|--stop-after TIMEOUT[SUFFIX]] --print] [[--bare|--no-capture-output] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on|-exit-unless NUM] [--delete-on-success|--delete-on-failure|--delete-on NUM|--delete-unless NUM] -c|--command \"COMMANDLINE\" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]"
 }
 printUsage()
 {
@@ -36,6 +36,7 @@ printLongUsage()
     cat <<HELPDESCRIPTION
 Observe DIR for added files and perform an action with them.
 HELPDESCRIPTION
+    echo
     printShortUsage "$1"
     echo
     cat <<HELPTEXT
@@ -102,6 +103,9 @@ HELPDESCRIPTION
 			Stop observing if an added filename matches
 			PATTERN. PATTERN is a Bash-style extended regular
 			expression.
+    --stop-after|-t TIMEOUT[SUFFIX]
+			Stop observing if no files have been added for
+			TIMEOUT[SUFFIX].
     --parallel		Instead of waiting for one COMMAND to finish before
 			executing the next, run each one the moment the change
 			is triggered. The default is sequential invocation.
@@ -120,9 +124,23 @@ HELPDESCRIPTION
     --delete-on NUM	Delete the added file(s) if COMMAND exits with NUM.
     --delete-unless NUM	Delete the added file(s) if COMMAND does not exit with
 			NUM.
+SUFFIX may be 's' for seconds (the default), 'm' for minutes, 'h' for hours or
+'d' for days.
 Example:
 HELPTEXT
     printf '%q %s\n' "$(basename "$1")" "--glob '*.url' -i 5 --accept-existing --delete-on-success --stop-on-empty-file --delete-empty-file -- wget --input-file $fileMarker"
+}
+
+timeToSeconds()
+{
+    case "$1" in
+	+([0-9])?(s))   time="${1%s}";;
+	+([0-9])m)	time=$((${1%m} * 60));;
+	+([0-9])h)	time=$((${1%h} * 3600));;
+	+([0-9])d)	time=$((${1%d} * 86400));;
+	*)		printf >&2 "ERROR: Illegal ${2:-timeout}: %s\\n" "$1"; exit 2;;
+    esac
+    printf %s "$time"
 }
 
 dir=
@@ -138,6 +156,7 @@ maxFiles=1
 isStopOnEmptyDir=
 isStopOnEmptyFile=
 isDeleteEmptyFile=
+stopAfter=
 stopFilenamePattern=
 rateLimit=
 exitOn=
@@ -153,7 +172,7 @@ isCaptureOutput=t
 while [ $# -ne 0 ]
 do
     case "$1" in
-	--help|-h|-\?)	shift; printLongUsage "$0"; exit 0;;
+	--help|-h|-\?)		shift; printLongUsage "$0"; exit 0;;
 	--dir|-d)		shift; dir="$1"; shift;;
 	--glob|-g)		shift; glob="$1"; shift;;
 	--source-command)	shift; sourceCommand="$1"; shift;;
@@ -186,22 +205,15 @@ do
 	--prefix-command-command)
 				shift; prefixCommandCommand="$1"; shift;;
 	--delay)		shift; delay="$1"; shift;;
-	--stabilization-time)	shift
-				case "$1" in
-				    +([0-9])?(s))   stabilizationTime="${1%s}";;
-				    +([0-9])m)	    stabilizationTime=$((${1%m} * 60));;
-				    +([0-9])h)	    stabilizationTime=$((${1%h} * 3600));;
-				    +([0-9])d)	    stabilizationTime=$((${1%d} * 86400));;
-				    *)		    printf >&2 'ERROR: Illegal number: %s\n' "$1"; exit 2;;
-				esac
+	--stabilization-time)	shift; stabilizationTime="$(timeToSeconds "$1" number)" || exit $?; shift
 				SECONDS=$(date +%s) # Need to sync up only once; Bash will keep the epoch updated from then on.
-				shift
 				;;
 	--interval|-i)		shift; interval="$1"; shift;;
 	--max-files|-l)		shift; maxFiles="$1"; shift;;
 	--stop-on-empty-dir|-D)	shift; isStopOnEmptyDir=t;;
 	--stop-on-empty-file|-S)
 				shift; isStopOnEmptyFile=t;;
+	--stop-after|-t)	shift; stopAfter="$(timeToSeconds "$1")" || exit $?; shift;;
 	--delete-empty-file)	shift; isDeleteEmptyFile=t;;
 	--stop-on-filename|-s)	shift; stopFilenamePattern="$1"; shift;;
 	--rate-limit)		shift; rateLimit="$1"; shift;;
@@ -268,7 +280,7 @@ typeset -a existingFiles=()
 getExistingFiles()
 {
     if [ -n "$glob" ]; then
-	existingFiles=($glob)
+	eval "existingFiles=($glob)"
     elif [ -n "$sourceCommand" ]; then
 	readarray -t existingFiles < <(eval "$sourceCommand"; printf '\n%d\n' "$?")
 	[ ${existingFiles[-1]} -ne 0 ] && exit ${existingFiles[-1]}
@@ -277,6 +289,13 @@ getExistingFiles()
     elif [ -n "$dir" ]; then
 	existingFiles=(*)
     fi
+}
+
+testForStopAfterTimeout()
+{
+    [ -n "$stopAfter" ] || return 1
+
+    [ $((SECONDS - $lastFileHandlingTimestamp)) -ge $stopAfter ]
 }
 
 pollForAddedFiles()
@@ -323,9 +342,11 @@ pollForAddedFiles()
 	done
 
 	if [ -n "$stabilizationTime" ]; then
-	    handleStabilizedFiles
+	    handleStabilizedFiles || ! testForStopAfterTimeout || break
 	elif [ ${#addedFiles[@]} -gt 0 ]; then
 	    handleFiles "${addedFiles[@]}"
+	elif testForStopAfterTimeout; then
+	    break
 	fi
     done
 }
@@ -342,19 +363,21 @@ handleStabilizedFiles()
 	fi
     done
 
-    if [ ${#stabilizedFiles[@]} -gt 0 ]; then
-	handleFiles "${stabilizedFiles[@]}"
+    [ ${#stabilizedFiles[@]} -eq 0 ] && return 1
 
-	# Avoid that the files get picked up again on the next iteration if it doesn't get removed.
-	for file in "${stabilizedFiles[@]}"
-	do
-	    filesMtime["$file"]=$STABILIZED_TIME
-	done
-    fi
+    handleFiles "${stabilizedFiles[@]}"
+
+    # Avoid that the files get picked up again on the next iteration if it doesn't get removed.
+    for file in "${stabilizedFiles[@]}"
+    do
+	filesMtime["$file"]=$STABILIZED_TIME
+    done
 }
 
 handleFiles()
 {
+    lastFileHandlingTimestamp=$SECONDS
+
     # Sort ascending by modification date; this is important for --count,
     # --max-files, and --stop-on.
     typeset -a files=()
@@ -463,4 +486,5 @@ if [ -n "$pgid" ]; then
 else
     trap "jobs -p | xargs kill --" EXIT  # Someone else is the leader; killing remaining jobs is all we can do here.
 fi
+lastFileHandlingTimestamp=$SECONDS
 pollForAddedFiles "$@"
