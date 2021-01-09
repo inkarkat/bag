@@ -26,7 +26,7 @@ fi
 
 printShortUsage()
 {
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [-n|--count N|-1] [-i|--interval NUMBER[SUFFIX] [-l|--max-lines N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [--print] [[--bare|--no-capture-output] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--retry-on-failure|--retry-on NUM|--retry-unless NUM] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [-n|--count N|-1] [-i|--interval NUMBER[SUFFIX] [-l|--max-lines N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [-t|--stop-after TIMEOUT[SUFFIX]] [--print] [[--bare|--no-capture-output] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--retry-on-failure|--retry-on NUM|--retry-unless NUM] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -43,6 +43,7 @@ printLongUsage()
 Observe a special file for added output, consume it from the start (FIFO-style)
 in order to perform an action with it.
 HELPDESCRIPTION
+    echo
     printShortUsage "$1"
     echo
     cat <<HELPTEXT
@@ -93,6 +94,9 @@ HELPDESCRIPTION
 			before the match are still processed, and lines after
 			the match are put back into the special file. PATTERN is
 			a Bash-style extended regular expression.
+    --stop-after|-t TIMEOUT[SUFFIX]
+			Stop observing if no files have been added for
+			TIMEOUT[SUFFIX].
     --parallel		Instead of waiting for one COMMAND to finish before
 			executing the next, run each one the moment the change
 			is triggered. The default is sequential invocation.
@@ -115,6 +119,8 @@ HELPDESCRIPTION
 			exits with NUM.
     --retry-unless NUM	Put back the output into the special file if COMMAND
 			does not exit with NUM.
+SUFFIX may be 's' for seconds (the default), 'm' for minutes, 'h' for hours or
+'d' for days.
 Example:
 HELPTEXT
     printf '%q %s\n' "$(basename "$1")" '--bare -l 5 -s STOP --retry-on-failure -- wget {}'
@@ -139,6 +145,7 @@ prefixCommandCommand=
 isPrint=
 isBare=
 isCaptureOutput=t
+typeset -a onchangeArgs=()
 typeset -a onchangeExitOnArg=()
 while [ $# -ne 0 ]
 do
@@ -179,6 +186,8 @@ do
 	--stop-on-empty|-S)
 			shift; isStopOnEmpty=t; onchangeExitOnArg=(--exit-on $EXIT_SIGNAL);;
 	--stop-on|-s)	shift; stopPattern="$1"; shift; onchangeExitOnArg=(--exit-on $EXIT_SIGNAL);;
+	--stop-after|-t)
+			onchangeArgs+=("$1" "$2"); shift; shift;;
 	--rate-limit)	shift; rateLimit="$1"; shift;;
 	--)		shift; break;;
 	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
@@ -388,5 +397,5 @@ else
 	onchangeExitOnArg=(--exit-on $EXIT_SIGNAL)
     fi
 
-    ONCHANGE_FILE_MARKER='' onchange "${onchangeExitOnArg[@]}" --bare --exec "${BASH_SOURCE[0]}" --onchange $$ "${allArgs[@]}" \; "${BAG:-"${HOME}/.bag"}"
+    ONCHANGE_FILE_MARKER='' onchange "${onchangeArgs[@]}" "${onchangeExitOnArg[@]}" --bare --exec "${BASH_SOURCE[0]}" --onchange $$ "${allArgs[@]}" \; "${BAG:-"${HOME}/.bag"}"
 fi
