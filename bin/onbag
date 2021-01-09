@@ -297,10 +297,10 @@ executeTrigger()
 	    eval 'triggerCommand "${lines[@]}"' ${isParallel:+&}
 	    lines=()
 	fi
-    fi
 
-    # Put back any lines that have been read but haven't been processed.
-    [ ${#lines[@]} -gt 0 ] && bag "${bagArgs[@]}" --prepend -- "${lines[@]}"
+	# Put back any lines that have been read but haven't been processed.
+	[ ${#lines[@]} -gt 0 ] && bag "${bagArgs[@]}" --prepend -- "${lines[@]}"
+    fi
 
     return $signal
 }
