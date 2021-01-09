@@ -193,7 +193,7 @@ if [ $# -ne 0 ]; then
     commands+=(${commands:+;} "${prefixCommand}${quotedSimpleCommand//"$escapedOutputMarker"/$outputMarker}")	# %q escapes {}, we don't want that to have it interpolated later.
 fi
 if [ ! "$isPrint" ] && [ ! "$count" ] && [ ${#commands[@]} -eq 0 ]; then
-    echo 'ERROR: Need to pass either -1|-c|--count to count changes, --print to show updated files, or -c|--command to execute a command.'
+    echo 'ERROR: Need to pass either -1|-n|--count to count changes, --print to show added lines, or -c|--command to execute a command.'
     echo
     printUsage "$0"
     exit 2
