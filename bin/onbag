@@ -366,7 +366,12 @@ database()
 }
 
 if [ "$isOnChange" ]; then
-    if processBag; then
+    status=0
+    while [ $status -eq 0 ]
+    do
+	processBag
+	status=$?
+
 	if [ -n "$count" ]; then
 	    if observedChanges="$(database --query $parentScriptPid --columns COUNT)"; then
 		let observedChanges+=1
@@ -374,11 +379,8 @@ if [ "$isOnChange" ]; then
 		database --update "$parentScriptPid	$observedChanges"
 	    fi
 	fi
-
-	exit 0
-    else
-	exit $?
-    fi
+    done
+    exit $status
 fi
 
 
