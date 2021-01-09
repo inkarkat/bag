@@ -139,7 +139,7 @@ prefixCommandCommand=
 isPrint=
 isBare=
 isCaptureOutput=t
-typeset -a onchangeArgs=()
+typeset -a onchangeExitOnArg=()
 while [ $# -ne 0 ]
 do
     case "$1" in
@@ -177,8 +177,8 @@ do
 	--interval|-i)	shift; interval="$1"; shift;;
 	--max-lines|-l)	shift; maxLines="$1"; shift;;
 	--stop-on-empty|-S)
-			shift; isStopOnEmpty=t; onchangeArgs=(--exit-on $EXIT_SIGNAL);;
-	--stop-on|-s)	shift; stopPattern="$1"; shift; onchangeArgs=(--exit-on $EXIT_SIGNAL);;
+			shift; isStopOnEmpty=t; onchangeExitOnArg=(--exit-on $EXIT_SIGNAL);;
+	--stop-on|-s)	shift; stopPattern="$1"; shift; onchangeExitOnArg=(--exit-on $EXIT_SIGNAL);;
 	--rate-limit)	shift; rateLimit="$1"; shift;;
 	--)		shift; break;;
 	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
@@ -385,8 +385,8 @@ else
 
 	# As with the --stop-on options, the end of observation is signaled by
 	# the recursive invocation through $EXIT_SIGNAL.
-	onchangeArgs=(--exit-on $EXIT_SIGNAL)
+	onchangeExitOnArg=(--exit-on $EXIT_SIGNAL)
     fi
 
-    ONCHANGE_FILE_MARKER='' onchange "${onchangeArgs[@]}" --bare --exec "${BASH_SOURCE[0]}" --onchange $$ "${allArgs[@]}" \; "${BAG:-"${HOME}/.bag"}"
+    ONCHANGE_FILE_MARKER='' onchange "${onchangeExitOnArg[@]}" --bare --exec "${BASH_SOURCE[0]}" --onchange $$ "${allArgs[@]}" \; "${BAG:-"${HOME}/.bag"}"
 fi
