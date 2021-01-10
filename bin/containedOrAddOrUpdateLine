@@ -86,24 +86,36 @@ if [ $# -eq 0 -o "$1" = '-' ]; then # Note: This doesn't handle a later - argume
     set -- "$TMPFILE"	# Note: We trust that the user didn't erroneously passed --in-place. Normally, sed would complain ("no input files" or "can't read -: No such file or directory", but as we convert into a temporary file, this doesn't happen now.
 fi
 
-# Note: Omit addOrUpdateLineInplaceArg here, as that would conflict with
-# --test-only.
-addOrUpdateLine --test-only "${addOrUpdateLineArgs[@]}" "$@" || exit $?
-
-
 verb="does not"
+negativeVerb="contain"
 action="update it"
 if [ $# -gt 1 ]; then
     if [ "$isAll" ]; then
 	subject="All of $*"
 	verb="do not"
+	negativeVerb="contain"
 	action="update them"
     else
 	subject="At least one of $*"
+    negativeVerb="contains"
     fi
 else
     subject="$*"
+    negativeVerb="contains"
 fi
+
+# Note: Omit addOrUpdateLineInplaceArg here, as that would conflict with
+# --test-only.
+addOrUpdateLine --test-only "${addOrUpdateLineArgs[@]}" "$@"
+case $? in
+    0)	;;
+    1)	printf >&2 "%s already %s '%s'; no update necessary.\\n" "${name:-$subject}" "$negativeVerb" "$line"
+	exit 1
+	;;
+    *)	exit $?;;
+esac
+
+
 [ "$memoizeDecisionArgs" ] || memoizeDecisionArgs=(--memoize-group "$(basename -- "$0").$PPID")
 memoizeDecision "${memoizeDecisionArgs[@]}" --subject "${name:-$subject}" --verb "$verb" --state "yet contain '$line'" --action "$action"
 status=$?
