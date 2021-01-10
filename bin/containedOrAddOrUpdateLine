@@ -4,7 +4,7 @@ printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--name NAME] [-i[SUFFIX]|--in-place[=SUFFIX]] [--ignore-nonexisting|--create-nonexisting] [--add-after ADDRESS] -l|--line LINE [-a|--accept-match ACCEPT-PATTERN -u|--update-match PATTERN [-r|--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--name NAME] [-M|--up-to-date-message MSG] [-i[SUFFIX]|--in-place[=SUFFIX]] [--ignore-nonexisting|--create-nonexisting] [--add-after ADDRESS] -l|--line LINE [-a|--accept-match ACCEPT-PATTERN -u|--update-match PATTERN [-r|--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -32,6 +32,10 @@ HELPDESCRIPTION
 			    FILE(s) (will be used for querying and memoizing the
 			    decision). Defaults to the passed FILE(s)
 			    themselves.
+    --up-to-date-message|-M MSG
+			    Print MSG (instead of a message synthesized from
+			    FILE and NAME) to standard error if the LINE already
+			    existed and no modifications were made.
 EXIT STATUS:
     0	An update has happened (with --all: in at least one FILE).
     1	The LINE already existed, no modifications were made.
@@ -51,6 +55,7 @@ typeset -a addOrUpdateLineInplaceArg=()
 typeset -a addOrUpdateLineTestOnlyArg=()
 typeset -a memoizeDecisionArgs=()
 name=
+unset upToDateMessage
 isAll=
 line=
 while [ $# -ne 0 ]
@@ -59,6 +64,7 @@ do
 	--help|-h|-\?)		    shift; printLongUsage "$0"; exit 0;;
 	--memoize-group|-g)	    memoizeDecisionArgs+=("$1" "$2"); shift; shift;;
 	--name|-n)		    shift; name="$1"; shift;;
+	--up-to-date-message|-M)    shift; upToDateMessage="$1"; shift;;
 	--in-place|--inplace=*|-i*) addOrUpdateLineInplaceArg+=("$1"); shift;;
 	--test-only|-t)		    addOrUpdateLineTestOnlyArg+=("$1"); shift;;
 	--all|-a)		    addOrUpdateLineArgs+=("$1"); shift; isAll=t;;
@@ -87,7 +93,7 @@ if [ $# -eq 0 -o "$1" = '-' ]; then # Note: This doesn't handle a later - argume
 fi
 
 verb="does not"
-negativeVerb="contain"
+negativeVerb="contains"
 action="update it"
 if [ $# -gt 1 ]; then
     if [ "$isAll" ]; then
@@ -97,11 +103,9 @@ if [ $# -gt 1 ]; then
 	action="update them"
     else
 	subject="At least one of $*"
-    negativeVerb="contains"
     fi
 else
     subject="$*"
-    negativeVerb="contains"
 fi
 
 # Note: Omit addOrUpdateLineInplaceArg here, as that would conflict with
@@ -109,7 +113,11 @@ fi
 addOrUpdateLine --test-only "${addOrUpdateLineArgs[@]}" "$@"
 case $? in
     0)	;;
-    1)	printf >&2 "%s already %s '%s'; no update necessary.\\n" "${name:-$subject}" "$negativeVerb" "$line"
+    1)	if [ -z "${upToDateMessage+t}" ]; then
+	    printf >&2 "%s already %s '%s'; no update necessary.\\n" "${name:-$subject}" "$negativeVerb" "$line"
+	elif [ -n "$upToDateMessage" ]; then
+	    printf >&2 "%s\n" "$upToDateMessage"
+	fi
 	exit 1
 	;;
     *)	exit $?;;
