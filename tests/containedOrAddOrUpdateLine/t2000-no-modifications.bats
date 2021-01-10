@@ -2,6 +2,12 @@
 
 load temp
 
+@test "does not modify the file if the file already contains the line" {
+    init
+    run containedOrAddOrUpdateLine --in-place --line "foo=bar" "$FILE"
+    cmp -- "$INPUT" "$FILE"
+}
+
 @test "returns 1 and error message if the file already contains the line" {
     init
     run containedOrAddOrUpdateLine --in-place --line "foo=bar" "$FILE"
