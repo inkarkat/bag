@@ -2,6 +2,11 @@
 
 load temp
 
+@test "does not modify the file if the file already contains the line" {
+    run containedOrAddOrUpdateBlock --in-place --marker subsequent --block-text "Single line" "$FILE2"
+    cmp -- "$EXISTING" "$FILE2"
+}
+
 @test "returns 1 and error message if the file already contains the block" {
     run containedOrAddOrUpdateBlock --in-place --marker subsequent --block-text "Single line" "$FILE2"
     [ $status -eq 1 ]
