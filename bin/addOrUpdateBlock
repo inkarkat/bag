@@ -14,7 +14,7 @@ printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i[SUFFIX]|--in-place[=SUFFIX]|-t|--test-only] [--ignore-nonexisting|--create-nonexisting] [--add-after ADDRESS] -m|-marker WHAT|(--begin-marker BEGIN-LINE --end-marker END-LINE) -b|--block-text BLOCK-TEXT|-B|--block-file BLOCK-FILE [...] [-a|--accept-match ACCEPT-PATTERN] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i[SUFFIX]|--in-place[=SUFFIX]|-t|--test-only] [--ignore-nonexisting|--create-nonexisting] [--add-before ADDRESS] -m|-marker WHAT|(--begin-marker BEGIN-LINE --end-marker END-LINE) -b|--block-text BLOCK-TEXT|-B|--block-file BLOCK-FILE [...] [-a|--accept-match ACCEPT-PATTERN] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -50,9 +50,9 @@ HELPDESCRIPTION
 			    FILE(s) does not exist yet.
     --create-nonexisting    Create the first (each with --all) passed FILE if it
 			    does not exist yet, (and insert the BLOCK there).
-    --add-after ADDRESS	    Do the update after ADDRESS instead of at the end of
-			    the FILE. Any existing blocks that follow that line
-			    won't be considered!
+    --add-before ADDRESS    Insert the update at ADDRESS instead of at the end
+			    of the FILE. Any existing blocks that follow that
+			    line won't be considered!
     --marker|-m WHAT	    Synthesize BEGIN-LINE and END-LINE based on WHAT:
 				${ADDORUPDATEBLOCK_COMMENT_PREFIX}BEGIN WHAT
 				${ADDORUPDATEBLOCK_COMMENT_PREFIX}END WHAT
@@ -103,7 +103,7 @@ literalBlockTextPattern=
 acceptMatch=
 unset insertablePreLines
 unset insertablePostLines
-addAfterAddress='$'
+addBeforeAddress=
 while [ $# -ne 0 ]
 do
     case "$1" in
@@ -133,7 +133,7 @@ do
 	--accept-match|-a)  shift; acceptMatch="$1"; shift;;
 	--pre-line)	    shift; escapedLine="${1//\\/\\\\}"; insertablePreLines="${insertablePreLines}${insertablePreLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
 	--post-line)	    shift; escapedLine="${1//\\/\\\\}"; insertablePostLines="${insertablePostLines}${insertablePostLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
-	--add-after)	    shift; addAfterAddress="$1"; shift;;
+	--add-before)	    shift; addBeforeAddress="$1"; shift;;
 	--)		    shift; break;;
 	-*)		    { echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
 	*)		    break;;
@@ -216,7 +216,7 @@ process()
     sedProgram+=(
 	# If there already has been a match (determined via the hold space, see
 	# next), don't update following lines. Else, search for the end marker.
-	-e "/^${literalBeginMarkerPattern//\//\\/}\$/{ x; /./{ x; b last; }; x; p; s/.*//; ${addAfterAddress}b last; N; s/^\\n//; b searchForEnd }"
+	-e "/^${literalBeginMarkerPattern//\//\\/}\$/{ x; /./{ x; b last; }; x; p; s/.*//; ${addBeforeAddress:-\$}b last; N; s/^\\n//; b searchForEnd }"
 	-e 'b last'
 
 	-e ':slurpToEnd'
@@ -229,9 +229,9 @@ process()
 
 	-e ':searchForEnd'
 	# Another begin marker resets the search.
-	-e "/\\(^\\|\\n\\)${literalBeginMarkerPattern//\//\\/}\$/{ p; s/.*//; ${addAfterAddress}b last; N; s/^\\n//; b searchForEnd }"
+	-e "/\\(^\\|\\n\\)${literalBeginMarkerPattern//\//\\/}\$/{ p; s/.*//; ${addBeforeAddress:-\$}b last; N; s/^\\n//; b searchForEnd }"
 	# Keep reading until we find the end marker.
-	-e "/\\(^\\|\\n\\)${literalEndMarkerPattern//\//\\/}\$/!{ ${addAfterAddress}b last; N; b searchForEnd }"
+	-e "/\\(^\\|\\n\\)${literalEndMarkerPattern//\//\\/}\$/!{ ${addBeforeAddress:-\$}b last; N; b searchForEnd }"
 	# If we find the end marker, duplicate the previous block into the hold
 	# space; this serves as a marker that we have done an update and also
 	# that we don't need to append the line at the end.
@@ -239,24 +239,24 @@ process()
 	# Unfortunately, the "c" command starts a new cycle, but we still need
 	# to check the hold space. Therefore, use "i".
 	-e "h; s/.*//; i\\${NL}${insertableBlockText}\\${NL}${endMarker//\\/\\\\}"
-	# For lines other than the add-after address, we can simply "d" so that
+	# For lines other than the add-before address, we can simply "d" so that
 	# "i" + "d" = "c".
-	-e "${addAfterAddress}!d"
-	# At the add-after address if two newlines signal that an append has
-	# already happened (so $addAfterAddress now matches again), now slurp
+	-e "${addBeforeAddress:-\$}!d"
+	# At the add-before address if two newlines signal that an append has
+	# already happened (so $addBeforeAddress now matches again), now slurp
 	# all remaining lines. We cannot directly jump to the slurping after the
 	# append because the "a" command will only be effective after the
-	# current line, and there's no generic way to say "$addAfterAddress +
+	# current line, and there's no generic way to say "$addBeforeAddress +
 	# 1", so another marker in the hold space is the solution.
-	# At the add-after address and if we need to signal "no change", if this
+	# At the add-before address and if we need to signal "no change", if this
 	# is before the last line, join with the next line, remove the first
 	# line (effectively emulating "d" but staying in the current cycle), and
 	# then also jump to :slurpToEndAndQuit. On the last line, use the GNU
 	# sed "Q" to quit with the special exit status while suppressing the
 	# current line.
-	# At the add-after address and if we don't need to signal "no change",
+	# At the add-before address and if we don't need to signal "no change",
 	# simply "d" now as well.
-	-e "${addAfterAddress}{ x; /^\\n\\n$/{ x; b slurpToEnd }; /^\\n\$\\|^${literalBlockTextPattern//\//\\/}\\n${literalEndMarkerPattern//\//\\/}\$/{ x; \$! { N; s/^[^\\n]*\\n//; b slurpToEndAndQuit }; Q 98 }; d; }"
+	-e "${addBeforeAddress:-\$}{ x; /^\\n\\n$/{ x; b slurpToEnd }; /^\\n\$\\|^${literalBlockTextPattern//\//\\/}\\n${literalEndMarkerPattern//\//\\/}\$/{ x; \$! { N; s/^[^\\n]*\\n//; b slurpToEndAndQuit }; Q 98 }; d; }"
     )
 
     sedProgram+=(
@@ -265,30 +265,30 @@ process()
 	# new block, no processing actually has happened, and we indicate an
 	# error. If the hold space isn't empty, skip further processing (i.e.
 	# appending), as we've already done the update.
-	-e "${addAfterAddress}{ x; /^\\n\$\\|^${literalBlockTextPattern//\//\\/}\\n${literalEndMarkerPattern//\//\\/}\$/{ x; b slurpToEndAndQuit }; /./{ x; b; }; x; }"
+	-e "${addBeforeAddress:-\$}{ x; /^\\n\$\\|^${literalBlockTextPattern//\//\\/}\\n${literalEndMarkerPattern//\//\\/}\$/{ x; b slurpToEndAndQuit }; /./{ x; b; }; x; }"
     )
 
     if [ "$isAppend" ]; then
 	# Else append BLOCK.
 	sedProgram+=(
-	    # $addAfterAddress may be a pattern that matches multiple times. To
+	    # $addBeforeAddress may be a pattern that matches multiple times. To
 	    # avoid duplicate appends, put two newlines (as these can never be
 	    # matched as a previous block) into the hold space to signal that
 	    # there's already a match.
-	    -e "${addAfterAddress}{ x; s/.*/\\n\\n/; x; }"
+	    -e "${addBeforeAddress:-\$}{ x; s/.*/\\n\\n/; x; }"
 	)
 
 	if [ -n "${insertablePreLines+t}" ]; then
 	    sedProgram+=(
-		-e "${addAfterAddress}a\\${NL}${insertablePreLines}"
+		-e "${addBeforeAddress:-\$a}${addBeforeAddress:+i}\\${NL}${insertablePreLines}"
 	    )
 	fi
 	sedProgram+=(
-	    -e "${addAfterAddress}a\\${NL}${insertableBeginMarker}\\${NL}${insertableBlockText}\\${NL}${insertableEndMarker}"
+	    -e "${addBeforeAddress:-\$a}${addBeforeAddress:+i}\\${NL}${insertableBeginMarker}\\${NL}${insertableBlockText}\\${NL}${insertableEndMarker}"
 	)
 	if [ -n "${insertablePostLines+t}" ]; then
 	    sedProgram+=(
-		-e "${addAfterAddress}a\\${NL}${insertablePostLines}"
+		-e "${addBeforeAddress:-\$a}${addBeforeAddress:+i}\\${NL}${insertablePostLines}"
 	    )
 	fi
     else

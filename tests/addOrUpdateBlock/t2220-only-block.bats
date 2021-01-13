@@ -16,14 +16,14 @@ load temp
     cmp "${BATS_TEST_DIRNAME}/only-block.txt" "$NONE"
 }
 
-@test "update of file with the identical block ending on the add-after line returns 1" {
-    run addOrUpdateBlock --marker test --block-text 'Final testing' --add-after 4 "$FILE4"
+@test "update of file with the identical block ending on the add-before line returns 1" {
+    run addOrUpdateBlock --marker test --block-text 'Final testing' --add-before 4 "$FILE4"
     [ $status -eq 1 ]
     [ "$output" = "$(cat "$LAST")" ]
 }
 
-@test "in-place update of file with the identical block ending on the add-after line returns 1" {
-    run addOrUpdateBlock --in-place --marker test --block-text 'Final testing' --add-after 4 "$FILE4"
+@test "in-place update of file with the identical block ending on the add-before line returns 1" {
+    run addOrUpdateBlock --in-place --marker test --block-text 'Final testing' --add-before 4 "$FILE4"
     [ $status -eq 1 ]
     [ "$output" = "" ]
     cmp "$LAST" "$FILE4"
