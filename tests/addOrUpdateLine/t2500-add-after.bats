@@ -26,6 +26,18 @@ $UPDATE
 foo=hi" ]
 }
 
+@test "update with nonexisting line appends after the first match of ADDRESS only" {
+    UPDATE="foo=new"
+    run addOrUpdateLine --line "$UPDATE" --add-after '/^foo=/' "$FILE"
+    [ $status -eq 0 ]
+    [ "$output" = "sing/e=wha\\ever
+foo=bar
+$UPDATE
+foo=hoo bar baz
+# SECTION
+foo=hi" ]
+}
+
 @test "update with existing line after the passed line keeps contents and returns 1" {
     run addOrUpdateLine --line "foo=bar" --add-after 3 "$FILE"
     [ $status -eq 1 ]

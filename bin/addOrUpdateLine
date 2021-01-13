@@ -212,11 +212,19 @@ process()
 	# changed line, no processing actually has happened, and we indicate an
 	# error. If the hold space isn't empty, skip further processing (i.e.
 	# appending), as we've already done the update.
-	-e "${addAfterAddress}{ x; /^\\n\$\\|${literalLinePattern//\//\\/}/{ x; b slurpToEndAndQuit }; /./{ x; b; }; x; }"
+	-e "${addAfterAddress}{ x; /^\\n\\n$/{ x; b slurpToEnd }; /^\\n\$\\|${literalLinePattern//\//\\/}/{ x; b slurpToEndAndQuit }; /./{ x; b; }; x; }"
     )
 
     if [ "$isAppend" ]; then
 	# Else append LINE.
+	sedProgram+=(
+	    # $addAfterAddress may be a pattern that matches multiple times. To
+	    # avoid duplicate appends, put two newlines (as these can never be
+	    # matched as PATTERN) into the hold space to signal that there's
+	    # already a match.
+	    -e "${addAfterAddress}{ x; s/.*/\\n\\n/; x; }"
+	)
+
 	if [ -n "${preLines+t}" ]; then
 	    sedProgram+=(
 		-e "${addAfterAddress}a\\${NL}${preLines}"
@@ -239,6 +247,11 @@ process()
 
     sedProgram+=(
 	-e 'b'
+
+	-e ':slurpToEnd'
+	-e '$!{ N; P; s/^[^\n]*\n//; b slurpToEnd }'
+	-e 'b'
+
 	-e ':slurpToEndAndQuit'
 	-e '$!{ N; b slurpToEndAndQuit }'
 	-e '$q 98'
