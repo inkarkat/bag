@@ -12,7 +12,7 @@ printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i[SUFFIX]|--in-place[=SUFFIX]|-t|--test-only] [--ignore-nonexisting|--create-nonexisting] [--add-after ADDRESS] -l|--line LINE [-a|--accept-match ACCEPT-PATTERN -u|--update-match PATTERN [-r|--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i[SUFFIX]|--in-place[=SUFFIX]|-t|--test-only] [--ignore-nonexisting|--create-nonexisting] [--add-before|-add-after ADDRESS] -l|--line LINE [-a|--accept-match ACCEPT-PATTERN -u|--update-match PATTERN [-r|--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -47,6 +47,9 @@ HELPDESCRIPTION
 			    FILE(s) does not exist yet.
     --create-nonexisting    Create the first (each with --all) passed FILE if it
 			    does not exist yet, (and insert the LINE there).
+    --add-before ADDRESS    Insert the update at ADDRESS instead of at the end
+			    of the FILE. Any existing blocks that follow that
+			    line won't be considered!
     --add-after ADDRESS	    Do the update after ADDRESS instead of at the end of
 			    the FILE. Any existing blocks that follow that line
 			    won't be considered!
@@ -93,7 +96,8 @@ updateMatch=
 unset replacement
 unset preLines
 unset postLines
-addAfterAddress='$'
+addBeforeAddress=
+addAfterAddress=
 while [ $# -ne 0 ]
 do
     case "$1" in
@@ -112,6 +116,7 @@ do
 	--replacement|-r)   shift; replacement="$1"; shift;;
 	--pre-line)	    shift; escapedLine="${1//\\/\\\\}"; preLines="${preLines}${preLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
 	--post-line)	    shift; escapedLine="${1//\\/\\\\}"; postLines="${postLines}${postLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
+	--add-before)	    shift; addBeforeAddress="$1"; shift;;
 	--add-after)	    shift; addAfterAddress="$1"; shift;;
 	--)		    shift; break;;
 	-*)		    { echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
@@ -130,6 +135,11 @@ elif [ ${#sedInplaceArgs[@]} -gt 0 -a -n "$isTestOnly" ]; then
     exit 2
 elif [ -n "$isIgnoreNonexisting" -a -n "$isCreateNonexisting" ]; then
     echo 'ERROR: Cannot combine --ignore-nonexisting and --create-nonexisting.'
+    echo
+    printUsage "$0"
+    exit 2
+elif [ -n "$addBeforeAddress" -a -n "$addAfterAddress" ]; then
+    echo 'ERROR: Cannot combine --add-before and --add-after.'
     echo
     printUsage "$0"
     exit 2
@@ -212,30 +222,30 @@ process()
 	# changed line, no processing actually has happened, and we indicate an
 	# error. If the hold space isn't empty, skip further processing (i.e.
 	# appending), as we've already done the update.
-	-e "${addAfterAddress}{ x; /^\\n\\n$/{ x; b slurpToEnd }; /^\\n\$\\|${literalLinePattern//\//\\/}/{ x; b slurpToEndAndQuit }; /./{ x; b; }; x; }"
+	-e "${addBeforeAddress:-${addAfterAddress:-\$}}{ x; /^\\n\\n$/{ x; b slurpToEnd }; /^\\n\$\\|${literalLinePattern//\//\\/}/{ x; b slurpToEndAndQuit }; /./{ x; b; }; x; }"
     )
 
     if [ "$isAppend" ]; then
 	# Else append LINE.
 	sedProgram+=(
-	    # $addAfterAddress may be a pattern that matches multiple times. To
-	    # avoid duplicate appends, put two newlines (as these can never be
-	    # matched as PATTERN) into the hold space to signal that there's
-	    # already a match.
-	    -e "${addAfterAddress}{ x; s/.*/\\n\\n/; x; }"
+	    # $addBeforeAddress / $addAfterAddress may be a pattern that matches
+	    # multiple times. To avoid duplicate appends, put two newlines (as
+	    # these can never be matched as PATTERN) into the hold space to
+	    # signal that there's already a match.
+	    -e "${addBeforeAddress:-${addAfterAddress:-${addAfterAddress:-\$}}}{ x; s/.*/\\n\\n/; x; }"
 	)
 
 	if [ -n "${preLines+t}" ]; then
 	    sedProgram+=(
-		-e "${addAfterAddress}a\\${NL}${preLines}"
+		-e "${addBeforeAddress:-${addAfterAddress:-\$}a}${addBeforeAddress:+i}\\${NL}${preLines}"
 	    )
 	fi
 	sedProgram+=(
-	    -e "${addAfterAddress}a\\${NL}${insertableLine}"
+	    -e "${addBeforeAddress:-${addAfterAddress:-\$}a}${addBeforeAddress:+i}\\${NL}${insertableLine}"
 	)
 	if [ -n "${postLines+t}" ]; then
 	    sedProgram+=(
-		-e "${addAfterAddress}a\\${NL}${postLines}"
+		-e "${addBeforeAddress:-${addAfterAddress:-\$}a}${addBeforeAddress:+i}\\${NL}${postLines}"
 	    )
 	fi
     else

@@ -22,3 +22,10 @@ load temp
     [ "${lines[0]}" = "ERROR: Cannot combine --ignore-nonexisting and --create-nonexisting." ]
     [ "${lines[1]%% *}" = "Usage:" ]
 }
+
+@test "error when combining --add-before and --add-after" {
+    run addOrUpdateLine --add-before 4 --add-after 6 --line new "$FILE"
+    [ $status -eq 2 ]
+    [ "${lines[0]}" = "ERROR: Cannot combine --add-before and --add-after." ]
+    [ "${lines[1]%% *}" = "Usage:" ]
+}
