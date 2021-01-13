@@ -242,12 +242,6 @@ process()
 	# For lines other than the add-before address, we can simply "d" so that
 	# "i" + "d" = "c".
 	-e "${addBeforeAddress:-\$}!d"
-	# At the add-before address if two newlines signal that an append has
-	# already happened (so $addBeforeAddress now matches again), now slurp
-	# all remaining lines. We cannot directly jump to the slurping after the
-	# append because the "a" command will only be effective after the
-	# current line, and there's no generic way to say "$addBeforeAddress +
-	# 1", so another marker in the hold space is the solution.
 	# At the add-before address and if we need to signal "no change", if this
 	# is before the last line, join with the next line, remove the first
 	# line (effectively emulating "d" but staying in the current cycle), and
@@ -256,7 +250,7 @@ process()
 	# current line.
 	# At the add-before address and if we don't need to signal "no change",
 	# simply "d" now as well.
-	-e "${addBeforeAddress:-\$}{ x; /^\\n\\n$/{ x; b slurpToEnd }; /^\\n\$\\|^${literalBlockTextPattern//\//\\/}\\n${literalEndMarkerPattern//\//\\/}\$/{ x; \$! { N; s/^[^\\n]*\\n//; b slurpToEndAndQuit }; Q 98 }; d; }"
+	-e "${addBeforeAddress:-\$}{ x; /^\\n\$\\|^${literalBlockTextPattern//\//\\/}\\n${literalEndMarkerPattern//\//\\/}\$/{ x; \$! { N; s/^[^\\n]*\\n//; b slurpToEndAndQuit }; Q 98 }; d; }"
     )
 
     sedProgram+=(
@@ -265,19 +259,11 @@ process()
 	# new block, no processing actually has happened, and we indicate an
 	# error. If the hold space isn't empty, skip further processing (i.e.
 	# appending), as we've already done the update.
-	-e "${addBeforeAddress:-\$}{ x; /^\\n\\n$/{ x; b slurpToEnd }; /^\\n\$\\|^${literalBlockTextPattern//\//\\/}\\n${literalEndMarkerPattern//\//\\/}\$/{ x; b slurpToEndAndQuit }; /./{ x; b; }; x; }"
+	-e "${addBeforeAddress:-\$}{ x; /^\\n\$\\|^${literalBlockTextPattern//\//\\/}\\n${literalEndMarkerPattern//\//\\/}\$/{ x; b slurpToEndAndQuit }; /./{ x; b; }; x; }"
     )
 
     if [ "$isAppend" ]; then
 	# Else append BLOCK.
-	sedProgram+=(
-	    # $addBeforeAddress may be a pattern that matches multiple times. To
-	    # avoid duplicate appends, put two newlines (as these can never be
-	    # matched as a previous block) into the hold space to signal that
-	    # there's already a match.
-	    -e "${addBeforeAddress:-\$}{ x; s/.*/\\n\\n/; x; }"
-	)
-
 	if [ -n "${insertablePreLines+t}" ]; then
 	    sedProgram+=(
 		-e "${addBeforeAddress:-\$a}${addBeforeAddress:+i}\\${NL}${insertablePreLines}"
@@ -291,6 +277,13 @@ process()
 		-e "${addBeforeAddress:-\$a}${addBeforeAddress:+i}\\${NL}${insertablePostLines}"
 	    )
 	fi
+
+	sedProgram+=(
+	    # $addBeforeAddress may be a pattern that matches multiple times. To
+	    # avoid duplicate appends, just slurp in the remainder without doing
+	    # further matching of $addBeforeAddress.
+	    -e "${addBeforeAddress:-\$}b slurpToEnd"
+	)
     else
 	sedProgram+=(
 	    # Indicate no update via special exit status.
