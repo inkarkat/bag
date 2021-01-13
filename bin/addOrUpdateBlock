@@ -265,7 +265,7 @@ process()
 	# new block, no processing actually has happened, and we indicate an
 	# error. If the hold space isn't empty, skip further processing (i.e.
 	# appending), as we've already done the update.
-	-e "${addBeforeAddress:-\$}{ x; /^\\n\$\\|^${literalBlockTextPattern//\//\\/}\\n${literalEndMarkerPattern//\//\\/}\$/{ x; b slurpToEndAndQuit }; /./{ x; b; }; x; }"
+	-e "${addBeforeAddress:-\$}{ x; /^\\n\\n$/{ x; b slurpToEnd }; /^\\n\$\\|^${literalBlockTextPattern//\//\\/}\\n${literalEndMarkerPattern//\//\\/}\$/{ x; b slurpToEndAndQuit }; /./{ x; b; }; x; }"
     )
 
     if [ "$isAppend" ]; then
