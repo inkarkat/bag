@@ -219,6 +219,10 @@ process()
 	-e "/^${literalBeginMarkerPattern//\//\\/}\$/{ x; /./{ x; b last; }; x; p; s/.*//; ${addAfterAddress}b last; N; s/^\\n//; b searchForEnd }"
 	-e 'b last'
 
+	-e ':slurpToEnd'
+	-e '$!{ N; P; s/^[^\n]*\n//; b slurpToEnd }'
+	-e 'b'
+
 	-e ':slurpToEndAndQuit'
 	-e '$!{ N; b slurpToEndAndQuit }'
 	-e '$q 98'
@@ -238,15 +242,21 @@ process()
 	# For lines other than the add-after address, we can simply "d" so that
 	# "i" + "d" = "c".
 	-e "${addAfterAddress}!d"
-	# At the add-after address and if we need to signal no change, if this
+	# At the add-after address if two newlines signal that an append has
+	# already happened (so $addAfterAddress now matches again), now slurp
+	# all remaining lines. We cannot directly jump to the slurping after the
+	# append because the "a" command will only be effective after the
+	# current line, and there's no generic way to say "$addAfterAddress +
+	# 1", so another marker in the hold space is the solution.
+	# At the add-after address and if we need to signal "no change", if this
 	# is before the last line, join with the next line, remove the first
 	# line (effectively emulating "d" but staying in the current cycle), and
 	# then also jump to :slurpToEndAndQuit. On the last line, use the GNU
 	# sed "Q" to quit with the special exit status while suppressing the
 	# current line.
-	# At the add-after address and if we don't need to signal no change,
+	# At the add-after address and if we don't need to signal "no change",
 	# simply "d" now as well.
-	-e "${addAfterAddress}{ x; /^\\n\$\\|^${literalBlockTextPattern//\//\\/}\\n${literalEndMarkerPattern//\//\\/}\$/{ x; \$! { N; s/^[^\\n]*\\n//; b slurpToEndAndQuit }; Q 98 }; d; }"
+	-e "${addAfterAddress}{ x; /^\\n\\n$/{ x; b slurpToEnd }; /^\\n\$\\|^${literalBlockTextPattern//\//\\/}\\n${literalEndMarkerPattern//\//\\/}\$/{ x; \$! { N; s/^[^\\n]*\\n//; b slurpToEndAndQuit }; Q 98 }; d; }"
     )
 
     sedProgram+=(
@@ -259,7 +269,15 @@ process()
     )
 
     if [ "$isAppend" ]; then
-	# Else append LINE.
+	# Else append BLOCK.
+	sedProgram+=(
+	    # $addAfterAddress may be a pattern that matches multiple times. To
+	    # avoid duplicate appends, put two newlines (as these can never be
+	    # matched as a previous block) into the hold space to signal that
+	    # there's already a match.
+	    -e "${addAfterAddress}{ x; s/.*/\\n\\n/; x; }"
+	)
+
 	if [ -n "${insertablePreLines+t}" ]; then
 	    sedProgram+=(
 		-e "${addAfterAddress}a\\${NL}${insertablePreLines}"
