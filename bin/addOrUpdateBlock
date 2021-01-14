@@ -52,7 +52,8 @@ HELPDESCRIPTION
 			    does not exist yet, (and insert the BLOCK there).
     --add-before ADDRESS    Insert the update at ADDRESS instead of at the end
 			    of the FILE. Any existing blocks that follow that
-			    line won't be considered!
+			    line won't be considered! If ADDRESS is never
+			    reached / never matches, no update will be inserted!
     --marker|-m WHAT	    Synthesize BEGIN-LINE and END-LINE based on WHAT:
 				${ADDORUPDATEBLOCK_COMMENT_PREFIX}BEGIN WHAT
 				${ADDORUPDATEBLOCK_COMMENT_PREFIX}END WHAT
