@@ -216,7 +216,7 @@ process()
     sedProgram+=(
 	# If there already has been a match (determined via the hold space, see
 	# next), don't update following lines. Else, search for the end marker.
-	-e "/^${literalBeginMarkerPattern//\//\\/}\$/{ x; /./{ x; b last; }; x; p; s/.*//; ${addBeforeAddress:-\$}b last; N; s/^\\n//; b searchForEnd }"
+	-e "/^${literalBeginMarkerPattern//\//\\/}\$/{ x; /./{ x; b last; }; x; p; ${addBeforeAddress:-\$}{ s/.*//; b last }; s/.*//; N; s/^\\n//; b searchForEnd }"
 	-e 'b last'
 
 	-e ':slurpToEnd'
@@ -229,7 +229,7 @@ process()
 
 	-e ':searchForEnd'
 	# Another begin marker resets the search.
-	-e "/\\(^\\|\\n\\)${literalBeginMarkerPattern//\//\\/}\$/{ p; s/.*//; ${addBeforeAddress:-\$}b last; N; s/^\\n//; b searchForEnd }"
+	-e "/\\(^\\|\\n\\)${literalBeginMarkerPattern//\//\\/}\$/{ p; ${addBeforeAddress:-\$}{ s/.*//; b last }; s/.*//; N; s/^\\n//; b searchForEnd }"
 	# Keep reading until we find the end marker.
 	-e "/\\(^\\|\\n\\)${literalEndMarkerPattern//\//\\/}\$/!{ ${addBeforeAddress:-\$}b last; N; b searchForEnd }"
 	# If we find the end marker, duplicate the previous block into the hold
@@ -250,7 +250,7 @@ process()
 	# current line.
 	# At the add-before address and if we don't need to signal "no change",
 	# simply "d" now as well.
-	-e "${addBeforeAddress:-\$}{ x; /^\\n\$\\|^${literalBlockTextPattern//\//\\/}\\n${literalEndMarkerPattern//\//\\/}\$/{ x; \$! { N; s/^[^\\n]*\\n//; b slurpToEndAndQuit }; Q 98 }; d; }"
+	-e "${addBeforeAddress:-\$}{ x; /^\\n\$\\|^${literalBlockTextPattern//\//\\/}\\n${literalEndMarkerPattern//\//\\/}\$/{ x; \$! { N; s/^[^\\n]*\\n//; b slurpToEndAndQuit }; Q 98 }; x; d; }"
     )
 
     sedProgram+=(
