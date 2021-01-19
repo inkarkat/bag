@@ -4,9 +4,9 @@ printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-d|--or-existing DIRSPEC [...] [-C|--create-subdir SUBDIR]] [-n|--name NAME] [-c|--command "COMMANDLINE" [-c ...] | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-d|--or-existing DIRSPEC [...] [-C|--create-subdir SUBDIR]] [-n|--name NAME] [-k|--keep|--keep-on-success|--keep-on-failure] [-c|--command "COMMANDLINE" [-c ...] | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
     echo
-    printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '[-d|--or-existing DIRSPEC [...] [-C|--create-subdir SUBDIR]] [-n|--name NAME] -|--stdin'
+    printf 'Usage: echo COMMANDLINES | %q %s\n' "$(basename "$1")" '[-d|--or-existing DIRSPEC [...] [-C|--create-subdir SUBDIR]] [-n|--name NAME] [-k|--keep|-K|--keep-on-failure] -|--stdin'
     echo
     printf 'Usage: %q %s <<EOF\n  COMMANDLINE\n...\nEOF\n' "$(basename "$1")" '[...] -|--stdin'
     echo
@@ -41,6 +41,9 @@ HELPDESCRIPTION
     --name|-n NAME		Use NAME as the temp dir prefix.
     --print|-p			Just print the temporary directory. Any cleanup
 				has to be done by the client.
+    --keep|-k			Do not remove the temp dir.
+    --keep-on-success		Do not remove the temp dir if COMMANDs succeed.
+    --keep-on-failure		Do not remove the temp dir if COMMANDs fail.
 HELPTEXT
 }
 
@@ -50,6 +53,7 @@ createSubdir=
 isStdin=
 isNeedEval=
 isPrint=
+keepOnComparison=
 typeset -a commands=()
 while [ $# -ne 0 ]
 do
@@ -63,6 +67,11 @@ do
 	--command|-c)	shift; commands+=(${commands:+;} "$1"); isNeedEval=t; shift;;
 	--stdin|-)	shift; isStdin=t;;
 	--print|-p)	shift; isPrint=t;;
+	--keep|-k)	shift; keepOnComparison=-ge;;
+	--keep-on-success)
+			shift; keepOnComparison=-eq;;
+	--keep-on-failure)
+			shift; keepOnComparison=-ne;;
 	--)		shift; break;;
 	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
 	*)		break;;
@@ -108,6 +117,11 @@ hasTempDir()
 
 cleanup()
 {
+    local status=$?
+    if [ -n "$keepOnComparison" ]; then
+	[ $status $keepOnComparison 0 ] && return $status
+    fi
+
     rm -rf "$tmpDirspec" 2>/dev/null
 }
 
