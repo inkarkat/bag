@@ -78,7 +78,9 @@ do
     esac
 done
 if [ $# -ne 0 ]; then
-    if [ "$isStdin" ] || [ "$isPrint" ]; then
+    if [ "$isStdin" ]; then
+	echo 'ERROR: Cannot combine -|--stdin with COMMANDs.'
+	echo
 	printUsage "$0"
 	exit 2
     fi >&2
@@ -92,17 +94,19 @@ if [ $# -ne 0 ]; then
 	commands=("$@")
     fi
 elif [ "$isStdin" ]; then
-    if [ "$isPrint" ]; then
-	printUsage "$0"
-	exit 2
-    fi >&2
-
     commands+=("$(< /dev/stdin)")
     [ ${#commands[@]} -gt 0 ] || exit 1
 
     isNeedEval=t
     { exec 0</dev/tty; } 2>/dev/null
 fi
+if [ "$isPrint" ] && [ ${#commands[@]} -gt 0 ]; then
+    echo 'ERROR: Cannot combine --print with COMMANDs.'
+    echo
+    printUsage "$0"
+    exit 2
+fi >&2
+
 
 hasTempDir()
 {
