@@ -14,7 +14,7 @@ printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i[SUFFIX]|--in-place[=SUFFIX]|-t|--test-only] [--ignore-nonexisting|--create-nonexisting] [--add-before ADDRESS] -m|-marker WHAT|(--begin-marker BEGIN-LINE --end-marker END-LINE) -b|--block-text BLOCK-TEXT|-B|--block-file BLOCK-FILE [...] [-a|--accept-match ACCEPT-PATTERN] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i[SUFFIX]|--in-place[=SUFFIX]|-t|--test-only] [--all] [--ignore-nonexisting|--create-nonexisting] [--add-before ADDRESS] -m|-marker WHAT|(--begin-marker BEGIN-LINE --end-marker END-LINE) -b|--block-text BLOCK-TEXT|-B|--block-file BLOCK-FILE [...] [-a|--accept-match ACCEPT-PATTERN] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -43,7 +43,7 @@ HELPDESCRIPTION
 			    supplied) instead of printing to standard output.
     --test-only|-t	    Just check whether an update would be made. Does not
 			    modify the FILE(s) or output the result.
-    --all|-a		    Instead of just updating the first to match or
+    --all		    Instead of just updating the first to match or
 			    appending to the last FILE, make sure that each FILE
 			    gets updated.
     --ignore-nonexisting    Succeed instead of complaining if (none of the)
@@ -114,7 +114,7 @@ do
 	--in-place|--inplace=*|-i*)
 			    sedInplaceArgs+=("$1"); shift;;
 	--test-only|-t)	    shift; isTestOnly=t;;
-	--all|-a)	    shift; isAll=t;;
+	--all)		    shift; isAll=t;;
 	--ignore-nonexisting)
 			    shift; isIgnoreNonexisting=t;;
 	--create-nonexisting)

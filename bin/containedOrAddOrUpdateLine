@@ -4,7 +4,7 @@ printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--name NAME] [-m|--needs-update-message MSG] [-M|--up-to-date-message MSG] [-i[SUFFIX]|--in-place[=SUFFIX]] [--ignore-nonexisting|--create-nonexisting] [--add-before|--add-after ADDRESS] -l|--line LINE [-a|--accept-match ACCEPT-PATTERN -u|--update-match PATTERN [-r|--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--name NAME] [-N|--needs-update-message MSG] [-M|--up-to-date-message MSG] [-i[SUFFIX]|--in-place[=SUFFIX]] [--all] [--ignore-nonexisting|--create-nonexisting] [--add-before|--add-after ADDRESS] -l|--line LINE [-a|--accept-match ACCEPT-PATTERN -u|--update-match PATTERN [-r|--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...]|--post-line POSTTEXT [--post-line ...]]] [FILE ...] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -32,7 +32,7 @@ HELPDESCRIPTION
 			    FILE(s) (will be used for querying and memoizing the
 			    decision). Defaults to the passed FILE(s)
 			    themselves.
-    --needs-update-message|-m MSG
+    --needs-update-message|-N MSG
 			    Print MSG (instead of a message synthesized from
 			    FILE and NAME) to standard error if --test-only and
 			    the FILE requires an update.
@@ -69,11 +69,11 @@ do
 	--help|-h|-\?)		    shift; printLongUsage "$0"; exit 0;;
 	--memoize-group|-g)	    memoizeDecisionArgs+=("$1" "$2"); shift; shift;;
 	--name|-n)		    shift; name="$1"; shift;;
-	--needs-update-message|-m)  shift; needsUpdateMessage="$1"; shift;;
+	--needs-update-message|-N)  shift; needsUpdateMessage="$1"; shift;;
 	--up-to-date-message|-M)    shift; upToDateMessage="$1"; shift;;
 	--in-place|--inplace=*|-i*) addOrUpdateLineInplaceArg+=("$1"); shift;;
 	--test-only|-t)		    shift; isTestOnly=t;;
-	--all|-a)		    addOrUpdateLineArgs+=("$1"); shift; isAll=t;;
+	--all)			    addOrUpdateLineArgs+=("$1"); shift; isAll=t;;
 	--line|-l)		    addOrUpdateLineArgs+=("$1" "$2"); line="$2"; shift; shift;;
 	--ignore-nonexisting|--create-nonexisting)
 				    addOrUpdateLineArgs+=("$1"); shift;;
