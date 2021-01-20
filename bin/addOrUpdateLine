@@ -71,6 +71,9 @@ HELPDESCRIPTION
 			    (This is assumed to be for comments or headers that
 			    would already be there.)
     --post-line POSTTEXT    When a fresh LINE is added, put POSTTEXT after it.
+
+All PATTERNs are sed-style basic regular expressions; ADDRESS a sed address.
+
 EXIT STATUS:
     0	An update has happened (with --all: in at least one FILE).
     1	The LINE already existed, no modifications were made.
