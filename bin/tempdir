@@ -89,7 +89,7 @@ if [ $# -ne 0 ]; then
 	# Combine --command and SIMPLECOMMAND; need to quote SIMPLECOMMAND to
 	# undo the effects of eval.
 	printf -v quotedSimpleCommand '%q ' "$@"
-	commands+=(${commands:+;} "$quotedSimpleCommand")
+	commands+=(${commands:+;} "${quotedSimpleCommand% }")
     else
 	commands=("$@")
     fi
