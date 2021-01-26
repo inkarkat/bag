@@ -4,7 +4,7 @@ printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--name NAME] [-N|--needs-update-message MSG] [-M|--up-to-date-message MSG] [-i[SUFFIX]|--in-place[=SUFFIX]] [--all] [--ignore-nonexisting|--create-nonexisting] [--add-before|--add-after ADDRESS] -l|--line LINE [-a|--accept-match ACCEPT-PATTERN] [-u|--update-match PATTERN] [-r|--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...] [--post-line POSTTEXT [--post-line ...]] [FILE ...] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-g|--memoize-group GROUP] [--name NAME] [-N|--needs-update-message MSG] [-M|--up-to-date-message MSG] [-i[SUFFIX]|--in-place[=SUFFIX]] [--all] [--ignore-nonexisting|--create-nonexisting] [--add-before|--add-after ADDRESS] -l|--line LINE [-a|--accept-match ACCEPT-PATTERN] [-u|--update-match PATTERN] [-r|--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...] [--post-line POSTTEXT [--post-line ...]] [--pre-update PRETEXT [--pre-update ...]] [--post-update POSTTEXT [--post-update ...]] [FILE ...] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -77,7 +77,7 @@ do
 	--line|-l)		    addOrUpdateLineArgs+=("$1" "$2"); line="$2"; shift; shift;;
 	--ignore-nonexisting|--create-nonexisting)
 				    addOrUpdateLineArgs+=("$1"); shift;;
-	--accept-match|-a|--update-match|-u|--replacement|-r|--pre-line|--post-line|--add-before|--add-after)
+	--accept-match|-a|--update-match|-u|--replacement|-r|--pre-line|--post-line|--pre-update|--post-update|--add-before|--add-after)
 				    addOrUpdateLineArgs+=("$1" "$2"); shift; shift;;
 	--)			    addOrUpdateLineArgs+=("$1"); shift; break;;
 	-)			    break;;
