@@ -65,7 +65,11 @@ HELPDESCRIPTION
     --replacement|-r REPLACEMENT
 			    Replace with REPLACEMENT instead of the literal LINE
 			    when a matching one has been found. This allows the
-			    use of references like \1 and &.
+			    use of references like \1 and &. Note that the exit
+			    status ignores REPLACEMENT and only considers
+			    whether LINE already existed; so when LINE is
+			    different but REPLACEMENT changes it back to the
+			    original line this is treated as a modification.
     --pre-line PRETEXT	    When a fresh LINE is added, put PRETEXT before it.
 			    This does not apply to the update of existing lines.
 			    (This is assumed to be for comments or headers that
