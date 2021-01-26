@@ -203,7 +203,7 @@ process()
     if [ -n "${replacement+t}" ]; then
 	sedProgram+=(
 	    # Do the update with REPLACEMENT.
-	    -e "s/${updateMatch//\//\\/}/${replacement//\//\\/}/"
+	    -e "/${literalLinePattern//\//\\/}/!s/${updateMatch//\//\\/}/${replacement//\//\\/}/"
 	)
     else
 	replaceableLine="$line"
@@ -215,7 +215,7 @@ process()
 	    # Do the update with LINE.
 	    # As the "c" command starts a new cycle, but we still need to check
 	    # the hold space, we use a substitution to update the line.
-	    -e "/${updateMatch//\//\\/}/s#.*#${replaceableLine//#/\\#}#"
+	    -e "/${updateMatch//\//\\/}/{ /${literalLinePattern//\//\\/}/!s#.*#${replaceableLine//#/\\#}# }"
 	)
     fi
 

@@ -61,3 +61,10 @@ foo=bar
 # SECTION
 foo=hi' ]
 }
+
+@test "update with line that is identical but REPLACEMENT would update the line does not modify the file" {
+    run addOrUpdateLine --line "foo=hoo bar baz" --update-match '^foo=h.*$' --replacement "ox=replaced" "$FILE"
+
+    [ $status -eq 1 ]
+    [ "$output" = "$(cat "$INPUT")" ]
+}
