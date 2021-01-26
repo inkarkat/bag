@@ -101,8 +101,8 @@ line=
 acceptMatch=
 updateMatch=
 unset replacement
-unset preLines
-unset postLines
+unset freshPreLines
+unset freshPostLines
 addBeforeAddress=
 addAfterAddress=
 while [ $# -ne 0 ]
@@ -121,8 +121,8 @@ do
 	--accept-match|-a)  shift; acceptMatch="$1"; shift;;
 	--update-match|-u)  shift; updateMatch="$1"; shift;;
 	--replacement|-r)   shift; replacement="$1"; shift;;
-	--pre-line)	    shift; escapedLine="${1//\\/\\\\}"; preLines="${preLines}${preLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
-	--post-line)	    shift; escapedLine="${1//\\/\\\\}"; postLines="${postLines}${postLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
+	--pre-line)	    shift; escapedLine="${1//\\/\\\\}"; freshPreLines="${freshPreLines}${freshPreLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
+	--post-line)	    shift; escapedLine="${1//\\/\\\\}"; freshPostLines="${freshPostLines}${freshPostLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
 	--add-before)	    shift; addBeforeAddress="$1"; shift;;
 	--add-after)	    shift; addAfterAddress="$1"; shift;;
 	--)		    shift; break;;
@@ -167,9 +167,9 @@ create()
     echo > "$filespec" || return 1
 
     local content=
-    [ -n "${preLines+t}" ] && content="${content}${preLines}\\${NL}"
+    [ -n "${freshPreLines+t}" ] && content="${content}${freshPreLines}\\${NL}"
     content="${content}${insertableLine}"
-    [ -n "${postLines+t}" ] && content="${content}\\${NL}${postLines}"
+    [ -n "${freshPostLines+t}" ] && content="${content}\\${NL}${freshPostLines}"
     typeset -a sedProgram=(
 	-e "\$c\\${NL}${content}"
     )
@@ -242,17 +242,17 @@ process()
 	    -e "${addBeforeAddress:-${addAfterAddress:-${addAfterAddress:-\$}}}{ x; s/.*/\\n\\n/; x; }"
 	)
 
-	if [ -n "${preLines+t}" ]; then
+	if [ -n "${freshPreLines+t}" ]; then
 	    sedProgram+=(
-		-e "${addBeforeAddress:-${addAfterAddress:-\$}a}${addBeforeAddress:+i}\\${NL}${preLines}"
+		-e "${addBeforeAddress:-${addAfterAddress:-\$}a}${addBeforeAddress:+i}\\${NL}${freshPreLines}"
 	    )
 	fi
 	sedProgram+=(
 	    -e "${addBeforeAddress:-${addAfterAddress:-\$}a}${addBeforeAddress:+i}\\${NL}${insertableLine}"
 	)
-	if [ -n "${postLines+t}" ]; then
+	if [ -n "${freshPostLines+t}" ]; then
 	    sedProgram+=(
-		-e "${addBeforeAddress:-${addAfterAddress:-\$}a}${addBeforeAddress:+i}\\${NL}${postLines}"
+		-e "${addBeforeAddress:-${addAfterAddress:-\$}a}${addBeforeAddress:+i}\\${NL}${freshPostLines}"
 	    )
 	fi
     else
