@@ -7,12 +7,20 @@ literalPattern()
 	-e 's/[][\$*.^]/\\&/g' \
 	-e 's/\n/\\n/g'
 }
+literalReplacement()
+{
+    local literalReplacement="$1"
+    literalReplacement="${literalReplacement//\\/\\\\}"
+    literalReplacement="${literalReplacement//&/\\&}"
+    literalReplacement="${literalReplacement//${NL}/\\n}"
+    printf %s "$literalReplacement"
+}
 
 printShortUsage()
 {
     # Note: short followed by long option; if the user knows the short one, she can
     # skim the long one.
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i[SUFFIX]|--in-place[=SUFFIX]|-t|--test-only] [--all] [--ignore-nonexisting|--create-nonexisting] [--add-before|-add-after ADDRESS] -l|--line LINE [-a|--accept-match ACCEPT-PATTERN] [-u|--update-match PATTERN] [-r|--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...]] [--post-line POSTTEXT [--post-line ...]] [FILE ...] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i[SUFFIX]|--in-place[=SUFFIX]|-t|--test-only] [--all] [--ignore-nonexisting|--create-nonexisting] [--add-before|-add-after ADDRESS] -l|--line LINE [-a|--accept-match ACCEPT-PATTERN] [-u|--update-match PATTERN] [-r|--replacement REPLACEMENT] [--pre-line PRETEXT [--pre-line ...]] [--post-line POSTTEXT [--post-line ...]] [--pre-update PRETEXT [--pre-update ...]] [--post-update POSTTEXT [--post-update ...]] [FILE ...] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -75,6 +83,10 @@ HELPDESCRIPTION
 			    (This is assumed to be for comments or headers that
 			    would already be there.)
     --post-line POSTTEXT    When a fresh LINE is added, put POSTTEXT after it.
+    --pre-update PRETEXT    When an existing LINE is updated, put PRETEXT before
+			    it.
+    --post-update POSTTEXT  When an existing LINE is updated, put POSTTEXT after
+			    it.
 
 All PATTERNs are sed-style basic regular expressions; ADDRESS a sed address.
 
@@ -101,8 +113,10 @@ line=
 acceptMatch=
 updateMatch=
 unset replacement
-unset preLines
-unset postLines
+unset freshPreLines
+unset freshPostLines
+unset updatePreLines
+unset updatePostLines
 addBeforeAddress=
 addAfterAddress=
 while [ $# -ne 0 ]
@@ -121,8 +135,10 @@ do
 	--accept-match|-a)  shift; acceptMatch="$1"; shift;;
 	--update-match|-u)  shift; updateMatch="$1"; shift;;
 	--replacement|-r)   shift; replacement="$1"; shift;;
-	--pre-line)	    shift; escapedLine="${1//\\/\\\\}"; preLines="${preLines}${preLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
-	--post-line)	    shift; escapedLine="${1//\\/\\\\}"; postLines="${postLines}${postLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
+	--pre-line)	    shift; escapedLine="${1//\\/\\\\}"; freshPreLines="${freshPreLines}${freshPreLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
+	--post-line)	    shift; escapedLine="${1//\\/\\\\}"; freshPostLines="${freshPostLines}${freshPostLines:+\\$NL}${escapedLine//${NL}/\\$NL}"; shift;;
+	--pre-update)	    shift; updatePreLines="${updatePreLines}${updatePreLines:+\\n}$(literalReplacement "$1")"; shift;;
+	--post-update)	    shift; updatePostLines="${updatePostLines}${updatePostLines:+\\n}$(literalReplacement "$1")"; shift;;
 	--add-before)	    shift; addBeforeAddress="$1"; shift;;
 	--add-after)	    shift; addAfterAddress="$1"; shift;;
 	--)		    shift; break;;
@@ -167,9 +183,9 @@ create()
     echo > "$filespec" || return 1
 
     local content=
-    [ -n "${preLines+t}" ] && content="${content}${preLines}\\${NL}"
+    [ -n "${freshPreLines+t}" ] && content="${content}${freshPreLines}\\${NL}"
     content="${content}${insertableLine}"
-    [ -n "${postLines+t}" ] && content="${content}\\${NL}${postLines}"
+    [ -n "${freshPostLines+t}" ] && content="${content}\\${NL}${freshPostLines}"
     typeset -a sedProgram=(
 	-e "\$c\\${NL}${content}"
     )
@@ -207,19 +223,30 @@ process()
     if [ -n "${replacement+t}" ]; then
 	sedProgram+=(
 	    # Do the update with REPLACEMENT.
-	    -e "/${literalLinePattern//\//\\/}/!s/${updateMatch//\//\\/}/${replacement//\//\\/}/"
+	    -e "/${updateMatch//\//\\/}/{ /${literalLinePattern//\//\\/}/! {"
+	    -e "s/${updateMatch//\//\\/}/${replacement//\//\\/}/"
+	)
+	if [ -n "${updatePreLines+t}" ]; then
+	    sedProgram+=(
+		-e "s/^/${updatePreLines//\//\\/}\\n/"
+	    )
+	fi
+	if [ -n "${updatePostLines+t}" ]; then
+	    sedProgram+=(
+		-e "s/\$/\\n${updatePostLines//\//\\/}/"
+	    )
+	fi
+	sedProgram+=(
+	    -e '} }'
 	)
     else
-	replaceableLine="$line"
-	replaceableLine="${replaceableLine//\\/\\\\}"
-	replaceableLine="${replaceableLine//&/\\&}"
-	replaceableLine="${replaceableLine//${NL}/\\n}"
+	replaceableLine="$(literalReplacement "$line")"
 
 	sedProgram+=(
 	    # Do the update with LINE.
 	    # As the "c" command starts a new cycle, but we still need to check
 	    # the hold space, we use a substitution to update the line.
-	    -e "/${updateMatch//\//\\/}/{ /${literalLinePattern//\//\\/}/!s#.*#${replaceableLine//#/\\#}# }"
+	    -e "/${updateMatch//\//\\/}/{ /${literalLinePattern//\//\\/}/!s/.*/${updatePreLines//\//\\/}${updatePreLines+\\n}${replaceableLine//\//\\/}${updatePostLines+\\n}${updatePostLines//\//\\/}/ }"
 	)
     fi
 
@@ -242,17 +269,17 @@ process()
 	    -e "${addBeforeAddress:-${addAfterAddress:-${addAfterAddress:-\$}}}{ x; s/.*/\\n\\n/; x; }"
 	)
 
-	if [ -n "${preLines+t}" ]; then
+	if [ -n "${freshPreLines+t}" ]; then
 	    sedProgram+=(
-		-e "${addBeforeAddress:-${addAfterAddress:-\$}a}${addBeforeAddress:+i}\\${NL}${preLines}"
+		-e "${addBeforeAddress:-${addAfterAddress:-\$}a}${addBeforeAddress:+i}\\${NL}${freshPreLines}"
 	    )
 	fi
 	sedProgram+=(
 	    -e "${addBeforeAddress:-${addAfterAddress:-\$}a}${addBeforeAddress:+i}\\${NL}${insertableLine}"
 	)
-	if [ -n "${postLines+t}" ]; then
+	if [ -n "${freshPostLines+t}" ]; then
 	    sedProgram+=(
-		-e "${addBeforeAddress:-${addAfterAddress:-\$}a}${addBeforeAddress:+i}\\${NL}${postLines}"
+		-e "${addBeforeAddress:-${addAfterAddress:-\$}a}${addBeforeAddress:+i}\\${NL}${freshPostLines}"
 	    )
 	fi
     else
