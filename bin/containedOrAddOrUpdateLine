@@ -20,10 +20,11 @@ printLongUsage()
     cat <<HELPDESCRIPTION
 If the passed LINE / PATTERN does not exist / match in at least one (all with
 --all) of the passed FILE(s), asks the user whether to update with REPLACEMENT
-(in the first to match), or append (in the last FILE).
+(in the first to match), or append (at the end of the last FILE).
 HELPDESCRIPTION
     echo
     printShortUsage "$1"
+    echo
     cat <<HELPTEXT
     --memoize-group|-g GROUP
 			    Optional application / use case for this tool's use.
