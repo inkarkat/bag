@@ -47,7 +47,8 @@ HELPDESCRIPTION
 			    Edit FILE(s) in place (makes backup if SUFFIX
 			    supplied) instead of printing to standard output.
     --test-only|-t	    Just check whether an update would be made. Does not
-			    modify the FILE(s) or output the result.
+			    modify or create non-existing FILE(s), or output the
+			    result.
     --all		    Instead of just updating the first to match or
 			    appending to the last FILE, make sure that each FILE
 			    gets updated.
@@ -314,8 +315,12 @@ do
     if [ "$filespec" = '-' -o -e "$filespec" ]; then
 	let existingCount+=1
     elif [ "$isCreateNonexisting" ]; then
-	create "$filespec"
-	status=$?
+	if [ "$isTestOnly" ]; then
+	    status=0
+	else
+	    create "$filespec"
+	    status=$?
+	fi
 	case $status in
 	    0)	[ "$isAll" ] || exit $status;;
 	    *)	status=5;;
