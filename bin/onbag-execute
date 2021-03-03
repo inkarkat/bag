@@ -1,0 +1,63 @@
+#!/bin/bash
+
+typeset -a usageOverrideArgs=(
+    -e '/^ *--command|-c/b removeOptionLoop'
+    -e '/^ *--stop-on-empty|-S/i\
+    --no-stop		Do not stop once the special file becomes empty / is\
+			deleted.'
+    -e '/^ *--exit-on-success/i\
+    --no-exit		Do not stop observing changes if that line fails.\
+			By default, a failing line will stop the observation.'
+    -e '/^Usage:$/N' -e "/\(^\|\n\)Usage: */{ s/\(^\|\n\)\(Usage: *\)\?onbag /\1\2$(basename "$0") [--no-stop] [--no-exit] /; s/ -c|--command \"COMMANDLINE\" | \\[--\\] SIMPLECOMMAND \\[\\.\\.\\.\\]//; s/COMMAND/a line/ }"
+)
+printUsage()
+{
+    onbag --doesNotExist 2>&1 | sed \
+	-e '/^ERROR: Unknown option "--doesNotExist"!/{ N; s/\n$//; D; }' \
+	"${usageOverrideArgs[@]}" \
+	-e "/Try onbag --help for more information./s/onbag/$(basename "$1")/" \
+	-e :removeOptionLoop
+}
+printLongUsage()
+{
+    onbag --help 2>&1 | sed \
+	-e '1s#^.*$#Observe a special file for added output, execute each line from the start (FIFO-style) as a shell command.#' \
+	-e '2b removeFirstParagraphLoop' \
+	"${usageOverrideArgs[@]}" \
+	-e '/^Example:$/N' -e "/\(^\|\n\)Example: */{ s/\(^\|\n\)\(Example: *\)\?onbag .*/\1\2$(basename "$1") / }" \
+	-e b -e :removeFirstParagraphLoop -e '{ /\(^\|\n\)$/{ s/^\(.*\n\)\?//; b; }; N; b removeFirstParagraphLoop }' \
+	-e b -e :removeOptionLoop -e '{ /\n *--command|-c[^\n]*$/{ N; b removeOptionLoop; }; /\n *--[^\n]*$\|^$/{ s/^\(.*\n\)\?//; b; }; N; b removeOptionLoop }'
+}
+
+isStop=t
+isExit=t
+typeset -a onbagStopArgs=()
+typeset -a onbagExitArgs=()
+typeset -a onbagArgs=()
+onbagCommand='eval {}'
+while [ $# -ne 0 ]
+do
+    case "$1" in
+	--help|-h|-\?)	shift; printLongUsage "$0"; exit 0;;
+
+	--no-stop)	shift; isStop=;;
+	--no-exit)	shift; isExit=;;
+
+	--command|-c)	shift; printUsage "$0" >&2; exit 2;;
+	--bare)		onbagArgs+=("$1"); shift
+			onbagCommand="(${onbagCommand})"    # Need to execute in a subshell so that "exit 42" can actually make onbag exit, as the bare command is directly interpreted within the script.
+			;;
+	--stop-on-empty|-S)
+			onbagStopArgs+=("$1"); shift; isStop=;;
+	--stop-on|-s|--stop-after|-t)
+			onbagStopArgs+=("$1" "$2"); shift; shift; isStop=;;
+	--exit-on-success|--exit-on-failure)
+			onbagExitArgs+=("$1"); shift; isExit=;;
+	--exit-on|--exit-unless)
+			onbagExitArgs+=("$1" "$2"); shift; shift; isExit=;;
+	--)		onbagArgs+=("$1"); shift; break;;
+	*)		onbagArgs+=("$1"); shift;;
+    esac
+done
+
+exec onbag ${isStop:+--stop-on-empty} ${isExit:+--exit-on-failure} "${onbagStopArgs[@]}" "${onbagExitArgs[@]}" "${onbagArgs[@]}" --command "$onbagCommand"
