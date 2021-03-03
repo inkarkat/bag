@@ -169,10 +169,10 @@ do
 			bagArgs+=("$1"); shift;;
 	--count|-n)	shift; count="$1"; shift;;
 	-1)		shift; count=1;;
-	--exit-on-success)	shift; exitOn=0; exitComparison=-eq;;
-	--exit-on-failure)	shift; exitOn=0; exitComparison=-ne;;
-	--exit-on)		shift; exitOn="$1"; shift; exitComparison=-eq;;
-	--exit-unless)		shift; exitOn="$1"; shift; exitComparison=-ne;;
+	--exit-on-success)	shift; exitOn=0; exitComparison=-eq; onchangeExitOnArg=(--exit-on $EXIT_SIGNAL);;
+	--exit-on-failure)	shift; exitOn=0; exitComparison=-ne; onchangeExitOnArg=(--exit-on $EXIT_SIGNAL);;
+	--exit-on)		shift; exitOn="$1"; shift; exitComparison=-eq; onchangeExitOnArg=(--exit-on $EXIT_SIGNAL);;
+	--exit-unless)		shift; exitOn="$1"; shift; exitComparison=-ne; onchangeExitOnArg=(--exit-on $EXIT_SIGNAL);;
 	--retry-on-failure)	shift; retryOn=0; retryComparison=-ne;;
 	--retry-on)		shift; retryOn="$1"; shift; retryComparison=-eq;;
 	--retry-unless)		shift; retryOn="$1"; shift; retryComparison=-ne;;
@@ -323,6 +323,7 @@ executeTrigger()
 	else
 	    [ "$rateLimit" ] && sleep "$rateLimit"
 	    eval 'triggerCommand "${lines[@]}"' ${isParallel:+&}
+	    signal=$?
 	    lines=()
 	fi
 
