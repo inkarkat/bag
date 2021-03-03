@@ -27,7 +27,7 @@ fi
 
 printShortUsage()
 {
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [-n|--count N|-1] [-i|--interval NUMBER[SUFFIX] [-l|--max-lines N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [-t|--stop-after TIMEOUT[SUFFIX]] [--print] [[--bare|--no-capture-output] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--append-on-failure|--append-on NUM|--append-unless NUM] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [-n|--count N|-1] [-i|--interval NUMBER[SUFFIX] [-l|--max-lines N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [-t|--stop-after TIMEOUT[SUFFIX]] [--print] [[--bare|--no-capture-output] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM] [--append-on-failure|--append-on NUM|--append-unless NUM] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -114,12 +114,21 @@ HELPDESCRIPTION
 			retried is not counted.
     -1			Stop observing after the first change. Output that is
 			retried is not counted.
-    --append-on-failure	Put back the output into the special file if COMMAND is
-			unsuccessful.
-    --append-on NUM	Put back the output into the special file if COMMAND
-			exits with NUM.
-    --append-unless NUM	Put back the output into the special file if COMMAND
-			does not exit with NUM.
+    --prepend-on-failure
+			Return the output to the beginning of the special file
+			(so it will be considered right next again!) if COMMAND
+			is unsuccessful.
+    --prepend-on NUM	Return the output to the beginning of the special file
+			if COMMAND exits with NUM.
+    --prepend-unless NUM
+			Return the output to the beginning of the special file
+			if COMMAND does not exit with NUM.
+    --append-on-failure	Put back the output to the end of the special file if
+			COMMAND is unsuccessful.
+    --append-on NUM	Put back the output to the end of the special file if
+			COMMAND exits with NUM.
+    --append-unless NUM	Put back the output to the end of the special file if
+			COMMAND does not exit with NUM.
 SUFFIX may be 's' for seconds (the default), 'm' for minutes, 'h' for hours or
 'd' for days.
 Example:
@@ -151,6 +160,8 @@ stopAfter=
 rateLimit=
 exitOn=
 exitComparison=-eq
+prependOn=
+prependComparison=-eq
 appendOn=
 appendComparison=-eq
 typeset -a commands=()
@@ -173,6 +184,9 @@ do
 	--exit-on-failure)	shift; exitOn=0; exitComparison=-ne; onchangeExitOnArg=(--exit-on $EXIT_SIGNAL);;
 	--exit-on)		shift; exitOn="$1"; shift; exitComparison=-eq; onchangeExitOnArg=(--exit-on $EXIT_SIGNAL);;
 	--exit-unless)		shift; exitOn="$1"; shift; exitComparison=-ne; onchangeExitOnArg=(--exit-on $EXIT_SIGNAL);;
+	--prepend-on-failure)	shift; prependOn=0; prependComparison=-ne;;
+	--prepend-on)		shift; prependOn="$1"; shift; prependComparison=-eq;;
+	--prepend-unless)	shift; prependOn="$1"; shift; prependComparison=-ne;;
 	--append-on-failure)	shift; appendOn=0; appendComparison=-ne;;
 	--append-on)		shift; appendOn="$1"; shift; appendComparison=-eq;;
 	--append-unless)		shift; appendOn="$1"; shift; appendComparison=-ne;;
@@ -346,6 +360,10 @@ triggerCommand()
     exitStatus=$?
 
     result=0
+    if [ "$prependOn" ] && [ $exitStatus $prependComparison $prependOn ]; then
+	printf '%s\n' "$@" | bag "${bagArgs[@]}" --prepend
+	result=$NOOP_SIGNAL
+    fi
     if [ "$appendOn" ] && [ $exitStatus $appendComparison $appendOn ]; then
 	printf '%s\n' "$@" | bag "${bagArgs[@]}" --append
 	result=$NOOP_SIGNAL
