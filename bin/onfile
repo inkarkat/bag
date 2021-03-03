@@ -484,7 +484,7 @@ trap "shutdown" SIGUSR1
 if [ -n "$pgid" ]; then
     trap "kill -- -$pgid" EXIT  # If we're the leader, kill subshell processes when the script exits.
 else
-    trap "jobs -p | xargs kill --" EXIT  # Someone else is the leader; killing remaining jobs is all we can do here.
+    trap "jobs -p | xargs --no-run-if-empty kill --" EXIT  # Someone else is the leader; killing remaining jobs is all we can do here.
 fi
 lastFileHandlingTimestamp=$SECONDS
 pollForAddedFiles "$@"
