@@ -169,11 +169,6 @@ if [ $# -ne 0 ]; then
     printUsage "$0" >&2
     exit 2
 fi
-if [ -n "$exitOn" -a -n "$isParallel" ]; then
-    # Need a marker file to signal stopping; a variable won't do.
-    keepRunningMarkerFile=$(mktemp --tmpdir "$(basename -- "$0")-XXXXXX" 2>/dev/null || echo "${TEMP:-/tmp}/$(basename -- "$0").$$$RANDOM")
-    touch "$keepRunningMarkerFile"
-fi
 # Don't show a prompt if nothing was printed; this would just waste screen
 # space. Parallel execution is supposedly mostly used to control resource usage
 # (e.g. just one instance via singleton or not too frequent actions via
@@ -234,21 +229,11 @@ triggerCommand()
 	[ -n "$appendAfterText" ] && bag "${bagArgs[@]}" --append -- "$appendAfterText"
     fi
     if [ "$exitOn" ] && [ $exitStatus $exitComparison $exitOn ]; then
-	[ "$isParallel" ] && kill -SIGUSR1 $$
 	exit $exitStatus
     fi
 }
 
 
-shutdown()
-{
-    if [ -e "$keepRunningMarkerFile" ]; then
-	rm --force -- "$keepRunningMarkerFile"
-	wait    # Wait for running jobs to finish; this avoids the "Terminated" message and exit status 143.
-    fi
-    exit 0
-}
-trap "shutdown" SIGUSR1
 if [ -n "$pgid" ]; then
     trap "kill -- -$pgid" EXIT  # If we're the leader, kill subshell processes when the script exits.
 else
