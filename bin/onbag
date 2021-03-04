@@ -27,7 +27,7 @@ fi
 
 printShortUsage()
 {
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [-n|--count N|-1] [-i|--interval NUMBER[SUFFIX] [-l|--max-lines N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [-t|--stop-after TIMEOUT[SUFFIX]] [--print] [[--bare|--no-capture-output] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before TEXT|--prepend-after TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before TEXT|--append-after TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [--ignore-existing] [-n|--count N|-1] [-i|--interval NUMBER[SUFFIX] [-l|--max-lines N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [-t|--stop-after TIMEOUT[SUFFIX]] [--print] [[--bare|--no-capture-output] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before TEXT|--prepend-after TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before TEXT|--append-after TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -53,6 +53,9 @@ HELPDESCRIPTION
 			while no write is under way. Pass this to ensure
 			consistency in case there could ever be contention over
 			the file.
+    --ignore-existing	Do not immediately react on existing lines; only start
+			consuming once an actual external change has been
+			observed / only consume existing line(s) each INTERVAL.
     --print		Print the added output.
     --bare		Do not print a status line before and after launching
 			the COMMAND.
@@ -158,6 +161,7 @@ timeToSeconds()
 
 typeset -a allArgs=("$@")
 typeset -a bagArgs=()
+isConsumeExisting=t
 isParallel=
 count=
 interval=
@@ -190,6 +194,8 @@ do
 	--help|-h|-\?)	shift; printLongUsage "$0"; exit 0;;
 	--transactional|-t)
 			bagArgs+=("$1"); shift;;
+	--ignore-existing)
+			shift; isConsumeExisting=;;
 	--count|-n)	shift; count="$1"; shift;;
 	-1)		shift; count=1;;
 	--exit-on-success)	shift; exitOn=0; exitComparison=-eq; onchangeExitOnArg=(--exit-on $EXIT_SIGNAL);;
@@ -457,7 +463,7 @@ else
 fi
 exec 6<&0
 
-consumeExistingOutput
+[ "$isConsumeExisting" ] && consumeExistingOutput
 if [ -n "$interval" ]; then
     pollForOutput
 else
