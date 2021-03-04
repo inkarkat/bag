@@ -1,6 +1,7 @@
 #!/bin/bash
 
 typeset -a usageOverrideArgs=(
+    -e '/^ *--command|-c/,$s/ output/ cmdline/g'
     -e '/^ *--command|-c/b removeOptionLoop'
     -e '/^ *--stop-on-empty|-S/i\
     --no-stop		Do not stop once the special file becomes empty / is\
@@ -21,7 +22,7 @@ printUsage()
 printLongUsage()
 {
     onbag --help 2>&1 | sed \
-	-e '1s#^.*$#Observe a special file for added output, execute each line from the start (FIFO-style) as a shell command.#' \
+	-e '1s#^.*$#Observe a special file for added command-lines, execute each line from the start (FIFO-style) as a shell command.#' \
 	-e '2b removeFirstParagraphLoop' \
 	"${usageOverrideArgs[@]}" \
 	-e '/^Example:$/N' -e "/\(^\|\n\)Example: */{ s/\(^\|\n\)\(Example: *\)\?onbag .*/\1\2$(basename "$1") / }" \
