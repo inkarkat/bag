@@ -31,6 +31,15 @@ HELPTEXT
 
     echo
     cat <<HELPTEXT
+Print the first / N line(s) (or fewer) from the collected output from the
+special file without removing it. Fails if there's no bag, the bag is empty or
+contains less than N line(s).
+HELPTEXT
+    echo
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] --peek [-<N>|-n|--lines N] [-q|--quiet]'
+
+    echo
+    cat <<HELPTEXT
 Remove all collected output from the special file.
 HELPTEXT
     echo
@@ -52,6 +61,7 @@ do
 	--help|-h|-\?)	shift; printUsage "$0"; exit 0;;
 	--quiet|-q)	shift; isQuiet=t;;
 	--print|-p)	shift; isPrint=t;;
+	--peek)		shift; isPrint=t; action=peek;;
 	--pop)		shift; action=pop;;
 	--lines|-n)	popArgs+=("$1" "$2"); printLines="$2"; shift; shift;;
 	-+([0-9]))	popArgs+=("$1"); printLines="${1#-}"; shift;;
@@ -83,7 +93,7 @@ fi
 if [ "$isPrint" ]; then
     case "$action" in
 	collect)    action=print;;
-	print|delete)
+	peek|print|delete)
 		    ;;
 	*)	    printUsage "$0" >&2; exit 2;;
     esac
@@ -131,6 +141,13 @@ case "$action" in
 	else
 	    exec cat -- "$BAG"
 	fi
+	;;
+    peek)
+	assertExistingBag
+	exec 3>&1
+	: ${printLines:=1}
+	actualLines=$(head -n "$printLines" -- "$BAG" | tee /dev/fd/3 | wc -l)
+	[ $actualLines -ge $printLines ]
 	;;
     pop)
 	assertExistingBag
