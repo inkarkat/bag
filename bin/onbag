@@ -407,7 +407,7 @@ if [ "$isOnChange" ]; then
 	processBag
 	status=$?
 
-	if [ -n "$count" ]; then
+	if [ -n "$count" ] && [ $status -ne $NOOP_SIGNAL ]; then
 	    if observedChanges="$(database --query $parentScriptPid --columns COUNT)"; then
 		let observedChanges+=1
 		[ $observedChanges -ge $count ] && exit $EXIT_SIGNAL
