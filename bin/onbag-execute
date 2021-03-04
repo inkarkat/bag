@@ -1,14 +1,13 @@
 #!/bin/bash
 
 typeset -a usageOverrideArgs=(
-    -e '/^ *--command|-c/,$s/ output/ cmdline/g'
     -e '/^ *\(--command|-c\|--prefix-command\)/b removeOptionLoop'
     -e '/^ *--exit-on-success/i\
     --no-exit		Do not stop observing changes if that cmdline fails.\
 			By default, a failing cmdline will stop the observation,\
 			with the failing line being put back at the beginning of\
 			the special file (for later retries).'
-    -e '/^Usage:$/N' -e "/\(^\|\n\)Usage: */{ s/\(^\|\n\)\(Usage: *\)\?onbag /\1\2$(basename "$0") [--no-exit] /; s/ -c|--command \"COMMANDLINE\" | \\[--\\] SIMPLECOMMAND \\[\\.\\.\\.\\]//; s/COMMAND/a line/ }"
+    -e '/^Usage:$/N' -e "/\(^\|\n\)Usage: */{ s/\(^\|\n\)\(Usage: *\)\?onbag /\1\2$(basename "$0") [--no-exit] /; s/ -c|--command \"COMMANDLINE\" | \\[--\\] SIMPLECOMMAND \\[\\.\\.\\.\\]// }"
 )
 printUsage()
 {
@@ -23,7 +22,13 @@ printLongUsage()
     onbag --help 2>&1 | sed \
 	-e '1s#^.*$#Observe a special file for added command-lines, execute each line from the start (FIFO-style) as a shell command.#' \
 	-e '2b removeFirstParagraphLoop' \
+	-e '/^ *--command|-c/,$s/ output/ cmdline/g' \
 	"${usageOverrideArgs[@]}" \
+	-e 's/Output/A cmdline/g' \
+	-e 's/COMMAND/cmdline/g' \
+	-e 's/ lines/ cmdlines/g' \
+	-e 's/ passed to cmdline/ executed/g' \
+	-e 's/ (individual cmdlines)//g' \
 	-e '/^Example:$/N' -e "/\(^\|\n\)Example: */{ s/\(^\|\n\)\(Example: *\)\?onbag .*/\1\2$(basename "$1") / }" \
 	-e b -e :removeFirstParagraphLoop -e '{ /\(^\|\n\)$/{ s/^\(.*\n\)\?//; b; }; N; b removeFirstParagraphLoop }' \
 	-e b -e :removeOptionLoop -e '{ /\n *\(--command|-c\|--prefix-command\)[^\n]*$/{ N; b removeOptionLoop; }; /\n *--[^\n]*$\|^$/{ s/^\(.*\n\)\?//; b; }; N; b removeOptionLoop }'
