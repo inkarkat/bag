@@ -1,13 +1,16 @@
 #!/bin/bash
 
 typeset -a usageOverrideArgs=(
+    -e '/^ *--command|-c/,$s/ output/ cmdline/g'
     -e '/^ *--command|-c/b removeOptionLoop'
     -e '/^ *--stop-on-empty|-S/i\
     --no-stop		Do not stop once the special file becomes empty / is\
 			deleted.'
     -e '/^ *--exit-on-success/i\
-    --no-exit		Do not stop observing changes if that line fails.\
-			By default, a failing line will stop the observation.'
+    --no-exit		Do not stop observing changes if that cmdline fails.\
+			By default, a failing cmdline will stop the observation,\
+			with the failing line being put back at the beginning of\
+			the special file (for later retries).'
     -e '/^Usage:$/N' -e "/\(^\|\n\)Usage: */{ s/\(^\|\n\)\(Usage: *\)\?onbag /\1\2$(basename "$0") [--no-stop] [--no-exit] /; s/ -c|--command \"COMMANDLINE\" | \\[--\\] SIMPLECOMMAND \\[\\.\\.\\.\\]//; s/COMMAND/a line/ }"
 )
 printUsage()
@@ -21,7 +24,7 @@ printUsage()
 printLongUsage()
 {
     onbag --help 2>&1 | sed \
-	-e '1s#^.*$#Observe a special file for added output, execute each line from the start (FIFO-style) as a shell command.#' \
+	-e '1s#^.*$#Observe a special file for added command-lines, execute each line from the start (FIFO-style) as a shell command.#' \
 	-e '2b removeFirstParagraphLoop' \
 	"${usageOverrideArgs[@]}" \
 	-e '/^Example:$/N' -e "/\(^\|\n\)Example: */{ s/\(^\|\n\)\(Example: *\)\?onbag .*/\1\2$(basename "$1") / }" \
@@ -31,8 +34,10 @@ printLongUsage()
 
 isStop=t
 isExit=t
+isPreOrAppend=t
 typeset -a onbagStopArgs=()
 typeset -a onbagExitArgs=()
+typeset -a onbagPreOrAppendArgs=()
 typeset -a onbagArgs=()
 onbagCommand='eval {}'
 while [ $# -ne 0 ]
@@ -55,9 +60,15 @@ do
 			onbagExitArgs+=("$1"); shift; isExit=;;
 	--exit-on|--exit-unless)
 			onbagExitArgs+=("$1" "$2"); shift; shift; isExit=;;
+	--prepend-on-failure|--append-on-failure)
+			onbagPreOrAppendArgs+=("$1"); shift; isPreOrAppend=;;
+	--prepend-on|--prepend-unless|--append-on|--append-unless)
+			onbagPreOrAppendArgs+=("$1" "$2"); shift; shift; isPreOrAppend=;;
 	--)		onbagArgs+=("$1"); shift; break;;
 	*)		onbagArgs+=("$1"); shift;;
     esac
 done
 
-exec onbag ${isStop:+--stop-on-empty} ${isExit:+--exit-on-failure} "${onbagStopArgs[@]}" "${onbagExitArgs[@]}" "${onbagArgs[@]}" --command "$onbagCommand"
+exec onbag ${isStop:+--stop-on-empty} ${isExit:+--exit-on-failure ${isPreOrAppend:+--prepend-on-failure}} \
+    "${onbagStopArgs[@]}" "${onbagExitArgs[@]}" "${onbagPreOrAppendArgs[@]}" "${onbagArgs[@]}" \
+    --command "$onbagCommand"

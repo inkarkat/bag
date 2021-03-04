@@ -27,7 +27,7 @@ fi
 
 printShortUsage()
 {
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [-n|--count N|-1] [-i|--interval NUMBER[SUFFIX] [-l|--max-lines N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [-t|--stop-after TIMEOUT[SUFFIX]] [--print] [[--bare|--no-capture-output] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--retry-on-failure|--retry-on NUM|--retry-unless NUM] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [-n|--count N|-1] [-i|--interval NUMBER[SUFFIX] [-l|--max-lines N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [-t|--stop-after TIMEOUT[SUFFIX]] [--print] [[--bare|--no-capture-output] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before TEXT|--prepend-after TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before TEXT|--append-after TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -114,17 +114,34 @@ HELPDESCRIPTION
 			retried is not counted.
     -1			Stop observing after the first change. Output that is
 			retried is not counted.
-    --retry-on-failure	Put back the output into the special file if COMMAND is
-			unsuccessful.
-    --retry-on NUM	Put back the output into the special file if COMMAND
-			exits with NUM.
-    --retry-unless NUM	Put back the output into the special file if COMMAND
-			does not exit with NUM.
+    --prepend-on-failure
+			Return the output to the beginning of the special file
+			(so it will be considered right next again!) if COMMAND
+			is unsuccessful.
+    --prepend-on NUM	Return the output to the beginning of the special file
+			if COMMAND exits with NUM.
+    --prepend-unless NUM
+			Return the output to the beginning of the special file
+			if COMMAND does not exit with NUM.
+    --prepend-before TEXT
+			Put TEXT before the prepended output.
+    --prepend-after TEXT
+			Put TEXT after the prepended output.
+    --append-on-failure	Put back the output to the end of the special file if
+			COMMAND is unsuccessful.
+    --append-on NUM	Put back the output to the end of the special file if
+			COMMAND exits with NUM.
+    --append-unless NUM	Put back the output to the end of the special file if
+			COMMAND does not exit with NUM.
+    --append-before TEXT
+			Put TEXT before the appended output.
+    --append-after TEXT
+			Put TEXT after the appended output.
 SUFFIX may be 's' for seconds (the default), 'm' for minutes, 'h' for hours or
 'd' for days.
 Example:
 HELPTEXT
-    printf '%q %s\n' "$(basename "$1")" '--bare -l 5 -s STOP --retry-on-failure -- wget {}'
+    printf '%q %s\n' "$(basename "$1")" '--bare -l 5 -s STOP --append-on-failure -- wget {}'
 }
 
 timeToSeconds()
@@ -151,8 +168,14 @@ stopAfter=
 rateLimit=
 exitOn=
 exitComparison=-eq
-retryOn=
-retryComparison=-eq
+prependOn=
+prependComparison=-eq
+prependBeforeText=
+prependAfterText=
+appendBeforeText=
+appendAfterText=
+appendOn=
+appendComparison=-eq
 typeset -a commands=()
 prefixCommand=
 prefixCommandCommand=
@@ -173,9 +196,16 @@ do
 	--exit-on-failure)	shift; exitOn=0; exitComparison=-ne; onchangeExitOnArg=(--exit-on $EXIT_SIGNAL);;
 	--exit-on)		shift; exitOn="$1"; shift; exitComparison=-eq; onchangeExitOnArg=(--exit-on $EXIT_SIGNAL);;
 	--exit-unless)		shift; exitOn="$1"; shift; exitComparison=-ne; onchangeExitOnArg=(--exit-on $EXIT_SIGNAL);;
-	--retry-on-failure)	shift; retryOn=0; retryComparison=-ne;;
-	--retry-on)		shift; retryOn="$1"; shift; retryComparison=-eq;;
-	--retry-unless)		shift; retryOn="$1"; shift; retryComparison=-ne;;
+	--prepend-on-failure)	shift; prependOn=0; prependComparison=-ne;;
+	--prepend-on)		shift; prependOn="$1"; shift; prependComparison=-eq;;
+	--prepend-unless)	shift; prependOn="$1"; shift; prependComparison=-ne;;
+	--prepend-before)	shift; prependBeforeText="$1"; shift;;
+	--prepend-after)	shift; prependAfterText="$1"; shift;;
+	--append-on-failure)	shift; appendOn=0; appendComparison=-ne;;
+	--append-on)		shift; appendOn="$1"; shift; appendComparison=-eq;;
+	--append-unless)	shift; appendOn="$1"; shift; appendComparison=-ne;;
+	--append-before)	shift; appendBeforeText="$1"; shift;;
+	--append-after)		shift; appendAfterText="$1"; shift;;
 	--parallel)	shift; isParallel=t;;
 	--print)	shift; isPrint=t;;
 	--bare)		shift; isBare=t;;
@@ -221,9 +251,6 @@ if [ ! "$isPrint" ] && [ ! "$count" ] && [ ${#commands[@]} -eq 0 ]; then
     echo 'ERROR: Need to pass either -1|-n|--count to count changes, --print to show added lines, or -c|--command to execute a command.'
     echo
     printUsage "$0"
-    exit 2
-elif [ -n "$exitOn" -a -n "$retryOn" -a "$exitOn" = "$retryOn" -a "$exitComparison" = "$retryComparison" ]; then
-    printf 'ERROR: Cannot exit and retry on the same exit status (%d).\n' "$exitOn"
     exit 2
 fi >&2
 if [ -n "$exitOn" -a -n "$isParallel" ]; then
@@ -348,17 +375,24 @@ triggerCommand()
     fi <&6
     exitStatus=$?
 
-    if [ "$exitOn" ]; then
-	if [ $exitStatus $exitComparison $exitOn ]; then
-	    [ "$isParallel" ] && kill -SIGUSR1 $$
-	    return $EXIT_SIGNAL
-	fi
-    elif [ "$retryOn" ]; then
-	if [ $exitStatus $retryComparison $retryOn ]; then
-	    printf '%s\n' "$@" | bag "${bagArgs[@]}" --append
-	    return $NOOP_SIGNAL
-	fi
+    result=0
+    if [ "$prependOn" ] && [ $exitStatus $prependComparison $prependOn ]; then
+	[ -n "$prependAfterText" ] && bag "${bagArgs[@]}" --prepend -- "$prependAfterText"
+	printf '%s\n' "$@" | bag "${bagArgs[@]}" --prepend
+	[ -n "$prependBeforeText" ] && bag "${bagArgs[@]}" --prepend -- "$prependBeforeText"
+	result=$NOOP_SIGNAL
     fi
+    if [ "$appendOn" ] && [ $exitStatus $appendComparison $appendOn ]; then
+	[ -n "$appendBeforeText" ] && bag "${bagArgs[@]}" --append -- "$appendBeforeText"
+	printf '%s\n' "$@" | bag "${bagArgs[@]}" --append
+	[ -n "$appendAfterText" ] && bag "${bagArgs[@]}" --append -- "$appendAfterText"
+	result=$NOOP_SIGNAL
+    fi
+    if [ "$exitOn" ] && [ $exitStatus $exitComparison $exitOn ]; then
+	[ "$isParallel" ] && kill -SIGUSR1 $$
+	result=$EXIT_SIGNAL
+    fi
+    return $result
 }
 
 database()
