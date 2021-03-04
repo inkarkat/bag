@@ -278,6 +278,7 @@ if [ "$isParallel" ]; then
     [ "$isCaptureOutput" ] && runWithPromptArgs+=(--no-output-no-error)
     runWithPromptArgs+=(--no-count-on 99)
 fi
+typeset -a runWithPromptTrailingPromptArg=(--no-trailing-prompt)
 
 
 
@@ -403,7 +404,7 @@ triggerCommand()
     if [ "$isBare" ]; then
 	eval "${expandedCommands[@]}"
     else
-	{ printf '%s ' "${expandedCommands[@]}"; printf '\n'; } | runWithPrompt "${runWithPromptArgs[@]}" --comment "$observedChanges"
+	{ printf '%s ' "${expandedCommands[@]}"; printf '\n'; } | runWithPrompt "${runWithPromptTrailingPromptArg[@]}" "${runWithPromptArgs[@]}" --comment "$observedChanges"
     fi <&6
     exitStatus=$?
 
@@ -433,6 +434,7 @@ database()
 }
 
 if [ "$isOnChange" ]; then
+    runWithPromptTrailingPromptArg=()
     status=0
     while [ $status -eq 0 ]
     do
@@ -468,6 +470,8 @@ fi
 exec 6<&0
 
 [ "$isConsumeExisting" ] && consumeExistingOutput
+runWithPromptTrailingPromptArg=()
+
 if [ -n "$interval" ]; then
     pollForOutput
 else
