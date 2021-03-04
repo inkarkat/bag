@@ -185,38 +185,32 @@ if [ "$isParallel" ]; then
 fi
 
 
-overallStatus=1
 let cmdlineCnt=0
 consumeExistingOutput()
 {
     while [ -z "$count" ] || [ $cmdlineCnt -lt $count ]
     do
-	processBag
-	let cmdlineCnt+=1
+	processBag || break
     done
-    return $overallStatus
+    [ "$isParallel" ] && wait
+    [ $cmdlineCnt -gt 0 ]
 }
 
 processBag()
 {
     local cmdline
     if ! cmdline="$(bag "${bagArgs[@]}" --pop --quiet)"; then
-	[ "$isParallel" ] && wait
-	exit $overallStatus
+	return 1
     fi
 
-    if [ -n "$stopPattern" ] && [[ "$cmdline" =~ $stopPattern ]]; then
-	[ "$isParallel" ] && wait
-	exit $overallStatus
-    fi
+    [ -n "$stopPattern" ] && [[ "$cmdline" =~ $stopPattern ]] && return 1
 
     [ "$isPrint" ] && printf >&3 '%s\n' "$cmdline"
     [ -n "$cmdline" ] || return 0
 
     [ "$rateLimit" ] && sleep "$rateLimit"
     eval 'triggerCommand "$cmdline"' ${isParallel:+&}
-
-    overallStatus=0
+    let cmdlineCnt+=1
 }
 
 triggerCommand()
@@ -262,4 +256,3 @@ else
 fi
 
 consumeExistingOutput
-exit $overallStatus
