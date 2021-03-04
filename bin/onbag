@@ -91,7 +91,10 @@ HELPDESCRIPTION
     --max-lines|-l N	A maximum of N (default: 1) lines are consumed and
 			passed to COMMAND at once (if available). The entire set
 			of lines counts as one change (for --count).
-    --stop-on-empty|-S	Stop once the special file becomes empty / is deleted.
+    --stop-on-empty|-S	Stop once the special file becomes empty because of
+			observed changes / is deleted. The consumption of
+			existing line(s) alone does not trigger this; at least
+			one change needs to have been observed.
     --stop-on|-s PATTERN
 			Stop observing changes if the output (individual lines)
 			matches PATTERN. When multiple lines are consumed, lines
@@ -100,7 +103,8 @@ HELPDESCRIPTION
 			a Bash-style extended regular expression.
     --stop-after|-t TIMEOUT[SUFFIX]
 			Stop observing if no lines have been added for
-			TIMEOUT[SUFFIX].
+			TIMEOUT[SUFFIX]. This includes the time spent processing
+			any existing line(s).
     --parallel		Instead of waiting for one COMMAND to finish before
 			executing the next, run each one the moment the change
 			is triggered. The default is sequential invocation.
