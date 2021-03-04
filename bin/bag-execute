@@ -235,7 +235,7 @@ triggerCommand()
     fi
     if [ "$exitOn" ] && [ $exitStatus $exitComparison $exitOn ]; then
 	[ "$isParallel" ] && kill -SIGUSR1 $$
-	exit 0
+	exit $exitStatus
     fi
 }
 
