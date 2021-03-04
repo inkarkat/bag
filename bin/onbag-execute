@@ -2,7 +2,7 @@
 
 typeset -a usageOverrideArgs=(
     -e '/^ *--command|-c/,$s/ output/ cmdline/g'
-    -e '/^ *--command|-c/b removeOptionLoop'
+    -e '/^ *\(--command|-c\|--prefix-command\)/b removeOptionLoop'
     -e '/^ *--exit-on-success/i\
     --no-exit		Do not stop observing changes if that cmdline fails.\
 			By default, a failing cmdline will stop the observation,\
@@ -26,7 +26,7 @@ printLongUsage()
 	"${usageOverrideArgs[@]}" \
 	-e '/^Example:$/N' -e "/\(^\|\n\)Example: */{ s/\(^\|\n\)\(Example: *\)\?onbag .*/\1\2$(basename "$1") / }" \
 	-e b -e :removeFirstParagraphLoop -e '{ /\(^\|\n\)$/{ s/^\(.*\n\)\?//; b; }; N; b removeFirstParagraphLoop }' \
-	-e b -e :removeOptionLoop -e '{ /\n *--command|-c[^\n]*$/{ N; b removeOptionLoop; }; /\n *--[^\n]*$\|^$/{ s/^\(.*\n\)\?//; b; }; N; b removeOptionLoop }'
+	-e b -e :removeOptionLoop -e '{ /\n *\(--command|-c\|--prefix-command\)[^\n]*$/{ N; b removeOptionLoop; }; /\n *--[^\n]*$\|^$/{ s/^\(.*\n\)\?//; b; }; N; b removeOptionLoop }'
 }
 
 isExit=t
