@@ -436,15 +436,15 @@ if [ "$isOnChange" ]; then
     status=0
     while [ $status -eq 0 ]
     do
+	[ -n "$count" ] && observedChanges="$(database --query $parentScriptPid --columns COUNT)" || observedChanges=''
+
 	processBag
 	status=$?
 
-	if [ -n "$count" ] && [ $status -ne $NOOP_SIGNAL ]; then
-	    if observedChanges="$(database --query $parentScriptPid --columns COUNT)"; then
-		let observedChanges+=1
-		[ $observedChanges -ge $count ] && exit $EXIT_SIGNAL
-		database --update "$parentScriptPid	$observedChanges"
-	    fi
+	if [ -n "$count" ] && [ $status -ne $NOOP_SIGNAL ] && [ -n "$observedChanges" ]; then
+	    let observedChanges+=1
+	    [ $observedChanges -ge $count ] && exit $EXIT_SIGNAL
+	    database --update "$parentScriptPid	$observedChanges"
 	fi
     done
     exit $status
