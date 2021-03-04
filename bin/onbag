@@ -96,7 +96,7 @@ HELPDESCRIPTION
 			the match are put back into the special file. PATTERN is
 			a Bash-style extended regular expression.
     --stop-after|-t TIMEOUT[SUFFIX]
-			Stop observing if no files have been added for
+			Stop observing if no lines have been added for
 			TIMEOUT[SUFFIX].
     --parallel		Instead of waiting for one COMMAND to finish before
 			executing the next, run each one the moment the change
