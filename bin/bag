@@ -18,7 +18,7 @@ Print collected output from the special file. (Each argument as a separate
 line.)
 HELPTEXT
     echo
-    printf 'Usage: %q %s [| ...]\n' "$(basename "$1")" '[-t|--transactional] [-p|--print] [-q|--quiet]'
+    printf 'Usage: %q %s [| ...]\n' "$(basename "$1")" '[-t|--transactional] [-p|--print [-<N>|-n|--lines N]] [-q|--quiet]'
 
     echo
     cat <<HELPTEXT
@@ -39,6 +39,7 @@ HELPTEXT
 
 typeset -a allArgs=("$@")
 typeset -a popArgs=()
+printLines=
 isQuiet=
 isPrepend=
 isAppend=
@@ -52,8 +53,8 @@ do
 	--quiet|-q)	shift; isQuiet=t;;
 	--print|-p)	shift; isPrint=t;;
 	--pop)		shift; action=pop;;
-	--lines|-n)	popArgs+=("$1" "$2"); shift; shift;;
-	-+([0-9]))	popArgs+=("$1"); shift;;
+	--lines|-n)	popArgs+=("$1" "$2"); printLines="$2"; shift; shift;;
+	-+([0-9]))	popArgs+=("$1"); printLines="${1#-}"; shift;;
 	--delete-empty)	shift; popArgs+=(--delete);;
 	--delete|-d)	shift; action=delete;;
 	--prepend)	isPrepend=t; shift;;
@@ -125,7 +126,11 @@ assertExistingBag()
 case "$action" in
     print)
 	assertExistingBag
-	exec cat -- "$BAG"
+	if [ -n "$printLines" ]; then
+	    exec head -n "$printLines" -- "$BAG"
+	else
+	    exec cat -- "$BAG"
+	fi
 	;;
     pop)
 	assertExistingBag
