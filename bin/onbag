@@ -271,11 +271,33 @@ fi
 
 
 
+let observedChanges=0
+SECONDS=0
+
+consumeExistingOutput()
+{
+    while :
+    do
+	processBag
+	case $? in
+	    $EXIT_SIGNAL)
+		return 0;;
+	    $NOOP_SIGNAL)
+		[ -n "$stopAfter" ] && [ $SECONDS -ge $stopAfter ] && exit 0	# Consumption of existing output already has taken longer than TIMEOUT, bail out before even starting the observation.
+		return 0    # No existing output, start the observation for changes.
+		;;
+	    0)
+		let observedChanges+=1
+		if [ "$count" ]; then
+		    [ $observedChanges -ge $count ] && exit 0	# Consumption of existing output already exceeded the amount of [sets of] lines we should consume; bail out.
+		fi
+		;;
+	esac
+    done
+}
+
 pollForOutput()
 {
-    SECONDS=0
-    let observedChanges=0
-
     while :
     do
 	[ "${interval:?}" = 0 ] || sleep "$interval"
@@ -435,6 +457,7 @@ else
 fi
 exec 6<&0
 
+consumeExistingOutput
 if [ -n "$interval" ]; then
     pollForOutput
 else
@@ -445,7 +468,7 @@ else
 	# polling.
 
 	# Therefore, we need another external store to persist the counter.
-	database --update "$$	0"
+	database --update "$$	${observedChanges:?}"
 	[ "${DEBUG:-}" ] || trap 'database --delete $$ 2>/dev/null' EXIT
 
 	# As with the --stop-on options, the end of observation is signaled by
