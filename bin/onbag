@@ -441,7 +441,7 @@ database()
 if [ "$isOnChange" ]; then
     runWithPromptPromptArgs=()
     status=0
-    while [ $status -eq 0 ]
+    while [ $status -ne $NOOP_SIGNAL -a $status -ne $EXIT_SIGNAL ]
     do
 	[ -n "$count" ] && observedChanges="$(database --query $parentScriptPid --columns COUNT)" || observedChanges=''
 
