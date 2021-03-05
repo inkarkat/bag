@@ -157,6 +157,12 @@ HELPDESCRIPTION
 			Put TEXT after the appended output.
 SUFFIX may be 's' for seconds (the default), 'm' for minutes, 'h' for hours or
 'd' for days.
+
+EXIT STATUS:
+    0	End of observation reached due to specified condition(s).
+    *   any exit status from the last COMMAND (not with immediate observation
+	which always returns 0)
+    2	Bad invocation, wrong or missing command-line arguments.
 Example:
 HELPTEXT
     printf '%q %s\n' "$(basename "$1")" '--bare -l 5 -s STOP --append-on-failure -- wget {}'
@@ -328,7 +334,8 @@ pollForOutput()
 	[ "${interval:?}" = 0 ] || sleep "$interval"
 
 	processBag
-	case $? in
+	local status=$?
+	case $status in
 	    $EXIT_SIGNAL)
 		return 0;;
 	    $NOOP_SIGNAL)
@@ -337,7 +344,7 @@ pollForOutput()
 	    *)
 		let observedChanges+=1
 		if [ "$count" ]; then
-		    [ $observedChanges -ge $count ] && return 0
+		    [ $observedChanges -ge $count ] && return $status
 		fi
 		SECONDS=0
 		runWithPromptPromptArgs=()
