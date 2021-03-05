@@ -329,6 +329,7 @@ pollForOutput()
 		    [ $observedChanges -ge $count ] && return 0
 		fi
 		SECONDS=0
+		runWithPromptPromptArgs=()
 		;;
 	esac
     done
@@ -473,11 +474,12 @@ else
 fi
 exec 6<&0
 
-if [ "$isConsumeExisting" ]; then
-    typeset -a runWithPromptPromptArgs=(--no-trailing-prompt --initial-status 0)
-    consumeExistingOutput
-fi
 typeset -a runWithPromptPromptArgs=()
+if [ "$isConsumeExisting" ]; then
+    runWithPromptPromptArgs=(--no-trailing-prompt --initial-status 0)
+    consumeExistingOutput
+    runWithPromptPromptArgs=(--initial-status ${exitStatus:-0})
+fi
 
 if [ -n "$interval" ]; then
     pollForOutput
