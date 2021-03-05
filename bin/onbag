@@ -11,8 +11,17 @@ isOnChange=
 if [ "$1" = --onchange ]; then
     shift
     isOnChange=t
-    parentScriptPid="$1"
-    shift
+    parentScriptPid="$1"; shift
+    typeset -a runWithPromptPromptArgs=()
+    if [ "$1" = --consumed-exit-status-file ]; then
+	shift
+	consumedExitStatusFilespec="$1"; shift
+	if [ -r "$consumedExitStatusFilespec" ]; then
+	    <"$consumedExitStatusFilespec" IFS=$'\n' read -r exitStatus
+	    rm --force -- "$consumedExitStatusFilespec" 2>/dev/null
+	    runWithPromptPromptArgs=(--initial-status "${exitStatus:-0}")
+	fi
+    fi
 else
     if [ -z "$PGID" ]; then # No parent script has become the process group leader yet.
 	pgid=$(($(ps -o pgid= -p "$$")))	# By defining this, we'll be killing subshell processes of this process group when we're done or interrupted. Any children with the same ambition will defer to us.
@@ -70,6 +79,8 @@ HELPDESCRIPTION
     --command|-c CMD	Execute CMD as a command-line. The string $outputMarker is
 			replaced by the added output. Multiple lines (via
 			--max-lines) are passed as individual arguments.
+			CMD can abort further observations by returning ${EXIT_SIGNAL}, and
+			make the current line not be counted by returning ${NOOP_SIGNAL}.
     --prefix-command PC	Put PC (directly) in front of the COMMAND(s) given by
 			(subsequent, but not previous) --command or
 			SIMPLECOMMAND. This can be used to inject a wrapper
@@ -146,6 +157,12 @@ HELPDESCRIPTION
 			Put TEXT after the appended output.
 SUFFIX may be 's' for seconds (the default), 'm' for minutes, 'h' for hours or
 'd' for days.
+
+EXIT STATUS:
+    0	End of observation reached due to specified condition(s).
+    *   any exit status from the last COMMAND (not with immediate observation
+	which always returns 0)
+    2	Bad invocation, wrong or missing command-line arguments.
 Example:
 HELPTEXT
     printf '%q %s\n' "$(basename "$1")" '--bare -l 5 -s STOP --append-on-failure -- wget {}'
@@ -278,29 +295,32 @@ if [ "$isParallel" ]; then
     [ "$isCaptureOutput" ] && runWithPromptArgs+=(--no-output-no-error)
     runWithPromptArgs+=(--no-count-on 99)
 fi
-typeset -a runWithPromptTrailingPromptArg=(--no-trailing-prompt)
 
 
 
 let observedChanges=0
 SECONDS=0
 
+exitStatus=0
 consumeExistingOutput()
 {
     while :
     do
+	runWithPromptPromptArgs[-1]=$exitStatus
 	processBag
-	case $? in
+	local status=$?
+	case $status in
 	    $EXIT_SIGNAL)
 		return 0;;
 	    $NOOP_SIGNAL)
 		[ -n "$stopAfter" ] && [ $SECONDS -ge $stopAfter ] && exit 0	# Consumption of existing output already has taken longer than TIMEOUT, bail out before even starting the observation.
 		return 0    # No existing output, start the observation for changes.
 		;;
-	    0)
+	    *)
 		let observedChanges+=1
+		exitStatus=$status
 		if [ "$count" ]; then
-		    [ $observedChanges -ge $count ] && exit 0	# Consumption of existing output already exceeded the amount of [sets of] lines we should consume; bail out.
+		    [ $observedChanges -ge $count ] && exit $exitStatus	# Consumption of existing output already exceeded the amount of [sets of] lines we should consume; bail out.
 		fi
 		;;
 	esac
@@ -314,18 +334,20 @@ pollForOutput()
 	[ "${interval:?}" = 0 ] || sleep "$interval"
 
 	processBag
-	case $? in
+	local status=$?
+	case $status in
 	    $EXIT_SIGNAL)
 		return 0;;
 	    $NOOP_SIGNAL)
 		[ -n "$stopAfter" ] && [ $SECONDS -ge $stopAfter ] && break
 		;;
-	    0)
+	    *)
 		let observedChanges+=1
 		if [ "$count" ]; then
-		    [ $observedChanges -ge $count ] && return 0
+		    [ $observedChanges -ge $count ] && return $status
 		fi
 		SECONDS=0
+		runWithPromptPromptArgs=()
 		;;
 	esac
     done
@@ -404,11 +426,11 @@ triggerCommand()
     if [ "$isBare" ]; then
 	eval "${expandedCommands[@]}"
     else
-	{ printf '%s ' "${expandedCommands[@]}"; printf '\n'; } | runWithPrompt "${runWithPromptTrailingPromptArg[@]}" "${runWithPromptArgs[@]}" --comment "$observedChanges"
+	{ printf '%s ' "${expandedCommands[@]}"; printf '\n'; } | runWithPrompt "${runWithPromptPromptArgs[@]}" "${runWithPromptArgs[@]}" --comment "$observedChanges"
     fi <&6
-    exitStatus=$?
+    local exitStatus=$?
+    local result=$exitStatus
 
-    result=0
     if [ "$prependOn" ] && [ $exitStatus $prependComparison $prependOn ]; then
 	[ -n "$prependAfterText" ] && bag "${bagArgs[@]}" --prepend -- "$prependAfterText"
 	printf '%s\n' "$@" | bag "${bagArgs[@]}" --prepend
@@ -434,9 +456,8 @@ database()
 }
 
 if [ "$isOnChange" ]; then
-    runWithPromptTrailingPromptArg=()
     status=0
-    while [ $status -eq 0 ]
+    while [ $status -ne $NOOP_SIGNAL -a $status -ne $EXIT_SIGNAL ]
     do
 	[ -n "$count" ] && observedChanges="$(database --query $parentScriptPid --columns COUNT)" || observedChanges=''
 
@@ -469,8 +490,12 @@ else
 fi
 exec 6<&0
 
-[ "$isConsumeExisting" ] && consumeExistingOutput
-runWithPromptTrailingPromptArg=()
+typeset -a runWithPromptPromptArgs=()
+if [ "$isConsumeExisting" ]; then
+    runWithPromptPromptArgs=(--no-trailing-prompt --initial-status 0)
+    consumeExistingOutput
+    runWithPromptPromptArgs=(--initial-status ${exitStatus:-0})
+fi
 
 if [ -n "$interval" ]; then
     pollForOutput
@@ -490,5 +515,16 @@ else
 	onchangeExitOnArg=(--exit-on $EXIT_SIGNAL)
     fi
 
-    ONCHANGE_FILE_MARKER='' onchange "${onchangeArgs[@]}" "${onchangeExitOnArg[@]}" --bare --exec "${BASH_SOURCE[0]}" --onchange $$ "${allArgs[@]}" \; "${BAG:-"${HOME}/.bag"}"
+    typeset -a exitStatusContinuationArgs=()
+    if [ ${exitStatus:-0} -gt 0 ]; then
+	# Passing the (non-zero) exit status from the last consumed line's
+	# COMMAND is difficult, because onchange will periodically invoke
+	# ourselves recursively, so we need to use a persisted file that we
+	# clear after the first invocation.
+	TMPFILE="$(mktemp --tmpdir "$(basename -- "$0")-XXXXXX" 2>/dev/null || echo "${TEMP:-/tmp}/$(basename -- "$0").$$$RANDOM")"
+	printf '%d\n' "$exitStatus" > "$TMPFILE" && \
+	    exitStatusContinuationArgs=(--consumed-exit-status-file "$TMPFILE")
+    fi
+
+    ONCHANGE_FILE_MARKER='' onchange "${onchangeArgs[@]}" "${onchangeExitOnArg[@]}" --bare --exec "${BASH_SOURCE[0]}" --onchange $$ "${exitStatusContinuationArgs[@]}" "${allArgs[@]}" \; "${BAG:-"${HOME}/.bag"}"
 fi
