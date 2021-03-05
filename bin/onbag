@@ -79,6 +79,8 @@ HELPDESCRIPTION
     --command|-c CMD	Execute CMD as a command-line. The string $outputMarker is
 			replaced by the added output. Multiple lines (via
 			--max-lines) are passed as individual arguments.
+			CMD can abort further observations by returning ${EXIT_SIGNAL}, and
+			make the current line not be counted by returning ${NOOP_SIGNAL}.
     --prefix-command PC	Put PC (directly) in front of the COMMAND(s) given by
 			(subsequent, but not previous) --command or
 			SIMPLECOMMAND. This can be used to inject a wrapper
@@ -421,7 +423,6 @@ triggerCommand()
     fi <&6
     local exitStatus=$?
     local result=$exitStatus
-    [ $exitStatus -eq $NOOP_SIGNAL -o $exitStatus -eq $EXIT_SIGNAL ] && result=0    # Don't allow the COMMAND's exit status to masquerade as a signal.
 
     if [ "$prependOn" ] && [ $exitStatus $prependComparison $prependOn ]; then
 	[ -n "$prependAfterText" ] && bag "${bagArgs[@]}" --prepend -- "$prependAfterText"
