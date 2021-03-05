@@ -17,7 +17,7 @@ fi
 
 printShortUsage()
 {
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [-a|--all|-n|--count N] [-s|--stop-on PATTERN] [--print] [[--bare|--no-capture-cmdline] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before TEXT|--prepend-after TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before TEXT|--append-after TEXT]]] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [--worst-status] [-a|--all|-n|--count N] [-s|--stop-on PATTERN] [--print] [[--bare|--no-capture-cmdline] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before TEXT|--prepend-after TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before TEXT|--append-after TEXT]]] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -46,6 +46,8 @@ HELPDESCRIPTION
     --print		Print the consumed cmdline.
     --bare		Do not print a status line before and after launching
 			the cmdline.
+    --worst-status	Return the highest exit status of all cmdlines instead
+			of the exit status of the last cmdline.
     --no-capture-output	By default, no status line is printed if the cmdline did
 			not have any output, and failing parallel invocations
 			without output are ignored altogether. This option turns
@@ -136,6 +138,7 @@ appendOn=
 appendComparison=-eq
 isPrint=
 isBare=
+isWorstStatus=
 isCaptureOutput=t
 while [ $# -ne 0 ]
 do
@@ -160,6 +163,7 @@ do
 	--parallel)	shift; isParallel=t;;
 	--print)	shift; isPrint=t; exec 3>&1;;	# stdout may be piped into runWithPrompt, so need to save the original stdout for printing there.
 	--bare)		shift; isBare=t;;
+	--worst-status)	shift; isWorstStatus=t;;
 	--no-capture-output)
 			shift; isCaptureOutput=;;
 	--count|-n)	shift; count="$1"; shift;;
@@ -186,7 +190,8 @@ if [ "$isParallel" ]; then
 fi
 
 
-exitStatus=99
+exitStatus=0
+overallExitStatus=
 let cmdlineCnt=0
 consumeExistingOutput()
 {
@@ -195,7 +200,7 @@ consumeExistingOutput()
 	processBag || break
     done
     [ "$isParallel" ] && wait
-    return $exitStatus
+    return ${overallExitStatus:-99}
 }
 
 processBag()
@@ -221,10 +226,13 @@ triggerCommand()
     if [ "$isBare" ]; then
 	(eval "$cmdline")
     else
-	printf '%s\n' "$cmdline" | runWithPrompt --initial-status $exitStatus --no-trailing-prompt "${runWithPromptArgs[@]}" --comment "$cmdlineCnt"
+	printf '%s\n' "$cmdline" | runWithPrompt --initial-status "${exitStatus:-0}" --no-trailing-prompt "${runWithPromptArgs[@]}" --comment "$cmdlineCnt"
     fi
 
     exitStatus=$?
+    if [ ! "$isWorstStatus" -o $exitStatus -gt ${overallExitStatus:-0} ]; then
+	overallExitStatus=$exitStatus
+    fi
     if [ "$prependOn" ] && [ $exitStatus $prependComparison $prependOn ]; then
 	[ -n "$prependAfterText" ] && bag "${bagArgs[@]}" --prepend -- "$prependAfterText"
 	bag "${bagArgs[@]}" --prepend -- "$cmdline"
