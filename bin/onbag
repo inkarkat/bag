@@ -278,29 +278,32 @@ if [ "$isParallel" ]; then
     [ "$isCaptureOutput" ] && runWithPromptArgs+=(--no-output-no-error)
     runWithPromptArgs+=(--no-count-on 99)
 fi
-typeset -a runWithPromptTrailingPromptArg=(--no-trailing-prompt)
 
 
 
 let observedChanges=0
 SECONDS=0
 
+exitStatus=0
 consumeExistingOutput()
 {
     while :
     do
+	runWithPromptPromptArgs[-1]=$exitStatus
 	processBag
-	case $? in
+	local status=$?
+	case $status in
 	    $EXIT_SIGNAL)
 		return 0;;
 	    $NOOP_SIGNAL)
 		[ -n "$stopAfter" ] && [ $SECONDS -ge $stopAfter ] && exit 0	# Consumption of existing output already has taken longer than TIMEOUT, bail out before even starting the observation.
 		return 0    # No existing output, start the observation for changes.
 		;;
-	    0)
+	    *)
 		let observedChanges+=1
+		exitStatus=$status
 		if [ "$count" ]; then
-		    [ $observedChanges -ge $count ] && exit 0	# Consumption of existing output already exceeded the amount of [sets of] lines we should consume; bail out.
+		    [ $observedChanges -ge $count ] && exit $exitStatus	# Consumption of existing output already exceeded the amount of [sets of] lines we should consume; bail out.
 		fi
 		;;
 	esac
@@ -320,7 +323,7 @@ pollForOutput()
 	    $NOOP_SIGNAL)
 		[ -n "$stopAfter" ] && [ $SECONDS -ge $stopAfter ] && break
 		;;
-	    0)
+	    *)
 		let observedChanges+=1
 		if [ "$count" ]; then
 		    [ $observedChanges -ge $count ] && return 0
@@ -404,11 +407,12 @@ triggerCommand()
     if [ "$isBare" ]; then
 	eval "${expandedCommands[@]}"
     else
-	{ printf '%s ' "${expandedCommands[@]}"; printf '\n'; } | runWithPrompt "${runWithPromptTrailingPromptArg[@]}" "${runWithPromptArgs[@]}" --comment "$observedChanges"
+	{ printf '%s ' "${expandedCommands[@]}"; printf '\n'; } | runWithPrompt "${runWithPromptPromptArgs[@]}" "${runWithPromptArgs[@]}" --comment "$observedChanges"
     fi <&6
-    exitStatus=$?
+    local exitStatus=$?
+    local result=$exitStatus
+    [ $exitStatus -eq $NOOP_SIGNAL -o $exitStatus -eq $EXIT_SIGNAL ] && result=0    # Don't allow the COMMAND's exit status to masquerade as a signal.
 
-    result=0
     if [ "$prependOn" ] && [ $exitStatus $prependComparison $prependOn ]; then
 	[ -n "$prependAfterText" ] && bag "${bagArgs[@]}" --prepend -- "$prependAfterText"
 	printf '%s\n' "$@" | bag "${bagArgs[@]}" --prepend
@@ -434,7 +438,7 @@ database()
 }
 
 if [ "$isOnChange" ]; then
-    runWithPromptTrailingPromptArg=()
+    runWithPromptPromptArgs=()
     status=0
     while [ $status -eq 0 ]
     do
@@ -469,8 +473,11 @@ else
 fi
 exec 6<&0
 
-[ "$isConsumeExisting" ] && consumeExistingOutput
-runWithPromptTrailingPromptArg=()
+if [ "$isConsumeExisting" ]; then
+    typeset -a runWithPromptPromptArgs=(--no-trailing-prompt --initial-status 0)
+    consumeExistingOutput
+fi
+typeset -a runWithPromptPromptArgs=()
 
 if [ -n "$interval" ]; then
     pollForOutput
