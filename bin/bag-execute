@@ -180,6 +180,7 @@ if [ "$isParallel" ]; then
 fi
 
 
+exitStatus=0
 let cmdlineCnt=0
 consumeExistingOutput()
 {
@@ -214,10 +215,10 @@ triggerCommand()
     if [ "$isBare" ]; then
 	(eval "$cmdline")
     else
-	printf '%s\n' "$cmdline" | runWithPrompt --no-trailing-prompt "${runWithPromptArgs[@]}" --comment "$cmdlineCnt"
+	printf '%s\n' "$cmdline" | runWithPrompt --initial-status $exitStatus --no-trailing-prompt "${runWithPromptArgs[@]}" --comment "$cmdlineCnt"
     fi
 
-    local exitStatus=$?
+    exitStatus=$?
     if [ "$prependOn" ] && [ $exitStatus $prependComparison $prependOn ]; then
 	[ -n "$prependAfterText" ] && bag "${bagArgs[@]}" --prepend -- "$prependAfterText"
 	bag "${bagArgs[@]}" --prepend -- "$cmdline"
