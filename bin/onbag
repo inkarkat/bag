@@ -419,7 +419,7 @@ triggerCommand()
 	eval "${expandedCommands[@]}"
     else
 	{ printf '%s ' "${expandedCommands[@]}"; printf '\n'; } | runWithPrompt "${runWithPromptPromptArgs[@]}" "${runWithPromptArgs[@]}" --comment "$observedChanges"
-    fi <&6
+    fi
     local exitStatus=$?
     local result=$exitStatus
 
@@ -486,7 +486,6 @@ if [ -n "$pgid" ]; then
 else
     trap "jobs -p | xargs --no-run-if-empty kill --" EXIT  # Someone else is the leader; killing remaining jobs is all we can do here.
 fi
-exec 6<&0
 
 typeset -a runWithPromptPromptArgs=()
 if [ "$isConsumeExisting" ]; then
