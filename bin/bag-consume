@@ -156,6 +156,9 @@ appendBeforeText=
 appendAfterText=
 appendOn=
 appendComparison=-eq
+typeset -a commands=()
+prefixCommand=
+prefixCommandCommand=
 isPrint=
 isBare=
 isWorstStatus=
@@ -186,6 +189,20 @@ do
 	--worst-status)	shift; isWorstStatus=t;;
 	--no-capture-output)
 			shift; isCaptureOutput=;;
+	--command|-c)	shift
+			if [ -n "$prefixCommandCommand" ]; then
+			    printf -v quotedCommand %q "$1"
+			    printf -v escapedOutputMarker %q "$outputMarker" # %q escapes {}, we don't want that to have it interpolated later.
+			    commands+=(${commands:+;} "${prefixCommandCommand} --command ${quotedCommand//"$escapedOutputMarker"/$outputMarker}")
+			else
+			    commands+=(${commands:+;} "${prefixCommand}$1")
+			fi
+			shift
+			;;
+	--prefix-command)
+			shift; prefixCommand="$1"; shift;;
+	--prefix-command-command)
+			shift; prefixCommandCommand="$1"; shift;;
 	--count|-n)	shift; count="$1"; shift;;
 	--all|-a)	shift; count=;;
 	--stop-on|-s)	shift; stopPattern="$1"; shift;;
@@ -196,9 +213,18 @@ do
     esac
 done
 if [ $# -ne 0 ]; then
-    printUsage "$0" >&2
-    exit 2
+    # Combine --command and SIMPLECOMMAND; need to quote SIMPLECOMMAND to
+    # undo the effects of eval.
+    printf -v quotedSimpleCommand '%q ' "$@"
+    printf -v escapedOutputMarker %q "$outputMarker"
+    commands+=(${commands:+;} "${prefixCommand}${quotedSimpleCommand//"$escapedOutputMarker"/$outputMarker}")	# %q escapes {}, we don't want that to have it interpolated later.
 fi
+if [ ! "$isPrint" ] && [ ${#commands[@]} -eq 0 ]; then
+    echo 'ERROR: Need to pass either --print to show lines, or -c|--command to execute a command.'
+    echo
+    printUsage "$0"
+    exit 2
+fi >&2
 # Don't show a prompt if nothing was printed; this would just waste screen
 # space. Parallel execution is supposedly mostly used to control resource usage
 # (e.g. just one instance via singleton or not too frequent actions via
@@ -212,10 +238,10 @@ fi
 
 exitStatus=0
 overallExitStatus=
-let cmdlineCnt=0
+let lineCnt=0
 consumeExistingOutput()
 {
-    while [ -z "$count" ] || [ $cmdlineCnt -lt $count ]
+    while [ -z "$count" ] || [ $lineCnt -lt $count ]
     do
 	processBag || break
     done
@@ -225,43 +251,44 @@ consumeExistingOutput()
 
 processBag()
 {
-    local cmdline
-    if ! cmdline="$(bag "${bagArgs[@]}" --pop --quiet)"; then
+    local line
+    if ! line="$(bag "${bagArgs[@]}" --pop --quiet)"; then
 	return 1
     fi
 
-    [ -n "$stopPattern" ] && [[ "$cmdline" =~ $stopPattern ]] && return 1
+    [ -n "$stopPattern" ] && [[ "$line" =~ $stopPattern ]] && return 1
 
-    [ "$isPrint" ] && printf >&3 '%s\n' "$cmdline"
-    [ -n "$cmdline" ] || return 0
+    [ "$isPrint" ] && printf >&3 '%s\n' "$line"
 
     [ "$rateLimit" ] && sleep "$rateLimit"
-    eval 'triggerCommand "$cmdline"' ${isParallel:+&}
-    let cmdlineCnt+=1
+    eval 'triggerCommand "$line"' ${isParallel:+&}
+    let lineCnt+=1
 }
 
 triggerCommand()
 {
-    local cmdline="$1"; shift
+    local quotedLines; printf -v quotedLines '%q ' "$@"; quotedLines=${quotedLines% }
+
+    typeset -a expandedCommands=("${commands[@]//"$outputMarker"/$quotedLines}")
+
     unset BAGCONSUME_OUTPUT_MARKER
     if [ "$isBare" ]; then
-	(eval "$cmdline")
+	eval "${expandedCommands[@]}"
     else
-	printf '%s\n' "$cmdline" | runWithPrompt --initial-status "${exitStatus:-0}" --no-trailing-prompt "${runWithPromptArgs[@]}" --comment "$cmdlineCnt"
+	{ printf '%s ' "${expandedCommands[@]}"; printf '\n'; } | runWithPrompt --initial-status "${exitStatus:-0}" --no-trailing-prompt "${runWithPromptArgs[@]}" --comment "$lineCnt"
     fi
-
     exitStatus=$?
     if [ ! "$isWorstStatus" -o $exitStatus -gt ${overallExitStatus:-0} ]; then
 	overallExitStatus=$exitStatus
     fi
     if [ "$prependOn" ] && [ $exitStatus $prependComparison $prependOn ]; then
 	[ -n "$prependAfterText" ] && bag "${bagArgs[@]}" --prepend -- "$prependAfterText"
-	bag "${bagArgs[@]}" --prepend -- "$cmdline"
+	printf '%s\n' "$@" | bag "${bagArgs[@]}" --prepend
 	[ -n "$prependBeforeText" ] && bag "${bagArgs[@]}" --prepend -- "$prependBeforeText"
     fi
     if [ "$appendOn" ] && [ $exitStatus $appendComparison $appendOn ]; then
 	[ -n "$appendBeforeText" ] && bag "${bagArgs[@]}" --append -- "$appendBeforeText"
-	bag "${bagArgs[@]}" --append -- "$cmdline"
+	printf '%s\n' "$@" | bag "${bagArgs[@]}" --append
 	[ -n "$appendAfterText" ] && bag "${bagArgs[@]}" --append -- "$appendAfterText"
     fi
     if [ "$exitOn" ] && [ $exitStatus $exitComparison $exitOn ]; then
