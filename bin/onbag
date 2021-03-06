@@ -436,7 +436,7 @@ triggerCommand()
 	result=$NOOP_SIGNAL
     fi
     if [ "$exitOn" ] && [ $exitStatus $exitComparison $exitOn ]; then
-	[ "$isParallel" ] && kill -SIGUSR1 ${scriptPid:?}
+	[ "$isParallel" ] && kill -SIGUSR1 $$
 	result=$EXIT_SIGNAL
     fi
     return $result
@@ -450,9 +450,9 @@ database()
 # With parallel execution, we need a signal for stopping; a variable won't do.
 # Each COMMAND is started as a separate job, and its exit status (that indicates
 # whether we should stop) is not observed by the main script. Instead, that job
-# sends SIGUSR1 to the main script (identified via $scriptPid), which waits for
-# any other running jobs, and then terminates with $EXIT_SIGNAL so that the
-# onchange loop around will exit, too.
+# sends SIGUSR1 to the main script, which waits for any other running jobs, and
+# then terminates with $EXIT_SIGNAL so that the onchange loop around will exit,
+# too.
 shutdown()
 {
     wait    # Wait for running jobs to finish; this avoids the "Terminated" message and exit status 143.
@@ -461,7 +461,6 @@ shutdown()
 trap "shutdown" SIGUSR1
 
 if [ "$isOnChange" ]; then
-    readonly scriptPid=$$
     status=0
     while [ $status -ne $NOOP_SIGNAL -a $status -ne $EXIT_SIGNAL ]
     do
