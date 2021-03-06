@@ -350,22 +350,24 @@ pollForOutput()
 
 processBag()
 {
-    bag "${bagArgs[@]}" --pop --quiet --lines "$maxLines" | executeTrigger
-    typeset -a result=("${PIPESTATUS[@]}")
-
-    if [ ${result[0]} -eq 1 ] && [ "$isStopOnEmpty" ]; then
+    typeset -a lines=()
+    readarray -t lines < <(bag "${bagArgs[@]}" --pop --quiet --lines "$maxLines")
+    if [ ${#lines[@]} -eq 0 ]; then
 	# The bag is empty.
-	return $EXIT_SIGNAL
+	if [ "$isStopOnEmpty" ]; then
+	    return $EXIT_SIGNAL
+	else
+	    return $NOOP_SIGNAL
+	fi
     fi
-    return ${result[1]}
+
+    executeTrigger "${lines[@]}"
 }
 
 executeTrigger()
 {
-    readarray -t lines
-    [ ${#lines[@]} -eq 0 ] && return $NOOP_SIGNAL   # Because of the pipeline, we're also invoked if bag fails due to an empty bag.
-
-    local signal=0
+    typeset -a lines=("$@")
+    local status=0
     if [ -n "$stopPattern" ]; then
 	local line lineCnt=0
 	for line in "${lines[@]}"
@@ -382,7 +384,7 @@ executeTrigger()
 		    return $EXIT_SIGNAL
 		else
 		    lines=("${lines[@]:0:$((lineCnt-1))}")
-		    signal=$EXIT_SIGNAL
+		    status=$EXIT_SIGNAL
 		fi
 		break
 	    fi
@@ -395,10 +397,10 @@ executeTrigger()
     if [ ${#commands[@]} -ge 1 ]; then
 	[ "$rateLimit" ] && sleep "$rateLimit"
 	eval 'triggerCommand "${lines[@]}"' ${isParallel:+&}
-	signal=$?
+	status=$?
     fi
 
-    return $signal
+    return $status
 }
 
 triggerCommand()
@@ -475,7 +477,6 @@ if [ "$isOnChange" ]; then
 	fi
     done
 
-    sleep 0.1	# XXX: The main script may reach its end before the jobs have been started; "kill -SIGUSR1 $scriptPid" will then cause "No such process" error. I think this is because of the pipeline between processBag() and executeTrigger().
     wait; exit $status
 fi
 
