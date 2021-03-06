@@ -1,258 +1,50 @@
 #!/bin/bash
-set -o pipefail
-shopt -qs extglob
 
-readonly EXIT_SIGNAL=125
-readonly NOOP_SIGNAL=124
-
-if [ -z "$PGID" ]; then # No parent script has become the process group leader yet.
-    pgid=$(($(ps -o pgid= -p "$$")))	# By defining this, we'll be killing subshell processes of this process group when we're done or interrupted. Any children with the same ambition will defer to us.
-    if [ $$ -eq $pgid ]; then
-	export PGID=$pgid   # We are (already / after setsid) in our own process group, announce our leadership to any children, so that they don't become leaders themselves and thereby decouple themselves from our lifetime control.
-    else
-	exec setsid --wait "${BASH_SOURCE[0]}" "$@" # Use setsid instead of set -m (...) to avoid having another subshell in between.
-    fi
-fi
-
-
-printShortUsage()
-{
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [--worst-status] [-a|--all|-n|--count N] [-s|--stop-on PATTERN] [--print] [[--bare|--no-capture-cmdline] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before TEXT|--prepend-after TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before TEXT|--append-after TEXT]]] [-?|-h|--help]'
-}
+typeset -a usageOverrideArgs=(
+    -e '/^ *\(--command|-c\|--prefix-command\)/b removeOptionLoop'
+    -e '/^Usage:$/N' -e "/\(^\|\n\)Usage: */{ s/\(^\|\n\)\(Usage: *\)\?bag-consume /\1\2$(basename "$0") /; s/ -c|--command \"COMMANDLINE\" | \\[--\\] SIMPLECOMMAND \\[\\.\\.\\.\\]// }"
+)
 printUsage()
 {
-    # This is the short help when launched with no or incorrect arguments.
-    # It is printed to stderr to avoid accidental processing.
-    printShortUsage "$1" >&2
-    printf >&2 '\nTry %q --help for more information.\n' "$(basename "$1")"
+    bag-consume --doesNotExist 2>&1 | sed \
+	-e '/^ERROR: Unknown option "--doesNotExist"!/{ N; s/\n$//; D; }' \
+	"${usageOverrideArgs[@]}" \
+	-e "/Try bag-consume --help for more information./s/bag-consume/$(basename "$1")/" \
+	-e :removeOptionLoop
 }
 printLongUsage()
 {
-    # This is the long "man page" when launched with the help argument.
-    # It is printed to stdout to allow paging with 'more'.
-    cat <<HELPDESCRIPTION
-Consume command-line(s) from a special file from the start (FIFO-style) and
-execute as a shell command.
-HELPDESCRIPTION
-    echo
-    printShortUsage "$1"
-    echo
-    cat <<HELPTEXT
-    --transactional|-t	Lock the special file during the access so that writes
-			are serialized and concurrent reads can only happen
-			while no write is under way. Pass this to ensure
-			consistency in case there could ever be contention over
-			the file.
-    --print		Print the consumed cmdline.
-    --bare		Do not print a status line before and after launching
-			the cmdline.
-    --worst-status	Return the highest exit status of all cmdlines instead
-			of the exit status of the last cmdline.
-    --no-capture-output	By default, no status line is printed if the cmdline did
-			not have any output, and failing parallel invocations
-			without output are ignored altogether. This option turns
-			this off and will print status lines (and consider
-			parallel failures) even without output. Some
-			(interactive) commands (like Vim) do not like having
-			their output not connected to the terminal, and can be
-			made to cooperate by passing this option.
-    --count|-n N	A maximum of N (default: 1) cmdlines are consumed and
-			executed.
-    --all|-a		All available cmdlines are consumed and executed.
-    --stop-on|-s PATTERN
-			Stop execution if the cmdline matches PATTERN.
-			PATTERN is a Bash-style extended regular expression.
-    --parallel		Instead of waiting for one cmdline to finish before
-			executing the next, run each one the moment the change
-			is triggered. The default is sequential invocation.
-    --rate-limit NUMBER[SUFFIX]
-			Sleep for NUMBER[SUFFIX] before triggering the next
-			parallel execution of cmdline. This can avoid triggering
-			too many simultaneous executions.
-    --exit-on-success	Stop execution if cmdline is successful.
-    --exit-on-failure	Stop execution if cmdline is unsuccessful.
-    --exit-on NUM	Stop execution if cmdline exits with NUM.
-    --exit-unless NUM	Stop execution if cmdline does not exit with NUM.
-    --prepend-on-failure
-			Return the cmdline to the beginning of the special file
-			(so it will be considered right next again!) if cmdline
-			is unsuccessful.
-    --prepend-on NUM	Return the cmdline to the beginning of the special file
-			if cmdline exits with NUM.
-    --prepend-unless NUM
-			Return the cmdline to the beginning of the special file
-			if cmdline does not exit with NUM.
-    --prepend-before TEXT
-			Put TEXT before the prepended cmdline.
-    --prepend-after TEXT
-			Put TEXT after the prepended cmdline.
-    --append-on-failure	Put back the cmdline to the end of the special file if
-			cmdline is unsuccessful.
-    --append-on NUM	Put back the cmdline to the end of the special file if
-			cmdline exits with NUM.
-    --append-unless NUM	Put back the cmdline to the end of the special file if
-			cmdline does not exit with NUM.
-    --append-before TEXT
-			Put TEXT before the appended cmdline.
-    --append-after TEXT
-			Put TEXT after the appended cmdline.
-SUFFIX may be 's' for seconds (the default), 'm' for minutes, 'h' for hours or
-'d' for days.
-
-EXIT STATUS:
-    *   any exit status from the last cmdline
-    2	Bad invocation, wrong or missing command-line arguments.
-    99	The special file does not exist or does not contain any cmdline(s) to
-	execute.
-Example:
-HELPTEXT
-    printf '%q %s\n' "$(basename "$1")" '--bare -l 5 -s STOP --append-on-failure -- wget {}'
+    bag-consume --help 2>&1 | sed \
+	-e '1s#^.*$#Consume command-line(s) from a special file from the start (FIFO-style) and execute as a shell command.#' \
+	-e '2b removeFirstParagraphLoop' \
+	-e '/^ *--command|-c/,$s/ output/ cmdline/g' \
+	"${usageOverrideArgs[@]}" \
+	-e 's/COMMAND/cmdline/g' \
+	-e 's/a line/the cmdline/g' \
+	-e 's/ lines are/ cmdlines are/g' \
+	-e 's/consumed lines/consumed cmdlines/g' \
+	-e 's/the line/the cmdline/g' \
+	-e 's/prepended line/prepended cmdline/g' \
+	-e 's/appended line/appended cmdline/g' \
+	-e '/^Example:$/N' -e "/\(^\|\n\)Example: */{ s/\(^\|\n\)\(Example: *\)\?bag-consume .*/\1\2$(basename "$1") / }" \
+	-e b -e :removeFirstParagraphLoop -e '{ /\(^\|\n\)$/{ s/^\(.*\n\)\?//; b; }; N; b removeFirstParagraphLoop }' \
+	-e b -e :removeOptionLoop -e '{ /\n *\(--command|-c\|--prefix-command\)[^\n]*$/{ N; b removeOptionLoop; }; /\n *--[^\n]*$\|^$/{ s/^\(.*\n\)\?//; b; }; N; b removeOptionLoop }'
 }
 
-timeToSeconds()
-{
-    case "$1" in
-	+([0-9])?(s))   time="${1%s}";;
-	+([0-9])m)	time=$((${1%m} * 60));;
-	+([0-9])h)	time=$((${1%h} * 3600));;
-	+([0-9])d)	time=$((${1%d} * 86400));;
-	*)		printf >&2 "ERROR: Illegal ${2:-timeout}: %s\\n" "$1"; exit 2;;
-    esac
-    printf %s "$time"
-}
-
-typeset -a bagArgs=()
-isParallel=
-count=1
-stopPattern=
-rateLimit=
-exitOn=
-exitComparison=-eq
-prependOn=
-prependComparison=-eq
-prependBeforeText=
-prependAfterText=
-appendBeforeText=
-appendAfterText=
-appendOn=
-appendComparison=-eq
-isPrint=
-isBare=
-isWorstStatus=
-isCaptureOutput=t
+typeset -a bagConsumeArgs=()
+bagConsumeCommand='eval {}'
 while [ $# -ne 0 ]
 do
     case "$1" in
 	--help|-h|-\?)	shift; printLongUsage "$0"; exit 0;;
-	--transactional|-t)
-			bagArgs+=("$1"); shift;;
-	--exit-on-success)	shift; exitOn=0; exitComparison=-eq;;
-	--exit-on-failure)	shift; exitOn=0; exitComparison=-ne;;
-	--exit-on)		shift; exitOn="$1"; shift; exitComparison=-eq;;
-	--exit-unless)		shift; exitOn="$1"; shift; exitComparison=-ne;;
-	--prepend-on-failure)	shift; prependOn=0; prependComparison=-ne;;
-	--prepend-on)		shift; prependOn="$1"; shift; prependComparison=-eq;;
-	--prepend-unless)	shift; prependOn="$1"; shift; prependComparison=-ne;;
-	--prepend-before)	shift; prependBeforeText="$1"; shift;;
-	--prepend-after)	shift; prependAfterText="$1"; shift;;
-	--append-on-failure)	shift; appendOn=0; appendComparison=-ne;;
-	--append-on)		shift; appendOn="$1"; shift; appendComparison=-eq;;
-	--append-unless)	shift; appendOn="$1"; shift; appendComparison=-ne;;
-	--append-before)	shift; appendBeforeText="$1"; shift;;
-	--append-after)		shift; appendAfterText="$1"; shift;;
-	--parallel)	shift; isParallel=t;;
-	--print)	shift; isPrint=t; exec 3>&1;;	# stdout may be piped into runWithPrompt, so need to save the original stdout for printing there.
-	--bare)		shift; isBare=t;;
-	--worst-status)	shift; isWorstStatus=t;;
-	--no-capture-output)
-			shift; isCaptureOutput=;;
-	--count|-n)	shift; count="$1"; shift;;
-	--all|-a)	shift; count=;;
-	--stop-on|-s)	shift; stopPattern="$1"; shift;;
-	--rate-limit)	shift; rateLimit="$1"; shift;;
-	--)		shift; break;;
-	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
-	*)		break;;
+
+	--command|-c)	shift; printUsage "$0" >&2; exit 2;;
+	--bare)		bagConsumeArgs+=("$1"); shift
+			bagConsumeCommand="(${bagConsumeCommand})"    # Need to execute in a subshell so that "exit 42" can actually make bag-consume exit, as the bare command is directly interpreted within the script.
+			;;
+	--)		bagConsumeArgs+=("$1"); shift; break;;
+	*)		bagConsumeArgs+=("$1"); shift;;
     esac
 done
-if [ $# -ne 0 ]; then
-    printUsage "$0" >&2
-    exit 2
-fi
-# Don't show a prompt if nothing was printed; this would just waste screen
-# space. Parallel execution is supposedly mostly used to control resource usage
-# (e.g. just one instance via singleton or not too frequent actions via
-# oncePer). In that case, ignore failing invocations altogether.
-typeset -a runWithPromptArgs=(); [ "$isCaptureOutput" ] && runWithPromptArgs+=(--no-output-no-prompt)
-if [ "$isParallel" ]; then
-    [ "$isCaptureOutput" ] && runWithPromptArgs+=(--no-output-no-error)
-    runWithPromptArgs+=(--no-count-on 99)
-fi
 
-
-exitStatus=0
-overallExitStatus=
-let cmdlineCnt=0
-consumeExistingOutput()
-{
-    while [ -z "$count" ] || [ $cmdlineCnt -lt $count ]
-    do
-	processBag || break
-    done
-    [ "$isParallel" ] && wait
-    return ${overallExitStatus:-99}
-}
-
-processBag()
-{
-    local cmdline
-    if ! cmdline="$(bag "${bagArgs[@]}" --pop --quiet)"; then
-	return 1
-    fi
-
-    [ -n "$stopPattern" ] && [[ "$cmdline" =~ $stopPattern ]] && return 1
-
-    [ "$isPrint" ] && printf >&3 '%s\n' "$cmdline"
-    [ -n "$cmdline" ] || return 0
-
-    [ "$rateLimit" ] && sleep "$rateLimit"
-    eval 'triggerCommand "$cmdline"' ${isParallel:+&}
-    let cmdlineCnt+=1
-}
-
-triggerCommand()
-{
-    local cmdline="$1"; shift
-    if [ "$isBare" ]; then
-	(eval "$cmdline")
-    else
-	printf '%s\n' "$cmdline" | runWithPrompt --initial-status "${exitStatus:-0}" --no-trailing-prompt "${runWithPromptArgs[@]}" --comment "$cmdlineCnt"
-    fi
-
-    exitStatus=$?
-    if [ ! "$isWorstStatus" -o $exitStatus -gt ${overallExitStatus:-0} ]; then
-	overallExitStatus=$exitStatus
-    fi
-    if [ "$prependOn" ] && [ $exitStatus $prependComparison $prependOn ]; then
-	[ -n "$prependAfterText" ] && bag "${bagArgs[@]}" --prepend -- "$prependAfterText"
-	bag "${bagArgs[@]}" --prepend -- "$cmdline"
-	[ -n "$prependBeforeText" ] && bag "${bagArgs[@]}" --prepend -- "$prependBeforeText"
-    fi
-    if [ "$appendOn" ] && [ $exitStatus $appendComparison $appendOn ]; then
-	[ -n "$appendBeforeText" ] && bag "${bagArgs[@]}" --append -- "$appendBeforeText"
-	bag "${bagArgs[@]}" --append -- "$cmdline"
-	[ -n "$appendAfterText" ] && bag "${bagArgs[@]}" --append -- "$appendAfterText"
-    fi
-    if [ "$exitOn" ] && [ $exitStatus $exitComparison $exitOn ]; then
-	exit $exitStatus
-    fi
-}
-
-
-if [ -n "$pgid" ]; then
-    trap "kill -- -$pgid" EXIT  # If we're the leader, kill subshell processes when the script exits.
-else
-    trap "jobs -p | xargs --no-run-if-empty kill --" EXIT  # Someone else is the leader; killing remaining jobs is all we can do here.
-fi
-
-consumeExistingOutput
+exec bag-consume "${bagConsumeArgs[@]}" --command "$bagConsumeCommand"
