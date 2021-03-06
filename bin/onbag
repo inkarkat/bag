@@ -280,11 +280,6 @@ if [ ! "$isPrint" ] && [ ! "$count" ] && [ ${#commands[@]} -eq 0 ]; then
     printUsage "$0"
     exit 2
 fi >&2
-if [ -n "$exitOn" -a -n "$isParallel" ]; then
-    # Need a marker file to signal stopping; a variable won't do.
-    keepRunningMarkerFile=$(mktemp --tmpdir "$(basename -- "$0")-XXXXXX" 2>/dev/null || echo "${TEMP:-/tmp}/$(basename -- "$0").$$$RANDOM")
-    touch "$keepRunningMarkerFile"
-fi
 
 # Don't show a prompt if nothing was printed; this would just waste screen
 # space. Parallel execution is supposedly mostly used to control resource usage
@@ -398,19 +393,9 @@ executeTrigger()
     [ "$isPrint" ] && printf '%s\n' "${lines[@]}"
 
     if [ ${#commands[@]} -ge 1 ]; then
-	if [ -n "$exitOn" -a -n "$isParallel" -a ! -e "$keepRunningMarkerFile" ]; then
-	    # The marker file is gone; this means we should not trigger anything
-	    # new, and instead exit the script.
-	    signal=$EXIT_SIGNAL
-	else
-	    [ "$rateLimit" ] && sleep "$rateLimit"
-	    eval 'triggerCommand "${lines[@]}"' ${isParallel:+&}
-	    signal=$?
-	    lines=()
-	fi
-
-	# Put back any lines that have been read but haven't been processed.
-	[ ${#lines[@]} -gt 0 ] && bag "${bagArgs[@]}" --prepend -- "${lines[@]}"
+	[ "$rateLimit" ] && sleep "$rateLimit"
+	eval 'triggerCommand "${lines[@]}"' ${isParallel:+&}
+	signal=$?
     fi
 
     return $signal
@@ -449,7 +434,7 @@ triggerCommand()
 	result=$NOOP_SIGNAL
     fi
     if [ "$exitOn" ] && [ $exitStatus $exitComparison $exitOn ]; then
-	[ "$isParallel" ] && kill -SIGUSR1 $$
+	[ "$isParallel" ] && kill -SIGUSR1 ${scriptPid:?}
 	result=$EXIT_SIGNAL
     fi
     return $result
@@ -460,7 +445,21 @@ database()
     miniDB --base-type runtime --schema 'PID COUNT' --table onbag "$@"
 }
 
+# With parallel execution, we need a signal for stopping; a variable won't do.
+# Each COMMAND is started as a separate job, and its exit status (that indicates
+# whether we should stop) is not observed by the main script. Instead, that job
+# sends SIGUSR1 to the main script (identified via $scriptPid), which waits for
+# any other running jobs, and then terminates with $EXIT_SIGNAL so that the
+# onchange loop around will exit, too.
+shutdown()
+{
+    wait    # Wait for running jobs to finish; this avoids the "Terminated" message and exit status 143.
+    exit $EXIT_SIGNAL
+}
+trap "shutdown" SIGUSR1
+
 if [ "$isOnChange" ]; then
+    readonly scriptPid=$$
     status=0
     while [ $status -ne $NOOP_SIGNAL -a $status -ne $EXIT_SIGNAL ]
     do
@@ -471,23 +470,16 @@ if [ "$isOnChange" ]; then
 
 	if [ -n "$count" ] && [ $status -ne $NOOP_SIGNAL ] && [ -n "$observedChanges" ]; then
 	    let observedChanges+=1
-	    [ $observedChanges -ge $count ] && exit $EXIT_SIGNAL
+	    [ $observedChanges -ge $count ] && { wait; exit $EXIT_SIGNAL; }
 	    database --update "$parentScriptPid	$observedChanges"
 	fi
     done
-    exit $status
+
+    sleep 0.1	# XXX: The main script may reach its end before the jobs have been started; "kill -SIGUSR1 $scriptPid" will then cause "No such process" error. I think this is because of the pipeline between processBag() and executeTrigger().
+    wait; exit $status
 fi
 
 
-shutdown()
-{
-    if [ -e "$keepRunningMarkerFile" ]; then
-	rm -f "$keepRunningMarkerFile"
-	wait    # Wait for running jobs to finish; this avoids the "Terminated" message and exit status 143.
-    fi
-    exit 0
-}
-trap "shutdown" SIGUSR1
 if [ -n "$pgid" ]; then
     trap "kill -- -$pgid" EXIT  # If we're the leader, kill subshell processes when the script exits.
 else
