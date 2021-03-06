@@ -244,10 +244,10 @@ fi
 
 exitStatus=0
 overallExitStatus=
-let lineCnt=0
+let totalLineCnt=0
 consumeExistingOutput()
 {
-    while [ -z "$count" ] || [ $lineCnt -lt $count ]
+    while [ -z "$count" ] || [ $totalLineCnt -lt $count ]
     do
 	processBag || break
 	: ${overallExitStatus:=0}
@@ -298,7 +298,7 @@ executeTrigger()
 	[ "$rateLimit" ] && sleep "$rateLimit"
 	eval 'triggerCommand "${lines[@]}"' ${isParallel:+&}
 	status=$?
-	let lineCnt+=${#lines[@]}
+	let totalLineCnt+=${#lines[@]}
     fi
 
     return $status
@@ -319,7 +319,7 @@ triggerCommand()
     if [ "$isBare" ]; then
 	eval "${expandedCommands[@]}"
     else
-	{ printf '%s ' "${expandedCommands[@]}"; printf '\n'; } | runWithPrompt --initial-status "${exitStatus:-0}" --no-trailing-prompt "${runWithPromptArgs[@]}" --comment "$lineCnt"
+	{ printf '%s ' "${expandedCommands[@]}"; printf '\n'; } | runWithPrompt --initial-status "${exitStatus:-0}" --no-trailing-prompt "${runWithPromptArgs[@]}" --comment "$totalLineCnt"
     fi
     exitStatus=$?
     if [ ! "$isWorstStatus" -o $exitStatus -gt ${overallExitStatus:-0} ]; then
