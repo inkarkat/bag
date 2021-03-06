@@ -19,7 +19,7 @@ fi
 
 printShortUsage()
 {
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [--worst-status] [-a|--all|-n|--count N] [-s|--stop-on PATTERN] [--print] [[--bare|--no-capture-cmdline] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before TEXT|--prepend-after TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before TEXT|--append-after TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [--worst-status] [-a|--all|-n|--count N] [-l|--max-lines N] [-s|--stop-on PATTERN] [--print] [[--bare|--no-capture-cmdline] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before TEXT|--prepend-after TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before TEXT|--append-after TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -80,6 +80,9 @@ HELPDESCRIPTION
     --count|-n N	A maximum of N (default: 1) lines are consumed and
 			executed.
     --all|-a		All available lines are consumed and executed.
+    --max-lines|-l N	A maximum of N (default: 1) lines are consumed and
+			passed to COMMAND at once (if available). The entire set
+			of lines counts as one change (for --count).
     --stop-on|-s PATTERN
 			Stop execution if a line matches PATTERN.
 			PATTERN is a Bash-style extended regular expression.
@@ -144,6 +147,7 @@ timeToSeconds()
 typeset -a bagArgs=()
 isParallel=
 count=1
+maxLines=1
 stopPattern=
 rateLimit=
 exitOn=
@@ -205,6 +209,7 @@ do
 			shift; prefixCommandCommand="$1"; shift;;
 	--count|-n)	shift; count="$1"; shift;;
 	--all|-a)	shift; count=;;
+	--max-lines|-l)	shift; maxLines="$1"; shift;;
 	--stop-on|-s)	shift; stopPattern="$1"; shift;;
 	--rate-limit)	shift; rateLimit="$1"; shift;;
 	--)		shift; break;;
@@ -245,25 +250,58 @@ consumeExistingOutput()
     while [ -z "$count" ] || [ $lineCnt -lt $count ]
     do
 	processBag || break
+	: ${overallExitStatus:=0}
     done
-    [ "$isParallel" ] && wait
-    return ${overallExitStatus:-99}
+    wait; return ${overallExitStatus:-99}
 }
 
 processBag()
 {
-    local line
-    if ! line="$(bag "${bagArgs[@]}" --pop --quiet)"; then
-	return 1
+    typeset -a lines=()
+    readarray -t lines < <(bag "${bagArgs[@]}" --pop --quiet --lines "$maxLines")
+    [ ${#lines[@]} -eq 0 ] && return 1
+
+    executeTrigger "${lines[@]}"
+}
+
+executeTrigger()
+{
+    typeset -a lines=("$@")
+    local status=0
+    if [ -n "$stopPattern" ]; then
+	local line lineCnt=0
+	for line in "${lines[@]}"
+	do
+	    let lineCnt+=1
+	    if [[ "$line" =~ $stopPattern ]]; then
+		# Optimization when no --max-lines configured.
+		[ ${#lines[@]} -eq 1 ] && return 1
+
+		# Need to process any previous read lines, and put back lines
+		# after the stop line. Do the latter first.
+		[ $lineCnt -lt ${#lines[@]} ] && bag "${bagArgs[@]}" --prepend -- "${lines[@]}"
+		if [ $lineCnt -eq 1 ]; then
+		    return 1
+		else
+		    lines=("${lines[@]:0:$((lineCnt-1))}")
+		    status=1
+		fi
+		break
+	    fi
+	done
     fi
 
-    [ -n "$stopPattern" ] && [[ "$line" =~ $stopPattern ]] && return 1
 
-    [ "$isPrint" ] && printf >&3 '%s\n' "$line"
+    [ "$isPrint" ] && printf >&3 '%s\n' "${lines[@]}"
 
-    [ "$rateLimit" ] && sleep "$rateLimit"
-    eval 'triggerCommand "$line"' ${isParallel:+&}
-    let lineCnt+=1
+    if [ ${#commands[@]} -ge 1 ]; then
+	[ "$rateLimit" ] && sleep "$rateLimit"
+	eval 'triggerCommand "${lines[@]}"' ${isParallel:+&}
+	status=$?
+	let lineCnt+=${#lines[@]}
+    fi
+
+    return $status
 }
 
 triggerCommand()
