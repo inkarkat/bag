@@ -26,7 +26,7 @@ printLongUsage()
 	-e 's/the line/the cmdline/g' \
 	-e 's/prepended line/prepended cmdline/g' \
 	-e 's/appended line/appended cmdline/g' \
-	-e '/^Example:$/N' -e "/\(^\|\n\)Example: */{ s/\(^\|\n\)\(Example: *\)\?bag-consume .*/\1\2$(basename "$1") / }" \
+	-e '/^Example:$/N' -e "/\(^\|\n\)Example: */{ s/\(^\|\n\)\(Example: *\)\?bag-consume .*/\1\2$(basename "$1") --all --exit-on-failure --prepend-on-failure/ }" \
 	-e b -e :removeFirstParagraphLoop -e '{ /\(^\|\n\)$/{ s/^\(.*\n\)\?//; b; }; N; b removeFirstParagraphLoop }' \
 	-e b -e :removeOptionLoop -e '{ /\n *\(--command|-c\|--prefix-command\)[^\n]*$/{ N; b removeOptionLoop; }; /\n *--[^\n]*$\|^$/{ s/^\(.*\n\)\?//; b; }; N; b removeOptionLoop }'
 }
