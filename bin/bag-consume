@@ -298,9 +298,9 @@ executeTrigger()
 	[ "$rateLimit" ] && sleep "$rateLimit"
 	eval 'triggerCommand "${lines[@]}"' ${isParallel:+&}
 	status=$?
-	let totalCnt+=1
     fi
 
+    let totalCnt+=1
     return $status
 }
 
