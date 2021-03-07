@@ -188,7 +188,7 @@ do
 	--append-before)	shift; appendBeforeText="$1"; shift;;
 	--append-after)		shift; appendAfterText="$1"; shift;;
 	--parallel)	shift; isParallel=t;;
-	--print)	shift; isPrint=t; exec 3>&1;;	# stdout may be piped into runWithPrompt, so need to save the original stdout for printing there.
+	--print)	shift; isPrint=t;;
 	--bare)		shift; isBare=t;;
 	--worst-status)	shift; isWorstStatus=t;;
 	--no-capture-output)
@@ -292,7 +292,7 @@ executeTrigger()
     fi
 
 
-    [ "$isPrint" ] && printf >&3 '%s\n' "${lines[@]}"
+    [ "$isPrint" ] && printf '%s\n' "${lines[@]}"
 
     if [ ${#commands[@]} -ge 1 ]; then
 	[ "$rateLimit" ] && sleep "$rateLimit"
