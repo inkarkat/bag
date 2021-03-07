@@ -1,4 +1,0 @@
-first
-# BEGIN final and empty
-# END final and empty
-last

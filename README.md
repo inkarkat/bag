@@ -1,5 +1,3 @@
-# Shell Tools
+# Bag
 
-_A collection of shell scripts that are either useful on its own (in interactive sessions), or offer generic functionality for higher-level scripts._
-
-Similar to the Shell Basics, these are more elaborate and/or specialized.
+_Commands for collecting lines / shell commands in a special file and then / concurrently consuming them._

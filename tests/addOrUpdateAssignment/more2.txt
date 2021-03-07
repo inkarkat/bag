@@ -1,3 +1,0 @@
-foo=bar
-quux=initial
-foo=moo bar baz

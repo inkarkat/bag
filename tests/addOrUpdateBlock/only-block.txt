@@ -1,3 +1,0 @@
-# BEGIN test
-single-line
-# END test
