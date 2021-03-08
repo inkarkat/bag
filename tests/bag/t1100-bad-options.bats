@@ -49,3 +49,21 @@ load fixture
     [ $status -eq 2 ]
     [ "${lines[2]%% *}" = 'Usage:' ]
 }
+
+@test "cannot combine --lines with --delete" {
+    run bag --delete --lines 3
+    [ $status -eq 2 ]
+    [ "${lines[2]%% *}" = 'Usage:' ]
+}
+
+@test "cannot combine --lines with --put" {
+    run bag --put --lines 3
+    [ $status -eq 2 ]
+    [ "${lines[2]%% *}" = 'Usage:' ]
+}
+
+@test "cannot combine --lines with collecting stdin" {
+    run bag --lines 3
+    [ $status -eq 2 ]
+    [ "${lines[2]%% *}" = 'Usage:' ]
+}

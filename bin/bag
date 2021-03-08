@@ -140,6 +140,13 @@ assertExistingBag()
 	exit 1
     fi
 }
+assertNoPrintLines()
+{
+    if [ -n "$printLines" ]; then
+	printUsage "$0" >&2
+	exit 2
+    fi
+}
 
 case "$action" in
     print)
@@ -162,10 +169,12 @@ case "$action" in
 	exec pop "${popArgs[@]}" -- "$BAG"
 	;;
     delete)
+	assertNoPrintLines
 	[ "$isPrint" ] && [ -f "$BAG" ] && cat -- "$BAG"
 	exec rm --force -- "$BAG"
 	;;
     put)
+	assertNoPrintLines
 	if [ "$isPrepend" ]; then
 	    prepend "$@" "$BAG"
 	else
@@ -173,6 +182,7 @@ case "$action" in
 	fi
 	;;
     collect)
+	assertNoPrintLines
 	if [ "$isPrepend" ]; then
 	    readarray -t lines
 	    if [ ${#lines[@]} -gt 0 ]; then
