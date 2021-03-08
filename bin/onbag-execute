@@ -64,6 +64,9 @@ do
     esac
 done
 
-exec onbag ${isExit:+--exit-on-failure ${isPreOrAppend:+--prepend-on-failure}} \
-    "${onbagExitArgs[@]}" "${onbagPreOrAppendArgs[@]}" "${onbagArgs[@]}" \
-    --command "$onbagCommand"
+ONBAG_PRINT_PREFIX="${ONBAGEXECUTE_PRINT_PREFIX-\$ }" \
+ONBAG_PRINT_SUFFIX="${ONBAGEXECUTE_PRINT_SUFFIX}" \
+ONBAG_PRINT_SEPARATOR="${ONBAGEXECUTE_PRINT_SEPARATOR- }" \
+    exec onbag ${isExit:+--exit-on-failure ${isPreOrAppend:+--prepend-on-failure}} \
+	"${onbagExitArgs[@]}" "${onbagPreOrAppendArgs[@]}" "${onbagArgs[@]}" \
+	--command "$onbagCommand"
