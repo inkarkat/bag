@@ -2,6 +2,11 @@
 
 typeset -a usageOverrideArgs=(
     -e '/^ *\(--command|-c\|--prefix-command\)/b removeOptionLoop'
+    -e '/^ *--bare/i\
+    --no-single-bare	Do print a status line also by default when only a\
+			single cmdline is consumed. (With --count or --all,\
+			status lines are turned on automatically.) By default,\
+			only the cmdline itself is printed.'
     -e '/^Usage:$/N' -e "/\(^\|\n\)Usage: */{ s/\(^\|\n\)\(Usage: *\)\?bag-consume /\1\2$(basename "$0") /; s/ -c|--command \"COMMANDLINE\" | \\[--\\] SIMPLECOMMAND \\[\\.\\.\\.\\]// }"
 )
 printUsage()
@@ -31,6 +36,7 @@ printLongUsage()
 	-e b -e :removeOptionLoop -e '{ /\n *\(--command|-c\|--prefix-command\)[^\n]*$/{ N; b removeOptionLoop; }; /\n *--[^\n]*$\|^$/{ s/^\(.*\n\)\?//; b; }; N; b removeOptionLoop }'
 }
 
+isBarePrint=t
 typeset -a bagConsumeArgs=()
 bagConsumeCommand='eval {}'
 while [ $# -ne 0 ]
@@ -38,10 +44,15 @@ do
     case "$1" in
 	--help|-h|-\?)	shift; printLongUsage "$0"; exit 0;;
 
+	--no-single-bare)
+			shift; isBarePrint=;;
+
 	--command|-c)	shift; printUsage "$0" >&2; exit 2;;
 	--bare)		bagConsumeArgs+=("$1"); shift
 			bagConsumeCommand="(${bagConsumeCommand})"    # Need to execute in a subshell so that "exit 42" can actually make bag-consume exit, as the bare command is directly interpreted within the script.
 			;;
+	--all|-a)	bagConsumeArgs+=("$1"); shift; isBarePrint=;;
+	--count|-n)	bagConsumeArgs+=("$1" "$2"); shift; shift; isBarePrint=;;
 	--)		bagConsumeArgs+=("$1"); shift; break;;
 	*)		bagConsumeArgs+=("$1"); shift;;
     esac
@@ -51,4 +62,5 @@ sigil="${BAGEXECUTE_PRINT_SIGIL:-\$ }"; [ $EUID -eq 0 ] && sigil="${BAGEXECUTE_P
 BAGCONSUME_PRINT_PREFIX="${BAGEXECUTE_PRINT_PREFIX-$sigil}" \
 BAGCONSUME_PRINT_SUFFIX="${BAGEXECUTE_PRINT_SUFFIX}" \
 BAGCONSUME_PRINT_SEPARATOR="${BAGEXECUTE_PRINT_SEPARATOR- }" \
-    exec bag-consume "${bagConsumeArgs[@]}" --command "$bagConsumeCommand"
+    exec bag-consume ${isBarePrint:+--bare --print} \
+	"${bagConsumeArgs[@]}" --command "$bagConsumeCommand"
