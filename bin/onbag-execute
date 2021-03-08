@@ -64,7 +64,8 @@ do
     esac
 done
 
-ONBAG_PRINT_PREFIX="${ONBAGEXECUTE_PRINT_PREFIX-\$ }" \
+sigil="${ONBAGEXECUTE_PRINT_SIGIL:-\$ }"; [ $EUID -eq 0 ] && sigil="${ONBAGEXECUTE_PRINT_SIGIL:-# }"
+ONBAG_PRINT_PREFIX="${ONBAGEXECUTE_PRINT_PREFIX-$sigil}" \
 ONBAG_PRINT_SUFFIX="${ONBAGEXECUTE_PRINT_SUFFIX}" \
 ONBAG_PRINT_SEPARATOR="${ONBAGEXECUTE_PRINT_SEPARATOR- }" \
     exec onbag ${isExit:+--exit-on-failure ${isPreOrAppend:+--prepend-on-failure}} \
