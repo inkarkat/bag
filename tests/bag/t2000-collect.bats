@@ -16,9 +16,28 @@ load fixture
 and more"
 }
 
+@test "a second set of lines with set action overwrites the bag" {
+    echo 'first entry' | bag
+    echo -e 'second entry\nand more' | bag set
+
+    assert_bag "second entry
+and more"
+}
+
 @test "appending additional lines" {
     echo -e 'first entry\nsecond entry\nand more' | bag
     echo -e 'third entry\ngets appended' | bag --append
+
+    assert_bag "first entry
+second entry
+and more
+third entry
+gets appended"
+}
+
+@test "appending additional lines with add action" {
+    echo -e 'first entry\nsecond entry\nand more' | bag
+    echo -e 'third entry\ngets appended' | bag add
 
     assert_bag "first entry
 second entry

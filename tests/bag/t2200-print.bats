@@ -34,6 +34,26 @@ here" ]
 here" ]
 }
 
+@test "print the bag with print action" {
+    make_bag
+
+    run bag print
+    [ $status -eq 0 ]
+    [ "$output" = "some stuff
+ in
+here" ]
+}
+
+@test "print the bag with list action" {
+    make_bag
+
+    run bag list
+    [ $status -eq 0 ]
+    [ "$output" = "some stuff
+ in
+here" ]
+}
+
 @test "attempting to print a non-existing bag prints an error and fails with 1" {
     run bag --print
     [ $status -eq 1 ]

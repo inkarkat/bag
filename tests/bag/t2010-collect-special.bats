@@ -21,7 +21,7 @@ last entry"
 last entry"
 }
 
-@test "appending an imcomplete line" {
+@test "appending an incomplete line" {
     echo 'first entry' | bag
     printf 'this is incomplete:' | bag --append
     echo 'last entry' | bag --append

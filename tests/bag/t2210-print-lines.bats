@@ -29,6 +29,15 @@ load fixture
  in" ]
 }
 
+@test "print the first two lines in the bag with list action" {
+    make_bag
+
+    run bag list --lines 2
+    [ $status -eq 0 ]
+    [ "$output" = "some stuff
+ in" ]
+}
+
 @test "print more lines than available" {
     make_bag
 

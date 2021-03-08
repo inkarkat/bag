@@ -40,6 +40,14 @@ multiple lines"
 second entry"
 }
 
+@test "appending an argument with add action" {
+    bag 'first entry'
+    bag add 'second entry'
+
+    assert_bag "first entry
+second entry"
+}
+
 @test "prepending an argument" {
     bag 'first entry'
     bag --prepend 'second entry'

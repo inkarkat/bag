@@ -29,6 +29,15 @@ load fixture
 here" ]
 }
 
+@test "peek the first two lines in the bag with peek action" {
+    make_bag
+
+    run bag peek --lines 2
+    [ $status -eq 0 ]
+    [ "$output" = "some stuff
+ in" ]
+}
+
 @test "attempting to peek more lines than available prints what is available and fails" {
     make_bag
 

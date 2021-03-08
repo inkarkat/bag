@@ -10,6 +10,14 @@ load fixture
     assert_no_bag
 }
 
+@test "deleting all lines of the bag with delete action removes the bag" {
+    make_bag
+    run bag delete
+    [ $status -eq 0 ]
+    [ "$output" = "" ]
+    assert_no_bag
+}
+
 @test "deleting all lines of the bag with --print removes the bag and prints its contents" {
     make_bag
     run bag --delete --print
