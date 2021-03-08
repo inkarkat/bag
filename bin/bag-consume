@@ -306,7 +306,7 @@ executeTrigger()
 
 triggerCommand()
 {
-    if [ "$*" = "eval $outputMarker" ]; then
+    if [ "${commands[*]}" = "eval $outputMarker" ]; then
 	# Optimization: Detect (non-bare) command from bag-execute and drop the
 	# eval so that the command looks natural in runWithPrompt.
 	typeset -a expandedCommands=("$@")
