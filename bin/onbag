@@ -392,7 +392,9 @@ executeTrigger()
     fi
 
 
-    [ "$isPrint" ] && printf '%s\n' "${lines[@]}"
+    if [ "$isPrint" ]; then
+	joinBy ${ONBAG_PRINT_PREFIX:+--prefix "$ONBAG_PRINT_PREFIX"} ${ONBAG_PRINT_SUFFIX:+--suffix "$ONBAG_PRINT_SUFFIX"} -- "${ONBAG_PRINT_SEPARATOR-$'\n'}" "${lines[@]}"
+    fi
 
     if [ ${#commands[@]} -ge 1 ]; then
 	[ "$rateLimit" ] && sleep "$rateLimit"

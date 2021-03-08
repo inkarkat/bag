@@ -292,7 +292,9 @@ executeTrigger()
     fi
 
 
-    [ "$isPrint" ] && printf '%s\n' "${lines[@]}"
+    if [ "$isPrint" ]; then
+	joinBy ${BAGCONSUME_PRINT_PREFIX:+--prefix "$BAGCONSUME_PRINT_PREFIX"} ${BAGCONSUME_PRINT_SUFFIX:+--suffix "$BAGCONSUME_PRINT_SUFFIX"} -- "${BAGCONSUME_PRINT_SEPARATOR-$'\n'}" "${lines[@]}"
+    fi
 
     if [ ${#commands[@]} -ge 1 ]; then
 	[ "$rateLimit" ] && sleep "$rateLimit"
