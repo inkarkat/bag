@@ -24,6 +24,13 @@ load fixture
     [ "$output" = "some stuff
  in" ]
 }
+@test "pop two lines with pop action" {
+    make_bag
+    run bag pop --lines 2
+    [ $status -eq 0 ]
+    [ "$output" = "some stuff
+ in" ]
+}
 @test "pop more lines than available" {
     make_bag
     run bag --pop --lines 4
