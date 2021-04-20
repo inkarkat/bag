@@ -7,7 +7,7 @@ typeset -a usageOverrideArgs=(
 			single cmdline is consumed. (With --count or --all,\
 			status lines are turned on automatically.) By default,\
 			only the cmdline itself is printed.'
-    -e '/^Usage:$/N' -e "/\(^\|\n\)Usage: */{ s/\(^\|\n\)\(Usage: *\)\?bag-consume /\1\2$(basename "$0") /; s/ -c|--command \"COMMANDLINE\" | \\[--\\] SIMPLECOMMAND \\[\\.\\.\\.\\]// }"
+    -e '/^Usage:$/N' -e '/\(^\|\n\)Usage: */{ s/\(^\|\n\)\(Usage: *\)\?bag-consume /\1\2'"$(basename "$0")"' /; s/ -c|--command "COMMANDLINE" | \[--\] SIMPLECOMMAND \[\.\.\.\]// }'
 )
 printUsage()
 {
@@ -31,9 +31,9 @@ printLongUsage()
 	-e 's/the line/the cmdline/g' \
 	-e 's/prepended line/prepended cmdline/g' \
 	-e 's/appended line/appended cmdline/g' \
-	-e '/^Example:$/N' -e "/\(^\|\n\)Example: */{ s/\(^\|\n\)\(Example: *\)\?bag-consume .*/\1\2$(basename "$1") --all --exit-on-failure --prepend-on-failure/ }" \
+	-e '/^Example:$/N' -e '/\(^\|\n\)Example: */{ s/\(^\|\n\)\(Example: *\)\?bag-consume .*/\1\2'"$(basename "$1") --all --exit-on-failure --prepend-on-failure/ }" \
 	-e b -e :removeFirstParagraphLoop -e '{ /\(^\|\n\)$/{ s/^\(.*\n\)\?//; b; }; N; b removeFirstParagraphLoop }' \
-	-e b -e :removeOptionLoop -e '{ /\n *\(--command|-c\|--prefix-command\)[^\n]*$/{ N; b removeOptionLoop; }; /\n *--[^\n]*$\|^$/{ s/^\(.*\n\)\?//; b; }; N; b removeOptionLoop }'
+	-e b -e :removeOptionLoop -e '{ /\n *\(--command|-c\|--prefix-command\)[^\n]*$/{ N; b removeOptionLoop; }; /\n *--[^\n]*$\|\n[^ ]\|\n$/{ s/^\(.*\n\)\?//; b; }; N; b removeOptionLoop }'
 }
 
 isBarePrint=t
