@@ -7,7 +7,7 @@ typeset -a usageOverrideArgs=(
 			By default, a failing cmdline will stop the observation,\
 			with the failing line being put back at the beginning of\
 			the special file (for later retries).'
-    -e '/^Usage:$/N' -e '/\(^\|\n\)Usage: */{ s/\(^\|\n\)\(Usage: *\)\?onbag /\1\2'"$(basename "$0")"' [--no-exit] /; s/ -c|--command "COMMANDLINE" | \[--\] SIMPLECOMMAND \[\.\.\.\]// }'
+    -e '/^Usage:$/N' -e '/\(^\|\n\)Usage: */{ s/\(^\|\n\)\(Usage: *\)\?\([^ ]\+ \)*onbag /\1\2'"$(basename "$0")"' [--no-exit] /; s/ -c|--command "COMMANDLINE" | \[--\] SIMPLECOMMAND \[\.\.\.\]// }'
 )
 printUsage()
 {
