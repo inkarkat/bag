@@ -36,7 +36,7 @@ fi
 
 printShortUsage()
 {
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [--ignore-existing] [-n|--count N|-1] [-i|--interval NUMBER[SUFFIX] [-l|--max-lines N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [-t|--stop-after TIMEOUT[SUFFIX]] [--print] [[--bare|--no-capture-output] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before TEXT|--prepend-after TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before TEXT|--append-after TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [--ignore-existing] [-n|--count N|-1] [-i|--interval NUMBER[SUFFIX] [-l|--max-lines N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [-t|--stop-after TIMEOUT[SUFFIX]] [--print] [[--bare|[--no-capture-output] [--initial-status NUM] [--trailing-prompt|--no-trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--emulate-prompt]] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before TEXT|--prepend-after TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before TEXT|--append-after TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -68,6 +68,12 @@ HELPDESCRIPTION
     --print		Print the added output.
     --bare		Do not print a status line before and after launching
 			the COMMAND.
+    --initial-status NUM    Customizations of the prompt emulation around
+    --trailing-prompt	    COMMAND; cp. runWithPrompt
+    --no-trailing-prompt
+    --no-output-no-prompt
+    --no-output-no-error
+    --emulate-prompt
     --no-capture-output	By default, no status line is printed if the COMMAND did
 			not have any output, and failing parallel invocations
 			without output are ignored altogether. This option turns
@@ -209,6 +215,7 @@ isBare=
 isCaptureOutput=t
 typeset -a onchangeArgs=()
 typeset -a onchangeExitOnArg=()
+typeset -a runWithPromptArgs=()
 while [ $# -ne 0 ]
 do
     case "$1" in
@@ -236,6 +243,10 @@ do
 	--parallel)	shift; isParallel=t;;
 	--print)	shift; isPrint=t;;
 	--bare)		shift; isBare=t;;
+	--trailing-prompt|--no-trailing-prompt|--no-output-no-prompt|--no-output-no-error|--emulate-prompt)
+			runWithPromptArgs+=("$1"); shift;;
+	--initial-status)
+			runWithPromptArgs+=("$1" "$2"); shift; shift;;
 	--no-capture-output)
 			shift; isCaptureOutput=;;
 	--command|-c)	shift
@@ -285,10 +296,12 @@ fi >&2
 # space. Parallel execution is supposedly mostly used to control resource usage
 # (e.g. just one instance via singleton or not too frequent actions via
 # oncePer). In that case, ignore failing invocations altogether.
-typeset -a runWithPromptArgs=(); [ "$isCaptureOutput" ] && runWithPromptArgs+=(--no-output-no-prompt)
-if [ "$isParallel" ]; then
-    [ "$isCaptureOutput" ] && runWithPromptArgs+=(--no-output-no-error)
-    runWithPromptArgs+=(--no-count-on 99)
+if [ ${#runWithPromptArgs[@]} -eq 0 ]; then
+    [ "$isCaptureOutput" ] && runWithPromptArgs+=(--no-output-no-prompt)
+    if [ "$isParallel" ]; then
+	[ "$isCaptureOutput" ] && runWithPromptArgs+=(--no-output-no-error)
+	runWithPromptArgs+=(--no-count-on 99)
+    fi
 fi
 
 
