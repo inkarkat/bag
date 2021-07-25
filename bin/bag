@@ -2,6 +2,7 @@
 shopt -qs extglob
 
 : ${BAG:="${HOME}/.bag"}
+backupFilespec="${BAG}.bak"
 
 printUsage()
 {
@@ -44,11 +45,17 @@ Remove all collected output from the special file.
 HELPTEXT
     echo
     printf 'Usage: %q %s\n' "$(basename "$1")" 'delete|-d|--delete [-p|--print] [-t|--transactional] '
+
+    echo
+    cat <<HELPTEXT
+Restore the contents of the special file from before the last modification.
+HELPTEXT
+    echo
+    printf 'Usage: %q %s\n' "$(basename "$1")" 'undo|-u|--undo [-p|--print] [-t|--transactional] '
 }
 
 backupBag()
 {
-    local backupFilespec="${BAG}.bak"
     if [ -f "$BAG" ]; then
 	cp --dereference --preserve=all --force --no-target-directory -- "$BAG" "$backupFilespec"
     else
@@ -70,6 +77,7 @@ case "$1" in
     peek)	shift; isPrint=t; action=peek;;
     pop)	shift; action=pop;;
     delete)	shift; action=delete;;
+    undo)	shift; action=undo;;
     set)	shift;;
     add)	shift; isAppend=t;;
     *)		bagAlias="bag-${1#--}"
@@ -91,6 +99,7 @@ do
 	-+([0-9]))	popArgs+=("$1"); printLines="${1#-}"; shift;;
 	--delete-empty)	shift; popArgs+=(--delete);;
 	--delete|-d)	shift; action=delete;;
+	--undo|-u)	shift; action=undo;;
 	--prepend)	shift; isPrepend=t;;
 	--append|-a)	shift; isAppend=t;;
 	--transactional|-t)
@@ -117,7 +126,7 @@ fi
 if [ "$isPrint" ]; then
     case "$action" in
 	collect)    action=print;;
-	peek|print|delete)
+	peek|print|delete|undo)
 		    ;;
 	*)	    printUsage "$0" >&2; exit 2;;
     esac
@@ -190,6 +199,21 @@ case "$action" in
 	[ "$isPrint" ] && [ -f "$BAG" ] && cat -- "$BAG"
 	backupBag
 	exec rm --force -- "$BAG"
+	;;
+    undo)
+	assertNoPrintLines
+	if [ ! -f "$backupFilespec" ]; then
+	    echo >&2 'ERROR: Nothing to undo.'
+	    exit 1
+	fi
+
+	if [ -f "$BAG" ]; then
+	    fileswap "$backupFilespec" "$BAG"
+	else
+	    mv --force --no-target-directory -- "$backupFilespec" "$BAG"
+	fi
+
+	[ ! "$isPrint" ] || cat -- "$BAG"
 	;;
     put)
 	assertNoPrintLines
