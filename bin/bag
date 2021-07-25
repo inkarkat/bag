@@ -46,6 +46,16 @@ HELPTEXT
     printf 'Usage: %q %s\n' "$(basename "$1")" 'delete|-d|--delete [-p|--print] [-t|--transactional] '
 }
 
+backupBag()
+{
+    local backupFilespec="${BAG}.bak"
+    if [ -f "$BAG" ]; then
+	cp --dereference --preserve=all --force --no-target-directory -- "$BAG" "$backupFilespec"
+    else
+	> "$backupFilespec"
+    fi
+}
+
 typeset -a allArgs=("$@")
 typeset -a popArgs=()
 printLines=
@@ -172,15 +182,18 @@ case "$action" in
 	;;
     pop)
 	assertExistingBag
+	backupBag
 	exec pop "${popArgs[@]}" -- "$BAG"
 	;;
     delete)
 	assertNoPrintLines
 	[ "$isPrint" ] && [ -f "$BAG" ] && cat -- "$BAG"
+	backupBag
 	exec rm --force -- "$BAG"
 	;;
     put)
 	assertNoPrintLines
+	backupBag
 	if [ "$isPrepend" ]; then
 	    prepend "$@" "$BAG"
 	else
@@ -189,6 +202,7 @@ case "$action" in
 	;;
     collect)
 	assertNoPrintLines
+	backupBag
 	if [ "$isPrepend" ]; then
 	    readarray -t lines
 	    if [ ${#lines[@]} -gt 0 ]; then
