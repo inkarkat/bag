@@ -62,7 +62,7 @@ case "$1" in
     delete)	shift; action=delete;;
     set)	shift;;
     add)	shift; isAppend=t;;
-    *)		bagAlias="bag-$1"
+    *)		bagAlias="bag-${1#--}"
 		if which "$bagAlias" >/dev/null 2>&1; then
 		    shift
 		    exec "$bagAlias" "$@"
