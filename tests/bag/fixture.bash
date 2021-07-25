@@ -4,7 +4,7 @@ export BAG="${BATS_TMPDIR}/bag"
 
 fixtureSetup()
 {
-    rm -f -- "$BAG"
+    rm -f -- "$BAG" "${BAG}.bak"
 }
 setup()
 {
