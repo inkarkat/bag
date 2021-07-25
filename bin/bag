@@ -10,7 +10,7 @@ printUsage()
 Collect output in a special file.
 HELPTEXT
     echo
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[set|--prepend|add|-a|--append] [-t|--transactional] [--] OUTPUT [...]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[set|--prepend|add|-a|--append] [-B|--no-backup] [-t|--transactional] [--] OUTPUT [...]'
     printf 'Usage: echo OUTPUT | %q %s\n' "$(basename "$1")" '[set|--prepend|add|-a|--append] [-t|--transactional] [-]'
 
     echo
@@ -28,7 +28,7 @@ the special file.
 With --delete-empty, an emptied bag is removed from the file system as well.
 HELPTEXT
     echo
-    printf 'Usage: %q %s\n' "$(basename "$1")" 'pop|--pop [-<N>|-n|--lines N] [--delete-empty] [-q|--quiet] [-t|--transactional]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" 'pop|--pop [-<N>|-n|--lines N] [--delete-empty] [-q|--quiet] [-B|--no-backup] [-t|--transactional]'
 
     echo
     cat <<HELPTEXT
@@ -44,14 +44,14 @@ HELPTEXT
 Remove all collected output from the special file.
 HELPTEXT
     echo
-    printf 'Usage: %q %s\n' "$(basename "$1")" 'delete|-d|--delete [-p|--print] [-t|--transactional] '
+    printf 'Usage: %q %s\n' "$(basename "$1")" 'delete|-d|--delete [-p|--print] [-t|--transactional] [-B|--no-backup]'
 
     echo
     cat <<HELPTEXT
 Restore the contents of the special file from before the last modification.
 HELPTEXT
     echo
-    printf 'Usage: %q %s\n' "$(basename "$1")" 'undo|-u|--undo [-p|--print] [-t|--transactional] '
+    printf 'Usage: %q %s\n' "$(basename "$1")" 'undo|-u|--undo [-p|--print] [-t|--transactional] [-B|--no-backup]'
 }
 
 backupBag()
@@ -70,6 +70,7 @@ isQuiet=
 isPrepend=
 isAppend=
 isPrint=
+isBackup=t
 isTransactional=
 action=collect; [ -t 0 ] && action=print
 case "$1" in
@@ -102,6 +103,7 @@ do
 	--undo|-u)	shift; action=undo;;
 	--prepend)	shift; isPrepend=t;;
 	--append|-a)	shift; isAppend=t;;
+	--no-backup|-B)	shift; isBackup=; backupBag() { :; };;
 	--transactional|-t)
 			isTransactional=t; shift;;
 	--)		shift; break;;
@@ -207,7 +209,9 @@ case "$action" in
 	    exit 1
 	fi
 
-	if [ -f "$BAG" ]; then
+	if [ ! "$isBackup" ]; then
+	    cp --dereference --preserve=all --force --no-target-directory -- "$backupFilespec" "$BAG"
+	elif [ -f "$BAG" ]; then
 	    fileswap "$backupFilespec" "$BAG"
 	else
 	    mv --force --no-target-directory -- "$backupFilespec" "$BAG"
