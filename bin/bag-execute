@@ -7,7 +7,7 @@ typeset -a usageOverrideArgs=(
 			single cmdline is consumed. (With --count or --all,\
 			status lines are turned on automatically.) By default,\
 			only the cmdline itself is printed.'
-    -e '/^Usage:$/N' -e '/\(^\|\n\)Usage: */{ s/\(^\|\n\)\(Usage: *\)\?\([^ ]\+ \)*bag-consume /\1\2'"$(basename "$0")"' /; s/ -c|--command "COMMANDLINE" | \[--\] SIMPLECOMMAND \[\.\.\.\]// }'
+    -e '/^Usage:$/N' -e '/\(^\|\n\)Usage: */{ s/\(^\|\n\)\(Usage: *\)\?\([^ ]\+ \)*bag-consume /\1\2'"$(basename "$0")"' /; s/--bare/--no-single-bare|&/; s/ -c|--command "COMMANDLINE" | \[--\] SIMPLECOMMAND \[\.\.\.\]// }'
 )
 printUsage()
 {
