@@ -1,10 +1,12 @@
 #!/bin/bash
 
+export BAGCONSUME_ACTION_NAME=execute
+
 typeset -a usageOverrideArgs=(
     -e '/^ *\(--command|-c\|--prefix-command\)/b removeOptionLoop'
     -e '/^ *--bare/i\
     --no-single-bare	Do print a status line also by default when only a\
-			single cmdline is consumed. (With --count or --all,\
+			single cmdline is executed. (With --count or --all,\
 			status lines are turned on automatically.) By default,\
 			only the cmdline itself is printed.'
     -e '/^Usage:$/N' -e '/\(^\|\n\)Usage: */{ s/\(^\|\n\)\(Usage: *\)\?\([^ ]\+ \)*bag-consume /\1\2'"$(basename "$0")"' /; s/--bare/--no-single-bare|&/; s/ -c|--command "COMMANDLINE" | \[--\] SIMPLECOMMAND \[\.\.\.\]// }'
@@ -27,7 +29,9 @@ printLongUsage()
 	-e 's/COMMAND/cmdline/g' \
 	-e 's/a line/the cmdline/g' \
 	-e 's/ lines are/ cmdlines are/g' \
-	-e 's/consumed lines/consumed cmdlines/g' \
+	-e 's/executed lines/executed cmdlines/g' \
+	-e 's/are executed and$/are/' \
+	-e 's/passed to cmdline at once/executed/g' \
 	-e 's/the line/the cmdline/g' \
 	-e 's/prepended line/prepended cmdline/g' \
 	-e 's/appended line/appended cmdline/g' \

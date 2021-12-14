@@ -4,6 +4,7 @@ shopt -qs extglob
 
 : ${BAGCONSUME_OUTPUT_MARKER='{}'}
 outputMarker="$BAGCONSUME_OUTPUT_MARKER"
+: ${BAGCONSUME_ACTION_NAME:=consume}
 readonly EXIT_SIGNAL=125
 readonly NOOP_SIGNAL=124
 
@@ -41,14 +42,14 @@ HELPDESCRIPTION
     echo
     cat <<HELPTEXT
     --interactive|-i	Query before executing each line(s) whether to actually
-			consume, discard it, put it back to the end of the
+			${BAGCONSUME_ACTION_NAME}, discard it, put it back to the end of the
 			special file, or abort.
     --transactional|-t	Lock the special file during the access so that writes
 			are serialized and concurrent reads can only happen
 			while no write is under way. Pass this to ensure
 			consistency in case there could ever be contention over
 			the file.
-    --print		Print the consumed lines.
+    --print		Print the ${BAGCONSUME_ACTION_NAME}d lines.
     --bare		Do not print a status line before and after launching
 			the COMMAND.
     --initial-status NUM    Customizations of the prompt emulation around
@@ -86,10 +87,9 @@ HELPDESCRIPTION
 			itself is a pipeline; here, the entire pipeline will be
 			passed to PCC; whereas PC would only cover the first
 			command inside the pipeline.
-    --count|-n N	A maximum of N (default: 1) lines are consumed and
-			executed.
-    --all|-a		All available lines are consumed and executed.
-    --max-lines|-l N	A maximum of N (default: 1) lines are consumed and
+    --count|-n N	A maximum of N (default: 1) lines are ${BAGCONSUME_ACTION_NAME}d.
+    --all|-a		All available lines are ${BAGCONSUME_ACTION_NAME}d.
+    --max-lines|-l N	A maximum of N (default: 1) lines are ${BAGCONSUME_ACTION_NAME}d and
 			passed to COMMAND at once (if available). The entire set
 			of lines counts as one change (for --count).
     --stop-on|-s PATTERN
@@ -290,9 +290,9 @@ processBag()
 	    local question="${lines[0]}"$'\n'"${lines[-1]}"$'\n'
 	fi
 	if [ "$count" = 1 -o ${count:-0} -eq $((totalCnt + 1)) ]; then
-	    typeset -a choices=('[y]es, consume' '[d]iscard' 'put [b]ack at the end')
+	    typeset -a choices=("[y]es, $BAGCONSUME_ACTION_NAME" '[d]iscard' 'put [b]ack at the end')
 	else
-	    typeset -a choices=('[y]es, consume' 'consume this and [a]ll further without confirmation' '[d]iscard' 'put [b]ack at the end' 'put ba[c]k and abort' 'discard and abor[t]')
+	    typeset -a choices=("[y]es, $BAGCONSUME_ACTION_NAME" "$BAGCONSUME_ACTION_NAME this and [a]ll further without confirmation" '[d]iscard' 'put [b]ack at the end' 'put ba[c]k and abort' 'discard and abor[t]')
 	    if [ -z "$count" ]; then
 		choices+=('disca[R]d all further')
 	    else
@@ -304,7 +304,7 @@ processBag()
 
 	case "$choice" in
 	    yes*)	;;
-	    consume\ this\ and\ all\ further\ without\ confirmation)
+	    *\ this\ and\ all\ further\ without\ confirmation)
 			isInteractive=;;
 	    discard)	let totalCnt+=1; return 0;;
 	    put\ back\ at\ the\ end)
