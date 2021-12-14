@@ -36,7 +36,7 @@ fi
 
 printShortUsage()
 {
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [--ignore-existing] [-n|--count N|-1] [-i|--interval NUMBER[SUFFIX] [-l|--max-lines N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [-t|--stop-after TIMEOUT[SUFFIX]] [--print] [[--bare|[--no-capture-output] [--initial-status NUM] [--trailing-prompt|--no-trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--emulate-prompt]] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before TEXT|--prepend-after TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before TEXT|--append-after TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [--ignore-existing] [-n|--count N|-1] [-i|--interval NUMBER[SUFFIX] [-l|--max-lines N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [-t|--stop-after TIMEOUT[SUFFIX]] [--print] [[--bare|[--no-capture-output] [--initial-status NUM] [--trailing-prompt|--no-trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--emulate-prompt]] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--parallel-limit N] [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before TEXT|--prepend-after TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before TEXT|--append-after TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -125,6 +125,8 @@ HELPDESCRIPTION
     --parallel		Instead of waiting for one COMMAND to finish before
 			executing the next, run each one the moment the change
 			is triggered. The default is sequential invocation.
+    --parallel-limit N	Wait when more than N parallel jobs are already running
+			to avoid triggering too many simultaneous executions.
     --rate-limit NUMBER[SUFFIX]
 			Sleep for NUMBER[SUFFIX] before triggering the next
 			parallel execution of COMMAND. This can avoid triggering
@@ -196,6 +198,7 @@ maxLines=1
 isStopOnEmpty=
 stopPattern=
 stopAfter=
+parallelLimit=
 rateLimit=
 exitOn=
 exitComparison=-eq
@@ -272,6 +275,8 @@ do
 			onchangeArgs+=("$1" "$2"); shift
 			stopAfter="$(timeToSeconds "$1")" || exit $?; shift
 			;;
+	--parallel-limit)
+			shift; parallelLimit="$1"; shift;;
 	--rate-limit)	shift; rateLimit="$1"; shift;;
 	--)		shift; break;;
 	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
@@ -308,6 +313,14 @@ fi
 
 let observedChanges=0
 SECONDS=0
+
+waitForParallelLimit()
+{
+    until [ $(jobs -pr | wc -l) -lt ${parallelLimit:?} ]
+    do
+	sleep 0.1
+    done
+}
 
 exitStatus=0
 consumeExistingOutput()
@@ -411,6 +424,7 @@ executeTrigger()
 
     if [ ${#commands[@]} -ge 1 ]; then
 	[ "$rateLimit" ] && sleep "$rateLimit"
+	[ "$isParallel" ] && [ "$parallelLimit" ] && waitForParallelLimit
 	eval 'triggerCommand "${lines[@]}"' ${isParallel:+&}
 	status=$?
     fi
