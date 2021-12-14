@@ -19,7 +19,7 @@ fi
 
 printShortUsage()
 {
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-t|--transactional] [--worst-status] [-a|--all|-n|--count N] [-l|--max-lines N] [-s|--stop-on PATTERN] [--print] [[--bare|[--no-capture-output] [--initial-status NUM] [--trailing-prompt|--no-trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--emulate-prompt]] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before TEXT|--prepend-after TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before TEXT|--append-after TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i|--interactive] [-t|--transactional] [--worst-status] [-a|--all|-n|--count N] [-l|--max-lines N] [-s|--stop-on PATTERN] [--print] [[--bare|[--no-capture-output] [--initial-status NUM] [--trailing-prompt|--no-trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--emulate-prompt]] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before TEXT|--prepend-after TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before TEXT|--append-after TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -40,6 +40,9 @@ HELPDESCRIPTION
     printShortUsage "$1"
     echo
     cat <<HELPTEXT
+    --interactive|-i	Query before executing each line(s) whether to actually
+			consume, discard it, put it back to the end of the
+			special file, or abort.
     --transactional|-t	Lock the special file during the access so that writes
 			are serialized and concurrent reads can only happen
 			while no write is under way. Pass this to ensure
@@ -150,6 +153,7 @@ timeToSeconds()
     printf %s "$time"
 }
 
+isInteractive=
 typeset -a bagArgs=()
 isParallel=
 count=1
@@ -178,6 +182,7 @@ while [ $# -ne 0 ]
 do
     case "$1" in
 	--help|-h|-\?)	shift; printLongUsage "$0"; exit 0;;
+	--interactive|-i)	shift; isInteractive=t;;
 	--transactional|-t)
 			bagArgs+=("$1"); shift;;
 	--exit-on-success)	shift; exitOn=0; exitComparison=-eq;;
@@ -273,6 +278,52 @@ processBag()
     typeset -a lines=()
     readarray -t lines < <(bag "${bagArgs[@]}" --pop --quiet --lines "$maxLines")
     [ ${#lines[@]} -eq 0 ] && return 1
+
+
+    if [ "$isInteractive" ]; then
+	if [ ${#lines[@]} -eq 1 ]; then
+	    local question="${lines[0]}"
+	elif [ ${#lines[@]} -le $((${LINES:-25} / 2)) ]; then
+	    local IFS=$'\n'
+	    local question="${lines[*]}"$'\n'
+	else
+	    local question="${lines[0]}"$'\n'"${lines[-1]}"$'\n'
+	fi
+	if [ "$count" = 1 -o ${count:-0} -eq $((totalCnt + 1)) ]; then
+	    typeset -a choices=('[y]es, consume' '[d]iscard' 'put [b]ack at the end')
+	else
+	    typeset -a choices=('[y]es, consume' 'consume this and [a]ll further without confirmation' '[d]iscard' 'put [b]ack at the end' 'put ba[c]k and abort' 'discard and abor[t]')
+	    if [ -z "$count" ]; then
+		choices+=('disca[R]d all further')
+	    else
+		choices+=("disca[R]d this and up to $(((count - totalCnt - 1) * maxLines)) more")
+	    fi
+	fi
+
+	local choice="$(userchoiceFromList --question "$question" --no-cancel "${choices[@]}")"
+
+	case "$choice" in
+	    yes*)	;;
+	    consume\ this\ and\ all\ further\ without\ confirmation)
+			isInteractive=;;
+	    discard)	let totalCnt+=1; return 0;;
+	    put\ back\ at\ the\ end)
+			bag "${bagArgs[@]}" --append -- "${lines[@]}"
+			let totalCnt+=1; return 0;;
+	    put\ back\ and\ abort)
+			bag "${bagArgs[@]}" --append -- "${lines[@]}"
+			let totalCnt+=1; return 1;;
+	    discard\ and\ abort)
+			return 1;;
+	    discaRd\ all\ further)
+			bag "${bagArgs[@]}" --delete
+			return 1;;
+	    discaRd\ this\ and\ up\ to\ *\ more)
+			bag "${bagArgs[@]}" --pop --quiet --lines "$(((count - totalCnt - 1) * maxLines))" >/dev/null
+			return 1;;
+	    *)		printf >&2 'ASSERT: Invalid choice: %s\n' "$choice"; exit 3;;
+	esac
+    fi
 
     executeTrigger "${lines[@]}"
 }
