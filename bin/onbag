@@ -329,6 +329,39 @@ if [ ${#runWithPromptArgs[@]} -eq 0 ]; then
     fi
 fi
 
+if [ "$isParallel" ] && [ -n "$prependBeforeOnceText" -o -n "$prependAfterOnceText" -o -n "$appendBeforeOnceText" -o -n "$appendAfterOnceText" ]; then
+    markerGroup="onbag-$$"
+    marker()
+    {
+	executionMarker --base-type runtime --group "${markerGroup:?}" "$@"
+    }
+    markerDrop()
+    {
+	marker --transactional --drop
+    }
+    checkOnceText()
+    {
+	local status=0
+	marker --start-write-transaction "$BASHPID" || exit 3
+
+	if marker --within-transaction "$BASHPID" --query onceTextDoneFlag; then
+	    status=0 # Text already once prepended / appended.
+	else
+	    marker --within-transaction "$BASHPID" --update onceTextDoneFlag
+	    status=1 # Text not yet prepended / appended.
+	fi
+
+	marker --end-transaction "$BASHPID" || exit 3
+	return $status
+    }
+
+    # Clear any previous marker from a script run with the same PID. This
+    # doesn't need to be transactional because the database is scoped to the PID
+    # and we're still single-threaded here.
+    marker --transactional --delete onceTextDoneFlag
+else
+    markerDrop() { :; }
+fi
 
 
 let observedChanges=0
@@ -472,6 +505,21 @@ triggerCommand()
     local exitStatus=$?
     local result=$exitStatus
 
+    if [ "$isParallel" ] && \
+	[ -n "$prependBeforeOnceText" -o -n "$prependAfterOnceText" -o -n "$appendBeforeOnceText" -o -n "$appendAfterOnceText" ] && {
+	    { [ "$prependOn" ] && [ $exitStatus $prependComparison $prependOn ]; } || \
+		{ [ "$appendOn" ] && [ $exitStatus $appendComparison $appendOn ]; }
+	} && checkOnceText; then
+	# For parallel executions, we have to check an external flag so that the
+	# prepend / append happens only once - the variable clearing won't
+	# propagate to other parallel jobs, nor to the invoking main script. Use
+	# a single flag for all variants, so that only one job gets the
+	# semaphore and there's no mix-up from different parallel jobs.
+	prependAfterOnceText=''
+	prependBeforeOnceText=''
+	appendBeforeOnceText=''
+	appendAfterOnceText=''
+    fi
     if [ "$prependOn" ] && [ $exitStatus $prependComparison $prependOn ]; then
 	[ -n "$prependAfterEachText" ] && bag "${bagArgs[@]}" --prepend -- "$prependAfterEachText"
 	[ -n "$prependAfterOnceText" ] && bag "${bagArgs[@]}" --prepend -- "$prependAfterOnceText" && prependAfterOnceText=''
@@ -534,9 +582,9 @@ fi
 
 
 if [ -n "$pgid" ]; then
-    trap "kill -- -$pgid" EXIT  # If we're the leader, kill subshell processes when the script exits.
+    trap "markerDrop; kill -- -$pgid" EXIT  # If we're the leader, kill subshell processes when the script exits.
 else
-    trap "jobs -p | xargs --no-run-if-empty kill --" EXIT  # Someone else is the leader; killing remaining jobs is all we can do here.
+    trap "markerDrop; jobs -p | xargs --no-run-if-empty kill --" EXIT  # Someone else is the leader; killing remaining jobs is all we can do here.
 fi
 
 typeset -a runWithPromptPromptArgs=()
