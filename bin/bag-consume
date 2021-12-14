@@ -20,7 +20,7 @@ fi
 
 printShortUsage()
 {
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i|--interactive] [-t|--transactional] [--worst-status] [-a|--all|-n|--count N] [-l|--max-lines N] [-s|--stop-on PATTERN] [--print] [[--bare|[--no-capture-output] [--initial-status NUM] [--trailing-prompt|--no-trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--emulate-prompt]] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--parallel-limit N] [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before TEXT|--prepend-after TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before TEXT|--append-after TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i|--interactive] [-t|--transactional] [--worst-status] [-a|--all|-n|--count N] [-l|--max-lines N] [-s|--stop-on PATTERN] [--print] [[--bare|[--no-capture-output] [--initial-status NUM] [--trailing-prompt|--no-trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--emulate-prompt]] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--parallel-limit N] [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before-each TEXT] [--prepend-after-each TEXT] [--prepend-before-once TEXT] [--prepend-after-once TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before-each TEXT] [--append-after-each TEXT] [--append-before-once TEXT] [--append-after-once TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -117,20 +117,32 @@ HELPDESCRIPTION
     --prepend-unless NUM
 			Return the line to the beginning of the special file
 			if COMMAND does not exit with NUM.
-    --prepend-before TEXT
+    --prepend-before-each TEXT
 			Put TEXT before the prepended line.
-    --prepend-after TEXT
+    --prepend-after-each TEXT
 			Put TEXT after the prepended line.
+    --prepend-before-once TEXT
+			Put TEXT before the prepended line on the first
+			prepending, but not thereafter.
+    --prepend-after-once TEXT
+			Put TEXT after the prepended line on the first
+			prepending, but not thereafter.
     --append-on-failure	Put back the line to the end of the special file if
 			COMMAND is unsuccessful.
     --append-on NUM	Put back the line to the end of the special file if
 			COMMAND exits with NUM.
     --append-unless NUM	Put back the line to the end of the special file if
 			COMMAND does not exit with NUM.
-    --append-before TEXT
+    --append-before-each TEXT
 			Put TEXT before the appended line.
-    --append-after TEXT
+    --append-after-each TEXT
 			Put TEXT after the appended line.
+    --append-before-once TEXT
+			Put TEXT before the appended line on the first
+			appending, but not thereafter.
+    --append-after-once TEXT
+			Put TEXT after the appended line on the first
+			appending, but not thereafter.
 SUFFIX may be 's' for seconds (the default), 'm' for minutes, 'h' for hours or
 'd' for days.
 
@@ -140,7 +152,7 @@ EXIT STATUS:
     99	The special file does not exist or is empty.
 Example:
 HELPTEXT
-    printf '%q %s\n' "$(basename "$1")" '--bare --all -s STOP --append-on-failure --append-before STOP -- wget {}'
+    printf '%q %s\n' "$(basename "$1")" '--bare --all -s STOP --append-on-failure --append-before-once STOP -- wget {}'
 }
 
 timeToSeconds()
@@ -167,10 +179,14 @@ exitOn=
 exitComparison=-eq
 prependOn=
 prependComparison=-eq
-prependBeforeText=
-prependAfterText=
-appendBeforeText=
-appendAfterText=
+prependBeforeEachText=
+prependAfterEachText=
+prependBeforeOnceText=
+prependAfterOnceText=
+appendBeforeEachText=
+appendAfterEachText=
+appendBeforeOnceText=
+appendAfterOnceText=
 appendOn=
 appendComparison=-eq
 typeset -a commands=()
@@ -195,13 +211,17 @@ do
 	--prepend-on-failure)	shift; prependOn=0; prependComparison=-ne;;
 	--prepend-on)		shift; prependOn="$1"; shift; prependComparison=-eq;;
 	--prepend-unless)	shift; prependOn="$1"; shift; prependComparison=-ne;;
-	--prepend-before)	shift; prependBeforeText="$1"; shift;;
-	--prepend-after)	shift; prependAfterText="$1"; shift;;
+	--prepend-before-each)	shift; prependBeforeEachText="$1"; shift;;
+	--prepend-after-each)	shift; prependAfterEachText="$1"; shift;;
+	--prepend-before-once)	shift; prependBeforeOnceText="$1"; shift;;
+	--prepend-after-once)	shift; prependAfterOnceText="$1"; shift;;
 	--append-on-failure)	shift; appendOn=0; appendComparison=-ne;;
 	--append-on)		shift; appendOn="$1"; shift; appendComparison=-eq;;
 	--append-unless)	shift; appendOn="$1"; shift; appendComparison=-ne;;
-	--append-before)	shift; appendBeforeText="$1"; shift;;
-	--append-after)		shift; appendAfterText="$1"; shift;;
+	--append-before-each)	shift; appendBeforeEachText="$1"; shift;;
+	--append-after-each)	shift; appendAfterEachText="$1"; shift;;
+	--append-before-once)	shift; appendBeforeOnceText="$1"; shift;;
+	--append-after-once)	shift; appendAfterOnceText="$1"; shift;;
 	--parallel)	shift; isParallel=t;;
 	--print)	shift; isPrint=t;;
 	--bare)		shift; isBare=t;;
@@ -406,14 +426,18 @@ triggerCommand()
 	overallExitStatus=$exitStatus
     fi
     if [ "$prependOn" ] && [ $exitStatus $prependComparison $prependOn ]; then
-	[ -n "$prependAfterText" ] && bag "${bagArgs[@]}" --prepend -- "$prependAfterText"
+	[ -n "$prependAfterEachText" ] && bag "${bagArgs[@]}" --prepend -- "$prependAfterEachText"
+	[ -n "$prependAfterOnceText" ] && bag "${bagArgs[@]}" --prepend -- "$prependAfterOnceText" && prependAfterOnceText=''
 	printf '%s\n' "$@" | bag "${bagArgs[@]}" --prepend
-	[ -n "$prependBeforeText" ] && bag "${bagArgs[@]}" --prepend -- "$prependBeforeText"
+	[ -n "$prependBeforeEachText" ] && bag "${bagArgs[@]}" --prepend -- "$prependBeforeEachText"
+	[ -n "$prependBeforeOnceText" ] && bag "${bagArgs[@]}" --prepend -- "$prependBeforeOnceText" && prependBeforeOnceText=''
     fi
     if [ "$appendOn" ] && [ $exitStatus $appendComparison $appendOn ]; then
-	[ -n "$appendBeforeText" ] && bag "${bagArgs[@]}" --append -- "$appendBeforeText"
+	[ -n "$appendBeforeEachText" ] && bag "${bagArgs[@]}" --append -- "$appendBeforeEachText"
+	[ -n "$appendBeforeOnceText" ] && bag "${bagArgs[@]}" --append -- "$appendBeforeOnceText" && appendBeforeOnceText=''
 	printf '%s\n' "$@" | bag "${bagArgs[@]}" --append
-	[ -n "$appendAfterText" ] && bag "${bagArgs[@]}" --append -- "$appendAfterText"
+	[ -n "$appendAfterEachText" ] && bag "${bagArgs[@]}" --append -- "$appendAfterEachText"
+	[ -n "$appendAfterOnceText" ] && bag "${bagArgs[@]}" --append -- "$appendAfterOnceText" && appendAfterOnceText=''
     fi
     if [ "$exitOn" ] && [ $exitStatus $exitComparison $exitOn ]; then
 	[ "$isParallel" ] && kill -SIGUSR1 $$
