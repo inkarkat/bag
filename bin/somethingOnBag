@@ -1,0 +1,64 @@
+#!/bin/bash source-this-script
+shopt -qs extglob
+
+: ${SOMETHING_CONSUMER:?}
+: ${SOMETHING_CONSUMER_NAME:=$SOMETHING_CONSUMER}
+: ${SOMETHING_HELPTEXT:?}
+# SOMETHING_BAGCONSUME_MULTIPLICITY_ARGS
+# SOMETHING_BAGCONSUME_OUTPUT_ARGS
+# SOMETHING_BAGCONSUME_PARALLEL_ARGS
+# SOMETHING_BAGCONSUME_PARALLEL_LIMIT
+# SOMETHING_BAGCONSUME_FAILURE_ARGS
+# SOMETHING_BAGCONSUME_STOP_ENTRY
+
+case " ${!SOMETHING_BAGCONSUME_MULTIPLICITY_ARGS*} " in
+    *" SOMETHING_BAGCONSUME_MULTIPLICITY_ARGS "*) ;;
+    *) typeset -a SOMETHING_BAGCONSUME_MULTIPLICITY_ARGS=();;
+esac
+case " ${!SOMETHING_BAGCONSUME_OUTPUT_ARGS*} " in
+    *" SOMETHING_BAGCONSUME_OUTPUT_ARGS "*) ;;
+    *) typeset -a SOMETHING_BAGCONSUME_OUTPUT_ARGS=(--bare --print);;
+esac
+case " ${!SOMETHING_BAGCONSUME_PARALLEL_ARGS*} " in
+    *" SOMETHING_BAGCONSUME_PARALLEL_ARGS "*) ;;
+    *) typeset -a SOMETHING_BAGCONSUME_PARALLEL_ARGS=(--parallel --parallel-limit ${SOMETHING_BAGCONSUME_PARALLEL_LIMIT:-4});;
+esac
+case " ${!SOMETHING_BAGCONSUME_FAILURE_ARGS*} " in
+    *" SOMETHING_BAGCONSUME_FAILURE_ARGS "*) ;;
+    *) typeset -a SOMETHING_BAGCONSUME_FAILURE_ARGS=(--stop-on "^${SOMETHING_BAGCONSUME_STOP_ENTRY:=STOP}\$" --append-on-failure --append-before-once "$SOMETHING_BAGCONSUME_STOP_ENTRY");;
+esac
+
+printUsage()
+{
+    printf '%s\n' "${SOMETHING_HELPTEXT:?}"
+# Observe the special file for SOMETHING and download them.
+# SOMETHINGs that fail to download will remain in the file.
+    echo
+    printf 'Usage: %q [-S|--stop-on-empty] [-t|--stop-after TIMEOUT[SUFFIX]] [other ONBAG-ARGS ... %s-ARGS ...] [-- %s-ARGS ...] [-?|-h|--help] & bag add %s [...]\n' "$(basename "$1")" "${SOMETHING_CONSUMER_NAME^^}" "${SOMETHING_CONSUMER_NAME^^}" "${SOMETHING_SUBJECT:?}"
+}
+
+typeset -a onBagArgs=()
+typeset -a somethingConsumerArgs=()
+while [ $# -ne 0 ]
+do
+    case "$1" in
+	-+([t1S]))	onBagArgs+=("$1"); shift;;
+	--@(transactional|ignore-existing|stop-on-empty|print|bare|no-capture-output|trailing-prompt|no-trailing-prompt|no_output-no-prompt|no-output-no-error|emulate-prompt|parallel|exit-on-success|exit-on-failure|prepend-on-failure|append-on-failure))
+			onBagArgs+=("$1"); shift;;
+	-[nilst])	onBagArgs+=("$1" "$2"); shift; shift;;
+	--@(count|interval|max-lines|stop-on|stop-after|initial-status|prefix-command|prefix-command-command|parallel-limit|rate-limit|exit-on|prepend-on|prepend-unless|prepend-before-each|prepend-after-each|prepend-before-once|prepend-after-once|append-on|append-unless|append-before-each|append-after-each|append-before-once|append-after-once))
+			onBagArgs+=("$1" "$2"); shift; shift;;
+	--help|-h|-\?)	shift; printUsage "$0"; exit 0;;
+	--)		break;;
+	*)		somethingConsumerArgs+=("$1"); shift;;
+    esac
+done
+
+exec onbag \
+    "${SOMETHING_BAGCONSUME_MULTIPLICITY_ARGS[@]}" \
+    "${SOMETHING_BAGCONSUME_OUTPUT_ARGS[@]}" \
+    "${SOMETHING_BAGCONSUME_PARALLEL_ARGS[@]}" \
+    "${SOMETHING_BAGCONSUME_FAILURE_ARGS[@]}" \
+     "${onBagArgs[@]}" \
+     -- \
+     "${SOMETHING_CONSUMER:?}" "${somethingConsumerArgs[@]}" "$@" {}
