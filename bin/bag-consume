@@ -140,7 +140,7 @@ EXIT STATUS:
     99	The special file does not exist or is empty.
 Example:
 HELPTEXT
-    printf '%q %s\n' "$(basename "$1")" '--bare -l 5 -s STOP --append-on-failure -- wget {}'
+    printf '%q %s\n' "$(basename "$1")" '--bare --all -s STOP --append-on-failure --append-before STOP -- wget {}'
 }
 
 timeToSeconds()
