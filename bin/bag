@@ -10,8 +10,8 @@ printUsage()
 Collect output in a special file.
 HELPTEXT
     echo
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[set|--prepend|add|-a|--append] [-B|--no-backup] [-t|--transactional] [--] OUTPUT [...]'
-    printf 'Usage: echo OUTPUT | %q %s\n' "$(basename "$1")" '[set|--prepend|add|-a|--append] [-t|--transactional] [-]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[set|--prepend|add|-a|--append] [-B|--no-backup] [-x|--transactional] [--] OUTPUT [...]'
+    printf 'Usage: echo OUTPUT | %q %s\n' "$(basename "$1")" '[set|--prepend|add|-a|--append] [-x|--transactional] [-]'
 
     echo
     cat <<HELPTEXT
@@ -19,7 +19,7 @@ Print collected output from the special file. (Each argument as a separate
 line.)
 HELPTEXT
     echo
-    printf 'Usage: %q %s [| ...]\n' "$(basename "$1")" '[list|print|-p|--print [-<N>|-n|--lines N]] [-q|--quiet] [-t|--transactional]'
+    printf 'Usage: %q %s [| ...]\n' "$(basename "$1")" '[list|print|-p|--print [-<N>|-n|--lines N]] [-q|--quiet] [-x|--transactional]'
 
     echo
     cat <<HELPTEXT
@@ -28,7 +28,7 @@ the special file.
 With --delete-empty, an emptied bag is removed from the file system as well.
 HELPTEXT
     echo
-    printf 'Usage: %q %s\n' "$(basename "$1")" 'pop|--pop [-<N>|-n|--lines N] [--delete-empty] [-q|--quiet] [-B|--no-backup] [-t|--transactional]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" 'pop|--pop [-<N>|-n|--lines N] [--delete-empty] [-q|--quiet] [-B|--no-backup] [-x|--transactional]'
 
     echo
     cat <<HELPTEXT
@@ -37,21 +37,21 @@ special file without removing it. Fails if there's no bag, the bag is empty or
 contains less than N line(s).
 HELPTEXT
     echo
-    printf 'Usage: %q %s\n' "$(basename "$1")" 'peek|--peek [-<N>|-n|--lines N] [-q|--quiet] [-t|--transactional]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" 'peek|--peek [-<N>|-n|--lines N] [-q|--quiet] [-x|--transactional]'
 
     echo
     cat <<HELPTEXT
 Remove all collected output from the special file.
 HELPTEXT
     echo
-    printf 'Usage: %q %s\n' "$(basename "$1")" 'delete|-d|--delete [-p|--print] [-t|--transactional] [-B|--no-backup]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" 'delete|-d|--delete [-p|--print] [-x|--transactional] [-B|--no-backup]'
 
     echo
     cat <<HELPTEXT
 Restore the contents of the special file from before the last modification.
 HELPTEXT
     echo
-    printf 'Usage: %q %s\n' "$(basename "$1")" 'undo|-u|--undo [-p|--print] [-t|--transactional] [-B|--no-backup]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" 'undo|-u|--undo [-p|--print] [-x|--transactional] [-B|--no-backup]'
 }
 
 backupBag()
@@ -104,7 +104,7 @@ do
 	--prepend)	shift; isPrepend=t;;
 	--append|-a)	shift; isAppend=t;;
 	--no-backup|-B)	shift; isBackup=; backupBag() { :; };;
-	--transactional|-t)
+	--transactional|-x)
 			isTransactional=t; shift;;
 	--)		shift; break;;
 	-)		shift
@@ -155,7 +155,7 @@ if [ "$isTransactional" ]; then
     readonly scriptFilespec="${BASH_SOURCE[0]}"
 
     exec withTransaction \
-	--drop-argument --transactional --drop-argument -t "${withTransactionArgs[@]}" \
+	--drop-argument --transactional --drop-argument -x "${withTransactionArgs[@]}" \
 	--transacted-file "$BAG" \
 	-- "$scriptFilespec" "${allArgs[@]}"
 fi
