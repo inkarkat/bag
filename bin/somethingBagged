@@ -34,7 +34,7 @@ printUsage()
 # Download SOMETHING collected in the special file.
 # SOMETHINGs that fail to download will remain in the file.
     echo
-    printf 'Usage: bag add %s [...]; [...]; %q [BAG-CONSUME-ARGS ... %s-ARGS ...] [-- %s-ARGS ...] [-?|-h|--help]\n' "${SOMETHING_SUBJECT:?}" "${SOMETHING_CONSUMER_NAME^^}" "${SOMETHING_CONSUMER_NAME^^}"
+    printf 'Usage: bag add %s [...]; [...]; %q [BAG-CONSUME-ARGS ... %s-ARGS ...] [-- %s-ARGS ...] [-?|-h|--help]\n' "${SOMETHING_SUBJECT:?}" "$(basename "$1")" "${SOMETHING_CONSUMER_NAME^^}" "${SOMETHING_CONSUMER_NAME^^}"
 }
 
 typeset -a bagConsumeArgs=()
