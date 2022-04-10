@@ -28,7 +28,7 @@ assert_bag()
 }
 dump_bag()
 {
-    cat -- "$BAG" | prefix \# >&3
+    prefix '#' "$BAG" >&3
 }
 
 make_bag()
