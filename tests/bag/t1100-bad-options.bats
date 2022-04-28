@@ -63,7 +63,7 @@ load fixture
 }
 
 @test "cannot combine --lines with collecting stdin" {
-    run bag --lines 3
+    run </dev/null bag --lines 3
     [ $status -eq 2 ]
     [ "${lines[2]%% *}" = 'Usage:' ]
 }
