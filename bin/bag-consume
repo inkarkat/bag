@@ -340,6 +340,18 @@ consumeExistingOutput()
     wait; return ${overallExitStatus:-99}
 }
 
+getQuestion()
+{
+    if [ $# -eq 1 ]; then
+	printf %s "$1"
+    elif [ $# -le $((${LINES:-25} / 2)) ]; then
+	local IFS=$'\n'
+	printf %s "$*"$'\n'
+    else
+	printf %s "$1"$'\n'"${!#}"$'\n'
+    fi
+}
+
 processBag()
 {
     typeset -a lines=()
@@ -348,14 +360,7 @@ processBag()
 
 
     if [ "$isInteractive" ]; then
-	if [ ${#lines[@]} -eq 1 ]; then
-	    local question="${lines[0]}"
-	elif [ ${#lines[@]} -le $((${LINES:-25} / 2)) ]; then
-	    local IFS=$'\n'
-	    local question="${lines[*]}"$'\n'
-	else
-	    local question="${lines[0]}"$'\n'"${lines[-1]}"$'\n'
-	fi
+	local question="$(getQuestion "${lines[@]}"; printf @)"; question="${question%@}"
 	if [ "$count" = 1 -o ${count:-0} -eq $((totalCnt + 1)) ]; then
 	    typeset -a choices=("[y]es, $BAGCONSUME_ACTION_NAME" '[d]iscard' 'put [b]ack at the end')
 	else
