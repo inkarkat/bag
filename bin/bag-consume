@@ -20,7 +20,7 @@ fi
 
 printShortUsage()
 {
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i|--interactive] [-x|--transactional] [--worst-status] [-a|--all|-n|--count N] [-l|--max-lines N] [-s|--stop-on PATTERN] [--print] [[--bare|[--no-capture-output] [--initial-status NUM] [--trailing-prompt|--no-trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--emulate-prompt]] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--parallel-limit N] [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before-each TEXT] [--prepend-after-each TEXT] [--prepend-before-once TEXT] [--prepend-after-once TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before-each TEXT] [--append-after-each TEXT] [--append-before-once TEXT] [--append-after-once TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i|--interactive] [-x|--transactional] [--worst-status] [-a|--all|-n|--count N] [-l|--max-lines N] [-s|--stop-on PATTERN] [--print] [[--bare|[--no-capture-output] [--initial-status NUM] [--trailing-prompt|--no-trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--emulate-prompt]] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--parallel-limit N] [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--query|--query-on-success|--query-on-failure|--query-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before-each TEXT] [--prepend-after-each TEXT] [--prepend-before-once TEXT] [--prepend-after-once TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before-each TEXT] [--append-after-each TEXT] [--append-before-once TEXT] [--append-after-once TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -108,6 +108,12 @@ HELPDESCRIPTION
     --exit-on-failure	Stop execution if COMMAND is unsuccessful.
     --exit-on NUM	Stop execution if COMMAND exits with NUM.
     --exit-unless NUM	Stop execution if COMMAND does not exit with NUM.
+    --query		Query whether to stop or put back after each execution
+			of COMMAND.
+    --query-on-success	Query if COMMAND is successful.
+    --query-on-failure	Query if COMMAND is unsuccessful.
+    --query-on NUM	Query if COMMAND exits with NUM.
+    --query-unless NUM	Query if COMMAND does not exit with NUM.
     --prepend-on-failure
 			Return the line to the beginning of the special file
 			(so it will be considered right next again!) if COMMAND
@@ -177,6 +183,8 @@ parallelLimit=
 rateLimit=
 exitOn=
 exitComparison=-eq
+queryOn=
+queryComparison=-eq
 prependOn=
 prependComparison=-eq
 prependBeforeEachText=
@@ -208,6 +216,11 @@ do
 	--exit-on-failure)	shift; exitOn=0; exitComparison=-ne;;
 	--exit-on)		shift; exitOn="$1"; shift; exitComparison=-eq;;
 	--exit-unless)		shift; exitOn="$1"; shift; exitComparison=-ne;;
+	--query)		shift; queryOn=0; queryComparison=-ge;;
+	--query-on-success)	shift; queryOn=0; queryComparison=-eq;;
+	--query-on-failure)	shift; queryOn=0; queryComparison=-ne;;
+	--query-on)		shift; queryOn="$1"; shift; queryComparison=-eq;;
+	--query-unless)		shift; queryOn="$1"; shift; queryComparison=-ne;;
 	--prepend-on-failure)	shift; prependOn=0; prependComparison=-ne;;
 	--prepend-on)		shift; prependOn="$1"; shift; prependComparison=-eq;;
 	--prepend-unless)	shift; prependOn="$1"; shift; prependComparison=-ne;;
@@ -358,6 +371,12 @@ exitProcessing()
     exit $exitStatus
 }
 
+editAnd()
+{
+    local editedLine; IFS=$'\n' read -r -e -i "${2?}" editedLine
+    [ -n "$editedLine" ] && bag "${bagArgs[@]}" "${1:?}" -- "$editedLine"
+}
+
 processBag()
 {
     typeset -a lines=()
@@ -484,6 +503,63 @@ triggerCommand()
 	prependBeforeOnceText=''
 	appendBeforeOnceText=''
 	appendAfterOnceText=''
+    fi
+    if [ "$queryOn" ] && [ $exitStatus $queryComparison $queryOn ]; then
+	local question="$(getQuestion "${lines[@]}"; printf @)"; question="${question%@}"
+	if [ "$count" = 1 -o ${count:-0} -eq $((totalCnt + 1)) ]; then
+	    typeset -a choices=('[a]ccept' '[s]top execution' '[r]eturn to the beginning' 'return [e]dited' 'put [b]ack at the end' 'put back ed[i]ted')
+	else
+	    typeset -a choices=('[a]ccept' "$BAGCONSUME_ACTION_NAME [A]ll further without confirmation" '[s]top execution' '[r]eturn to the beginning' 'return and abor[t]' 'return [e]dited' 'return e[d]ited and abort' 'put [b]ack at the end' 'put ba[c]k and abort' 'put back ed[i]ted' 'put bac[k] edited and abort')
+	    if [ -z "$count" ]; then
+		choices+=('disca[R]d all further')
+	    else
+		choices+=("disca[R]d up to $(((count - totalCnt) * maxLines)) more")
+	    fi
+	fi
+
+	local choice="$(userchoiceFromList --question "$question" --no-cancel "${choices[@]}")"
+
+	case "$choice" in
+	    accept)	;;
+	    *\ All\ further\ without\ confirmation)
+			queryOn='';;
+	    stop\ execution)
+			exitProcessing;;
+	    return\ to\ the\ beginning)
+			printf '%s\n' "$@" | bag "${bagArgs[@]}" --prepend;;
+	    return\ and\ abort)
+			printf '%s\n' "$@" | bag "${bagArgs[@]}" --prepend
+			exitProcessing
+			;;
+	    return\ edited)
+			editAnd --prepend "${lines[0]}";;
+	    return\ edited\ and\ abort)
+			editAnd --prepend "${lines[0]}"
+			exitProcessing
+			;;
+	    put\ back\ at\ the\ end)
+			printf '%s\n' "$@" | bag "${bagArgs[@]}" --append
+			;;
+	    put\ back\ and\ abort)
+			printf '%s\n' "$@" | bag "${bagArgs[@]}" --append
+			exitProcessing
+			;;
+	    put\ back\ edited)
+			editAnd --append "${lines[0]}";;
+	    put\ back\ edited\ and\ abort)
+			editAnd --append "${lines[0]}"
+			exitProcessing
+			;;
+	    discaRd\ all\ further)
+			bag "${bagArgs[@]}" --delete
+			exitProcessing
+			;;
+	    discaRd\ up\ to\ *\ more)
+			bag "${bagArgs[@]}" --pop --quiet --lines "$(((count - totalCnt) * maxLines))" >/dev/null
+			exitProcessing
+			;;
+	    *)		printf >&2 'ASSERT: Invalid choice: %s\n' "$choice"; exit 3;;
+	esac
     fi
     if [ "$prependOn" ] && [ $exitStatus $prependComparison $prependOn ]; then
 	[ -n "$prependAfterEachText" ] && bag "${bagArgs[@]}" --prepend -- "$prependAfterEachText"
