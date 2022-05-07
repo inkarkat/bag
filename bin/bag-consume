@@ -352,6 +352,12 @@ getQuestion()
     fi
 }
 
+exitProcessing()
+{
+    [ "$isParallel" ] && kill -SIGUSR1 $$
+    exit $exitStatus
+}
+
 processBag()
 {
     typeset -a lines=()
@@ -494,8 +500,7 @@ triggerCommand()
 	[ -n "$appendAfterOnceText" ] && bag "${bagArgs[@]}" --append -- "$appendAfterOnceText" && appendAfterOnceText=''
     fi
     if [ "$exitOn" ] && [ $exitStatus $exitComparison $exitOn ]; then
-	[ "$isParallel" ] && kill -SIGUSR1 $$
-	exit $exitStatus
+	exitProcessing
     fi
 }
 
