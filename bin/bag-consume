@@ -366,6 +366,12 @@ getQuestion()
     fi
 }
 
+sendArgsToBag()
+{
+    local direction="${1:?}"; shift
+    printf '%s\n' "$@" | bag "${bagArgs[@]}" "$direction"
+}
+
 exitProcessing()
 {
     [ "$isParallel" ] && kill -SIGUSR1 $$
@@ -375,7 +381,7 @@ exitProcessing()
 editAnd()
 {
     local editedLine; IFS=$'\n' read -r -e -i "${2?}" editedLine
-    [ -n "$editedLine" ] && bag "${bagArgs[@]}" "${1:?}" -- "$editedLine"
+    [ -n "$editedLine" ] && sendArgsToBag "${1:?}" "$editedLine"
 }
 
 processBag()
@@ -406,10 +412,10 @@ processBag()
 			isInteractive=;;
 	    discard)	let totalCnt+=1; return 0;;
 	    put\ back\ at\ the\ end)
-			bag "${bagArgs[@]}" --append -- "${lines[@]}"
+			sendArgsToBag --append "${lines[@]}"
 			let totalCnt+=1; return 0;;
 	    put\ back\ and\ abort)
-			bag "${bagArgs[@]}" --append -- "${lines[@]}"
+			sendArgsToBag --append "${lines[@]}"
 			let totalCnt+=1; return 1;;
 	    discard\ and\ abort)
 			return 1;;
@@ -441,7 +447,7 @@ executeTrigger()
 
 		# Need to process any previous read lines, and put back lines
 		# after the stop line. Do the latter first.
-		[ $lineCnt -lt ${#lines[@]} ] && bag "${bagArgs[@]}" --prepend -- "${lines[@]}"
+		[ $lineCnt -lt ${#lines[@]} ] && sendArgsToBag --prepend "${lines[@]}"
 		if [ $lineCnt -eq 1 ]; then
 		    return 1
 		else
@@ -531,13 +537,13 @@ triggerCommand()
 	    stop\ execution)
 			exitProcessing;;
 	    return\ to\ the\ beginning)
-			printf '%s\n' "$@" | bag "${bagArgs[@]}" --prepend;;
+			sendArgsToBag --prepend "$@";;
 	    reTurn\ all\ to\ the\ beginning)
 			cannedChoice='reTurn all to the beginning'
-			printf '%s\n' "$@" | bag "${bagArgs[@]}" --prepend
+			sendArgsToBag --prepend "$@"
 			;;
 	    return\ and\ abort)
-			printf '%s\n' "$@" | bag "${bagArgs[@]}" --prepend
+			sendArgsToBag --prepend "$@"
 			exitProcessing
 			;;
 	    return\ edited)
@@ -547,14 +553,13 @@ triggerCommand()
 			exitProcessing
 			;;
 	    put\ back\ at\ the\ end)
-			printf '%s\n' "$@" | bag "${bagArgs[@]}" --append
-			;;
+			sendArgsToBag --append "$@";;
 	    put\ all\ Back\ at\ the\ end)
 			cannedChoice='put all Back at the end'
-			printf '%s\n' "$@" | bag "${bagArgs[@]}" --append
+			sendArgsToBag --append "$@"
 			;;
 	    put\ back\ and\ abort)
-			printf '%s\n' "$@" | bag "${bagArgs[@]}" --append
+			sendArgsToBag --append "$@"
 			exitProcessing
 			;;
 	    put\ back\ edited)
@@ -575,18 +580,18 @@ triggerCommand()
 	esac
     fi
     if [ "$prependOn" ] && [ $exitStatus $prependComparison $prependOn ]; then
-	[ -n "$prependAfterEachText" ] && bag "${bagArgs[@]}" --prepend -- "$prependAfterEachText"
-	[ -n "$prependAfterOnceText" ] && bag "${bagArgs[@]}" --prepend -- "$prependAfterOnceText" && prependAfterOnceText=''
-	printf '%s\n' "$@" | bag "${bagArgs[@]}" --prepend
-	[ -n "$prependBeforeEachText" ] && bag "${bagArgs[@]}" --prepend -- "$prependBeforeEachText"
-	[ -n "$prependBeforeOnceText" ] && bag "${bagArgs[@]}" --prepend -- "$prependBeforeOnceText" && prependBeforeOnceText=''
+	[ -n "$prependAfterEachText" ] && sendArgsToBag --prepend "$prependAfterEachText"
+	[ -n "$prependAfterOnceText" ] && sendArgsToBag --prepend "$prependAfterOnceText" && prependAfterOnceText=''
+	sendArgsToBag --prepend "$@"
+	[ -n "$prependBeforeEachText" ] && sendArgsToBag --prepend "$prependBeforeEachText"
+	[ -n "$prependBeforeOnceText" ] && sendArgsToBag --prepend "$prependBeforeOnceText" && prependBeforeOnceText=''
     fi
     if [ "$appendOn" ] && [ $exitStatus $appendComparison $appendOn ]; then
-	[ -n "$appendBeforeEachText" ] && bag "${bagArgs[@]}" --append -- "$appendBeforeEachText"
-	[ -n "$appendBeforeOnceText" ] && bag "${bagArgs[@]}" --append -- "$appendBeforeOnceText" && appendBeforeOnceText=''
-	printf '%s\n' "$@" | bag "${bagArgs[@]}" --append
-	[ -n "$appendAfterEachText" ] && bag "${bagArgs[@]}" --append -- "$appendAfterEachText"
-	[ -n "$appendAfterOnceText" ] && bag "${bagArgs[@]}" --append -- "$appendAfterOnceText" && appendAfterOnceText=''
+	[ -n "$appendBeforeEachText" ] && sendArgsToBag --append "$appendBeforeEachText"
+	[ -n "$appendBeforeOnceText" ] && sendArgsToBag --append "$appendBeforeOnceText" && appendBeforeOnceText=''
+	sendArgsToBag --append "$@"
+	[ -n "$appendAfterEachText" ] && sendArgsToBag --append "$appendAfterEachText"
+	[ -n "$appendAfterOnceText" ] && sendArgsToBag --append "$appendAfterOnceText" && appendAfterOnceText=''
     fi
     if [ "$exitOn" ] && [ $exitStatus $exitComparison $exitOn ]; then
 	exitProcessing
