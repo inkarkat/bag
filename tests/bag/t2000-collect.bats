@@ -8,6 +8,32 @@ load fixture
     assert_bag "first entry"
 }
 
+@test "appending a line creates the bag" {
+    bag --append 'first entry'
+
+    assert_bag "first entry"
+}
+
+@test "appending a line to an empty bag" {
+    empty_bag
+    bag --append 'first entry'
+
+    assert_bag "first entry"
+}
+
+@test "prepending a line creates the bag" {
+    bag --prepend 'first entry'
+
+    assert_bag "first entry"
+}
+
+@test "prepending a line to an empty bag" {
+    empty_bag
+    bag --prepend 'first entry'
+
+    assert_bag "first entry"
+}
+
 @test "a second set of lines overwrites the bag" {
     echo 'first entry' | bag
     echo -e 'second entry\nand more' | bag
