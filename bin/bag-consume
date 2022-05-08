@@ -520,7 +520,7 @@ triggerCommand()
 	if [ -n "$cannedChoice" ]; then
 	    local choice="$cannedChoice"
 	else
-	    local question="$(getQuestion "${lines[@]}"; printf @)"; question="${question%@}"
+	    local question; if [ "$isBare" ] && [ ! "$isPrint" ]; then question="$(getQuestion "${lines[@]}"; printf @)"; question="${question%@}"; fi
 	    if [ "$count" = 1 -o ${count:-0} -eq $((totalCnt + 1)) ]; then
 		typeset -a choices=('[a]ccept' '[s]top execution' '[r]eturn to the beginning' 'return [e]dited' 'put [b]ack at the end' 'put back ed[i]ted')
 	    else
@@ -532,7 +532,7 @@ triggerCommand()
 		fi
 	    fi
 
-	    local choice="$(userchoiceFromList --question "$question" --no-cancel "${choices[@]}")"
+	    local choice="$(userchoiceFromList ${question:+--question "$question"} --no-cancel "${choices[@]}")"
 	fi
 
 	case "$choice" in
