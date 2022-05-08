@@ -31,6 +31,11 @@ dump_bag()
     prefix '#' "$BAG" >&3
 }
 
+empty_bag()
+{
+    :>"$BAG"
+}
+
 make_bag()
 {
     echo -e 'some stuff\n in\nhere' | bag

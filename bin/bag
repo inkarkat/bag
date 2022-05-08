@@ -223,7 +223,7 @@ case "$action" in
 	assertNoPrintLines
 	backupBag
 	if [ "$isPrepend" ]; then
-	    prepend "$@" "$BAG"
+	    prepend -- "$@" "$BAG"
 	else
 	    eval 'printf %s\\n "$@"' ">${isAppend:+>}" '"$BAG"'
 	fi
@@ -232,10 +232,7 @@ case "$action" in
 	assertNoPrintLines
 	backupBag
 	if [ "$isPrepend" ]; then
-	    readarray -t lines
-	    if [ ${#lines[@]} -gt 0 ]; then
-		prepend "${lines[@]}" "$BAG" || exit $?
-	    fi
+	    prepend - "$BAG" || exit $?
 	else
 	    if [ ! "$isAppend" ]; then
 		> "$BAG" || exit $?
