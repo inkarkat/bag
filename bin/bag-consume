@@ -343,6 +343,7 @@ waitForParallelLimit()
 exitStatus=0
 overallExitStatus=
 let totalCnt=0
+cannedChoice=''
 consumeExistingOutput()
 {
     while [ -z "$count" ] || [ $totalCnt -lt $count ]
@@ -505,19 +506,23 @@ triggerCommand()
 	appendAfterOnceText=''
     fi
     if [ "$queryOn" ] && [ $exitStatus $queryComparison $queryOn ]; then
-	local question="$(getQuestion "${lines[@]}"; printf @)"; question="${question%@}"
-	if [ "$count" = 1 -o ${count:-0} -eq $((totalCnt + 1)) ]; then
-	    typeset -a choices=('[a]ccept' '[s]top execution' '[r]eturn to the beginning' 'return [e]dited' 'put [b]ack at the end' 'put back ed[i]ted')
+	if [ -n "$cannedChoice" ]; then
+	    local choice="$cannedChoice"
 	else
-	    typeset -a choices=('[a]ccept' "$BAGCONSUME_ACTION_NAME [A]ll further without confirmation" '[s]top execution' '[r]eturn to the beginning' 'return and abor[t]' 'return [e]dited' 'return e[d]ited and abort' 'put [b]ack at the end' 'put ba[c]k and abort' 'put back ed[i]ted' 'put bac[k] edited and abort')
-	    if [ -z "$count" ]; then
-		choices+=('disca[R]d all further')
+	    local question="$(getQuestion "${lines[@]}"; printf @)"; question="${question%@}"
+	    if [ "$count" = 1 -o ${count:-0} -eq $((totalCnt + 1)) ]; then
+		typeset -a choices=('[a]ccept' '[s]top execution' '[r]eturn to the beginning' 'return [e]dited' 'put [b]ack at the end' 'put back ed[i]ted')
 	    else
-		choices+=("disca[R]d up to $(((count - totalCnt) * maxLines)) more")
+		typeset -a choices=('[a]ccept' "$BAGCONSUME_ACTION_NAME [A]ll further without confirmation" '[s]top execution' '[r]eturn to the beginning' 're[T]urn all to the beginning' 'return and abor[t]' 'return [e]dited' 'return e[d]ited and abort' 'put [b]ack at the end' 'put all [B]ack at the end' 'put ba[c]k and abort' 'put back ed[i]ted' 'put bac[k] edited and abort')
+		if [ -z "$count" ]; then
+		    choices+=('disca[R]d all further')
+		else
+		    choices+=("disca[R]d up to $(((count - totalCnt) * maxLines)) more")
+		fi
 	    fi
-	fi
 
-	local choice="$(userchoiceFromList --question "$question" --no-cancel "${choices[@]}")"
+	    local choice="$(userchoiceFromList --question "$question" --no-cancel "${choices[@]}")"
+	fi
 
 	case "$choice" in
 	    accept)	;;
@@ -527,6 +532,10 @@ triggerCommand()
 			exitProcessing;;
 	    return\ to\ the\ beginning)
 			printf '%s\n' "$@" | bag "${bagArgs[@]}" --prepend;;
+	    reTurn\ all\ to\ the\ beginning)
+			cannedChoice='reTurn all to the beginning'
+			printf '%s\n' "$@" | bag "${bagArgs[@]}" --prepend
+			;;
 	    return\ and\ abort)
 			printf '%s\n' "$@" | bag "${bagArgs[@]}" --prepend
 			exitProcessing
@@ -538,6 +547,10 @@ triggerCommand()
 			exitProcessing
 			;;
 	    put\ back\ at\ the\ end)
+			printf '%s\n' "$@" | bag "${bagArgs[@]}" --append
+			;;
+	    put\ all\ Back\ at\ the\ end)
+			cannedChoice='put all Back at the end'
 			printf '%s\n' "$@" | bag "${bagArgs[@]}" --append
 			;;
 	    put\ back\ and\ abort)
