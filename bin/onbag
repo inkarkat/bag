@@ -2,10 +2,13 @@
 set -o pipefail
 shopt -qs extglob
 
+: ${ONBAG_LINE_WHAT=line}
 : ${ONBAG_OUTPUT_MARKER='{}'}
 outputMarker="$ONBAG_OUTPUT_MARKER"
 readonly EXIT_SIGNAL=125
 readonly NOOP_SIGNAL=124
+
+hasProgressNotification=; type -t progressNotification >/dev/null && hasProgressNotification=t
 
 isOnChange=
 if [ "$1" = --onchange ]; then
@@ -36,7 +39,7 @@ fi
 
 printShortUsage()
 {
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-x|--transactional] [--ignore-existing] [-n|--count N|-1] [-i|--interval NUMBER[SUFFIX] [-l|--max-lines N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [-t|--stop-after TIMEOUT[SUFFIX]] [--print] [[--bare|[--no-capture-output] [--initial-status NUM] [--trailing-prompt|--no-trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--emulate-prompt]] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--parallel-limit N] [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before-each TEXT] [--prepend-after-each TEXT] [--prepend-before-once TEXT] [--prepend-after-once TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before-each TEXT] [--append-after-each TEXT] [--append-before-once TEXT] [--append-after-once TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: %q %s%s %s\n' "$(basename "$1")" '[-x|--transactional] [--ignore-existing] [-n|--count N|-1] [-i|--interval NUMBER[SUFFIX] [-l|--max-lines N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [-t|--stop-after TIMEOUT[SUFFIX]] [--print]' "${hasProgressNotification:+ [--progress SINK]}" '[[--bare|[--no-capture-output] [--initial-status NUM] [--trailing-prompt|--no-trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--emulate-prompt]] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--parallel-limit N] [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before-each TEXT] [--prepend-after-each TEXT] [--prepend-before-once TEXT] [--prepend-after-once TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before-each TEXT] [--append-after-each TEXT] [--append-before-once TEXT] [--append-after-once TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -65,7 +68,9 @@ HELPDESCRIPTION
     --ignore-existing	Do not immediately react on existing lines; only start
 			consuming once an actual external change has been
 			observed / only consume existing line(s) each INTERVAL.
-    --print		Print the added output.
+    --print		Print the added output.${hasProgressNotification:+
+    --progress SINK	Report the current (first) line through one of the SINKs
+			of the progressNotification command.}
     --bare		Do not print a status line before and after launching
 			the COMMAND.
     --initial-status NUM    Customizations of the prompt emulation around
@@ -230,6 +235,7 @@ typeset -a commands=()
 prefixCommand=
 prefixCommandCommand=
 isPrint=
+progressSink=
 isBare=
 isCaptureOutput=t
 typeset -a onchangeArgs=()
@@ -265,6 +271,7 @@ do
 	--append-after-once)	shift; appendAfterOnceText="$1"; shift;;
 	--parallel)	shift; isParallel=t;;
 	--print)	shift; isPrint=t;;
+	--progress)	shift; progressSink="$1"; shift;;
 	--bare)		shift; isBare=t;;
 	--trailing-prompt|--no-trailing-prompt|--no-output-no-prompt|--no-output-no-error|--emulate-prompt)
 			runWithPromptArgs+=("$1"); shift;;
@@ -474,6 +481,7 @@ executeTrigger()
     if [ "$isPrint" ]; then
 	joinBy ${ONBAG_PRINT_PREFIX:+--prefix "$ONBAG_PRINT_PREFIX"} ${ONBAG_PRINT_SUFFIX:+--suffix "$ONBAG_PRINT_SUFFIX"} -- "${ONBAG_PRINT_SEPARATOR-$'\n'}" "${lines[@]}"
     fi
+    reportProgress "${lines[0]}"
 
     if [ ${#commands[@]} -ge 1 ]; then
 	[ "$rateLimit" ] && sleep "$rateLimit"
@@ -560,6 +568,19 @@ shutdown()
     exit $EXIT_SIGNAL
 }
 trap "shutdown" SIGUSR1
+
+
+if [ "$hasProgressNotification" ] && [ -n "$progressSink" ]; then
+    [ "$isOnChange" ] || exec 3> >(progressNotification --to "$progressSink" ${ONBAG_LINE_WHAT:+--prepend-count "${ONBAG_LINE_WHAT}"} 2>/dev/null)
+
+    reportProgress()
+    {
+	trap 'reportProgress() { :; }; trap PIPE' PIPE
+	printf '%s\n' "$*" >&3 2>/dev/null  # Silence "printf: write error: Broken pipe"
+    }
+else
+    reportProgress() { :; }
+fi
 
 if [ "$isOnChange" ]; then
     status=0

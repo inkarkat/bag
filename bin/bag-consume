@@ -2,6 +2,7 @@
 set -o pipefail
 shopt -qs extglob
 
+: ${BAGCONSUME_LINE_WHAT=line}
 : ${BAGCONSUME_OUTPUT_MARKER='{}'}
 outputMarker="$BAGCONSUME_OUTPUT_MARKER"
 : ${BAGCONSUME_ACTION_NAME:=consume}
@@ -17,10 +18,11 @@ if [ -z "$PGID" ]; then # No parent script has become the process group leader y
     fi
 fi
 
+hasProgressNotification=; type -t progressNotification >/dev/null && hasProgressNotification=t
 
 printShortUsage()
 {
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-i|--interactive] [-x|--transactional] [--worst-status] [-a|--all|-n|--count N] [-l|--max-lines N] [-s|--stop-on PATTERN] [--print] [[--bare|[--no-capture-output] [--initial-status NUM] [--trailing-prompt|--no-trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--emulate-prompt]] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--parallel-limit N] [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--query|--query-on-success|--query-on-failure|--query-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before-each TEXT] [--prepend-after-each TEXT] [--prepend-before-once TEXT] [--prepend-after-once TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before-each TEXT] [--append-after-each TEXT] [--append-before-once TEXT] [--append-after-once TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: %q %s%s %s\n' "$(basename "$1")" '[-i|--interactive] [-x|--transactional] [--worst-status] [-a|--all|-n|--count N] [-l|--max-lines N] [-s|--stop-on PATTERN] [--print]' "${hasProgressNotification:+ [--progress SINK]}" '[[--bare|[--no-capture-output] [--initial-status NUM] [--trailing-prompt|--no-trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--emulate-prompt]] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--parallel-limit N] [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--query|--query-on-success|--query-on-failure|--query-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before-each TEXT] [--prepend-after-each TEXT] [--prepend-before-once TEXT] [--prepend-after-once TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before-each TEXT] [--append-after-each TEXT] [--append-before-once TEXT] [--append-after-once TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -49,7 +51,9 @@ HELPDESCRIPTION
 			while no write is under way. Pass this to ensure
 			consistency in case there could ever be contention over
 			the file.
-    --print		Print the ${BAGCONSUME_ACTION_NAME}d lines.
+    --print		Print the ${BAGCONSUME_ACTION_NAME}d lines.${hasProgressNotification:+
+    --progress SINK	Report the current (first) line through one of the SINKs
+			of the progressNotification command.}
     --bare		Do not print a status line before and after launching
 			the COMMAND.
     --initial-status NUM    Customizations of the prompt emulation around
@@ -200,6 +204,7 @@ appendComparison=-eq
 typeset -a commands=()
 prefixCommand=
 prefixCommandCommand=
+progressSink=
 isPrint=
 isBare=
 isWorstStatus=
@@ -237,6 +242,7 @@ do
 	--append-after-once)	shift; appendAfterOnceText="$1"; shift;;
 	--parallel)	shift; isParallel=t;;
 	--print)	shift; isPrint=t;;
+	--progress)	shift; progressSink="$1"; shift;;
 	--bare)		shift; isBare=t;;
 	--trailing-prompt|--no-trailing-prompt|--no-output-no-prompt|--no-output-no-error|--emulate-prompt)
 			runWithPromptArgs+=("$1"); shift;;
@@ -329,6 +335,18 @@ if [ "$isParallel" ] && [ -n "$prependBeforeOnceText" -o -n "$prependAfterOnceTe
     marker --transactional --delete onceTextDoneFlag
 else
     markerDrop() { :; }
+fi
+
+if [ "$hasProgressNotification" ] && [ -n "$progressSink" ]; then
+    exec 3> >(progressNotification --to "$progressSink" ${BAGCONSUME_LINE_WHAT:+--prepend-count "${BAGCONSUME_LINE_WHAT}"} 2>/dev/null)
+
+    reportProgress()
+    {
+	trap 'reportProgress() { :; }; trap PIPE' PIPE
+	printf '%s\n' "$*" >&3 2>/dev/null  # Silence "printf: write error: Broken pipe"
+    }
+else
+    reportProgress() { :; }
 fi
 
 
@@ -468,6 +486,7 @@ executeTrigger()
     if [ "$isPrint" ]; then
 	joinBy ${BAGCONSUME_PRINT_PREFIX:+--prefix "$BAGCONSUME_PRINT_PREFIX"} ${BAGCONSUME_PRINT_SUFFIX:+--suffix "$BAGCONSUME_PRINT_SUFFIX"} -- "${BAGCONSUME_PRINT_SEPARATOR-$'\n'}" "${lines[@]}"
     fi
+    reportProgress "${lines[0]}"
 
     if [ ${#commands[@]} -ge 1 ]; then
 	[ "$rateLimit" ] && sleep "$rateLimit"
