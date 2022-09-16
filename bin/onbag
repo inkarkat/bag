@@ -39,7 +39,7 @@ fi
 
 printShortUsage()
 {
-    printf 'Usage: %q %s%s %s\n' "$(basename "$1")" '[-x|--transactional] [--ignore-existing] [-n|--count N|-1] [-i|--interval NUMBER[SUFFIX] [-l|--max-lines N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [-t|--stop-after TIMEOUT[SUFFIX]] [--print]' "${hasProgressNotification:+ [--progress SINK]}" '[[--bare|[--no-capture-output] [--initial-status NUM] [--trailing-prompt|--no-trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--emulate-prompt]] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--parallel-limit N] [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before-each TEXT] [--prepend-after-each TEXT] [--prepend-before-once TEXT] [--prepend-after-once TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before-each TEXT] [--append-after-each TEXT] [--append-before-once TEXT] [--append-after-once TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: %q %s%s %s\n' "$(basename "$1")" '[-x|--transactional] [--ignore-existing] [-n|--count N|-1] [-i|--interval NUMBER[SUFFIX] [-l|--max-lines N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [-t|--stop-after TIMEOUT[SUFFIX]] [--print]' "${hasProgressNotification:+ [--progress SINK]}" '[[--bare|[--no-capture-output] [--initial-status NUM] [--trailing-prompt|--no-trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--emulate-prompt] [--worst-status]] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--parallel-limit N] [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before-each TEXT] [--prepend-after-each TEXT] [--prepend-before-once TEXT] [--prepend-after-once TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before-each TEXT] [--append-after-each TEXT] [--append-before-once TEXT] [--append-after-once TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
 }
 printUsage()
 {
@@ -79,6 +79,7 @@ HELPDESCRIPTION
     --no-output-no-prompt
     --no-output-no-error
     --emulate-prompt
+    --worst-status
     --no-capture-output	By default, no status line is printed if the COMMAND did
 			not have any output, and failing parallel invocations
 			without output are ignored altogether. This option turns
@@ -273,7 +274,7 @@ do
 	--print)	shift; isPrint=t;;
 	--progress)	shift; progressSink="$1"; shift;;
 	--bare)		shift; isBare=t;;
-	--trailing-prompt|--no-trailing-prompt|--no-output-no-prompt|--no-output-no-error|--emulate-prompt)
+	--trailing-prompt|--no-trailing-prompt|--no-output-no-prompt|--no-output-no-error|--emulate-prompt|--worst-status)
 			runWithPromptArgs+=("$1"); shift;;
 	--initial-status)
 			runWithPromptArgs+=("$1" "$2"); shift; shift;;
