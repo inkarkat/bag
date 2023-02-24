@@ -640,7 +640,7 @@ else
 	# COMMAND is difficult, because onchange will periodically invoke
 	# ourselves recursively, so we need to use a persisted file that we
 	# clear after the first invocation.
-	TMPFILE="$(mktemp --tmpdir "$(basename -- "$0")-XXXXXX" 2>/dev/null || echo "${TEMP:-/tmp}/$(basename -- "$0").$$$RANDOM")"
+	TMPFILE="$(mktemp --tmpdir "$(basename -- "$0")-XXXXXX" 2>/dev/null || echo "${TMPDIR:-/tmp}/$(basename -- "$0").$$$RANDOM")"
 	printf '%d\n' "$exitStatus" > "$TMPFILE" && \
 	    exitStatusContinuationArgs=(--consumed-exit-status-file "$TMPFILE")
     fi
