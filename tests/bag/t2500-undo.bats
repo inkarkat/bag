@@ -9,7 +9,7 @@ load fixture
 }
 
 @test "undo of an operation that creates the bag restores empty bag" {
-    bag some values
+    bag -- some values
     run bag --undo
     [ $status -eq 0 ]
     [ "$output" = "" ]
@@ -40,7 +40,7 @@ here"
 
 @test "undo of set restores to original contents" {
     make_bag
-    bag something else
+    bag -- something else
     run bag --undo
     [ $status -eq 0 ]
     [ "$output" = "" ]
@@ -62,7 +62,7 @@ here"
 
 @test "undo of undo restores to changed contents" {
     make_bag
-    bag something else
+    bag -- something else
     bag --undo
     run bag --undo
     [ $status -eq 0 ]
@@ -73,7 +73,7 @@ else"
 
 @test "undo of undo of undo restores to original contents" {
     make_bag
-    bag something else
+    bag -- something else
     bag --undo
     bag --undo
     run bag --undo
@@ -86,7 +86,7 @@ here"
 
 @test "undo with --print prints and restores to original contents" {
     make_bag
-    bag something else
+    bag -- something else
     run bag --undo --print
     [ $status -eq 0 ]
     [ "$output" = "some stuff
@@ -98,7 +98,7 @@ here"
 }
 @test "undo --print of undo prints and restores to changed contents" {
     make_bag
-    bag something else
+    bag -- something else
     bag --undo
     run bag --undo --print
     [ $status -eq 0 ]

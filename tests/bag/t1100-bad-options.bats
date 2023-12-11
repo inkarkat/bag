@@ -2,6 +2,12 @@
 
 load fixture
 
+@test "missing -- when putting prints usage error" {
+    run bag 'first entry'
+    [ $status -eq 2 ]
+    [ "${lines[2]%% *}" = 'Usage:' ]
+}
+
 @test "the combination of pop and print prints usage error" {
     run bag --pop --print
     [ $status -eq 2 ]

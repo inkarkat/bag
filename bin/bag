@@ -11,6 +11,7 @@ Collect output in a special file.
 HELPTEXT
     echo
     printf 'Usage: %q %s\n' "$(basename "$1")" '[set|--prepend|add|-a|--append] [-B|--no-backup] [-x|--transactional] [--] OUTPUT [...]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-B|--no-backup] [-x|--transactional] -- OUTPUT [...]'
     printf 'Usage: echo OUTPUT | %q %s\n' "$(basename "$1")" '[set|--prepend|add|-a|--append] [-x|--transactional] [-]'
 
     echo
@@ -59,7 +60,7 @@ backupBag()
     if [ -f "$BAG" ]; then
 	cp --dereference --preserve=all --force --no-target-directory -- "$BAG" "$backupFilespec"
     else
-	> "$backupFilespec"
+	: >"$backupFilespec"
     fi
 }
 
@@ -79,8 +80,8 @@ case "$1" in
     pop)	shift; action=pop;;
     delete)	shift; action=delete;;
     undo)	shift; action=undo;;
-    set)	shift;;
-    add)	shift; isAppend=t;;
+    set)	shift; action=collect;;
+    add)	shift; action=collect; isAppend=t;;
     *)		bagAlias="bag-${1#--}"
 		if which "$bagAlias" >/dev/null 2>&1; then
 		    shift
@@ -101,12 +102,18 @@ do
 	--delete-empty)	shift; popArgs+=(--delete);;
 	--delete|-d)	shift; action=delete;;
 	--undo|-u)	shift; action=undo;;
-	--prepend)	shift; isPrepend=t;;
-	--append|-a)	shift; isAppend=t;;
+	--prepend)	shift; action=collect; isPrepend=t;;
+	--append|-a)	shift; action=collect; isAppend=t;;
 	--no-backup|-B)	shift; isBackup=; backupBag() { :; };;
 	--transactional|-x)
 			isTransactional=t; shift;;
-	--)		shift; break;;
+	--)		shift
+			case "$action" in
+			    collect|print)  action=put;;
+			    *)		    printUsage "$0" >&2; exit 2;;
+			esac
+			break
+			;;
 	-)		shift
 			case "$action" in
 			    collect)	;;
@@ -134,19 +141,12 @@ if [ "$isPrint" ]; then
     esac
 fi
 if [ $# -gt 0 ]; then
-    case "$action" in
-	collect)    action=put;;
-	print)	    if [ "$isPrint" ]; then
-			printUsage "$0" >&2
-			exit 2
-		    else
-			action=put
-		    fi
-		    ;;
-	*)	    printUsage "$0" >&2
-		    exit 2
-		    ;;
-    esac
+    if [ "$action" = collect ]; then
+	action=put
+    elif [ "$action" != put ]; then
+	printUsage "$0" >&2
+	exit 2
+    fi
 fi
 
 if [ "$isTransactional" ]; then
