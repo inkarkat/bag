@@ -39,7 +39,7 @@ fi
 
 printShortUsage()
 {
-    printf 'Usage: %q %s%s %s\n' "$(basename "$1")" '[-x|--transactional] [--ignore-existing] [-n|--count N|-1] [-i|--interval NUMBER[SUFFIX] [-l|--max-lines N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [-t|--stop-after TIMEOUT[SUFFIX]] [--print]' "${hasProgressNotification:+ [--progress SINK]}" '[[--bare|[--no-capture-output] [--initial-status NUM] [--trailing-prompt|--no-trailing-prompt] [--no-output-no-prompt] [--no-output-no-error] [--emulate-prompt] [--worst-status]] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--parallel-limit N] [--rate-limit NUMBER[SUFFIX]]] [--exit-on-success|--exit-on-failure|--exit-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before-each TEXT] [--prepend-after-each TEXT] [--prepend-before-once TEXT] [--prepend-after-once TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before-each TEXT] [--append-after-each TEXT] [--append-before-once TEXT] [--append-after-once TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]'
+    printf 'Usage: %q %s%s %s\n' "$(basename "$1")" '[-x|--transactional] [--ignore-existing] [-n|--count N|-1] [-i|--interval NUMBER[SUFFIX] [-l|--max-lines N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [-t|--stop-after TIMEOUT[SUFFIX]] [--print]' "${hasProgressNotification:+ [--progress SINK]}" "[[--bare [--exit-on-success|--exit-on-failure|--exit-on NUM|--exit-unless NUM]|[--no-capture-output] $(runWithPrompt --get-short-usage 2>/dev/null)] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--parallel-limit N] [--rate-limit NUMBER[SUFFIX]]] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before-each TEXT] [--prepend-after-each TEXT] [--prepend-before-once TEXT] [--prepend-after-once TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before-each TEXT] [--append-after-each TEXT] [--append-before-once TEXT] [--append-after-once TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]"
 }
 printUsage()
 {
@@ -73,13 +73,9 @@ HELPDESCRIPTION
 			of the progressNotification command.}
     --bare		Do not print a status line before and after launching
 			the COMMAND.
-    --initial-status NUM    Customizations of the prompt emulation around
-    --trailing-prompt	    COMMAND; cp. runWithPrompt
-    --no-trailing-prompt
-    --no-output-no-prompt
-    --no-output-no-error
-    --emulate-prompt
-    --worst-status
+HELPTEXT
+    runWithPrompt --get-long-usage 2>/dev/null
+    cat <<HELPTEXT
     --no-capture-output	By default, no status line is printed if the COMMAND did
 			not have any output, and failing parallel invocations
 			without output are ignored altogether. This option turns
@@ -137,11 +133,6 @@ HELPDESCRIPTION
 			Sleep for NUMBER[SUFFIX] before triggering the next
 			parallel execution of COMMAND. This can avoid triggering
 			too many simultaneous executions.
-    --exit-on-success	Stop observing changes if COMMAND is successful.
-    --exit-on-failure	Stop observing changes if COMMAND is unsuccessful.
-    --exit-on NUM	Stop observing changes if COMMAND exits with NUM.
-    --exit-unless NUM	Stop observing changes if COMMAND does not exit with
-			NUM.
     --count|-n N	Stop observing changes after N changes. Output that is
 			retried is not counted.
     -1			Stop observing after the first change. Output that is
@@ -274,9 +265,9 @@ do
 	--print)	shift; isPrint=t;;
 	--progress)	shift; progressSink="$1"; shift;;
 	--bare)		shift; isBare=t;;
-	--trailing-prompt|--no-trailing-prompt|--no-output-no-prompt|--no-output-no-error|--emulate-prompt|--worst-status)
+	--trailing-prompt|--no-trailing-prompt|--no-output-no-prompt|--no-output-no-error|--no-success-no-count|--emulate-prompt|--worst-status)
 			runWithPromptArgs+=("$1"); shift;;
-	--initial-status)
+	--initial-status|--no-count-on|--comment|--summarize-failed|--summarize-failed-separator)
 			runWithPromptArgs+=("$1" "$2"); shift; shift;;
 	--no-capture-output)
 			shift; isCaptureOutput=;;
