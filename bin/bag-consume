@@ -2,6 +2,7 @@
 set -o pipefail
 shopt -qs extglob
 
+: ${BAGCONSUME_COMMAND_JOINER=;}
 : ${BAGCONSUME_LINE_WHAT=line}
 : ${BAGCONSUME_OUTPUT_MARKER='{}'}
 outputMarker="$BAGCONSUME_OUTPUT_MARKER"
@@ -192,7 +193,7 @@ appendBeforeOnceText=
 appendAfterOnceText=
 appendOn=
 appendComparison=-eq
-typeset -a commands=()
+commands=
 prefixCommand=
 prefixCommandCommand=
 progressSink=
@@ -246,9 +247,9 @@ do
 			if [ -n "$prefixCommandCommand" ]; then
 			    printf -v quotedCommand %q "$1"
 			    printf -v escapedOutputMarker %q "$outputMarker" # %q escapes {}, we don't want that to have it interpolated later.
-			    commands+=(${commands:+;} "${prefixCommandCommand} --command ${quotedCommand//"$escapedOutputMarker"/$outputMarker}")
+			    commands+="${commands:+ $BAGCONSUME_COMMAND_JOINER }${prefixCommandCommand} --command ${quotedCommand//"$escapedOutputMarker"/$outputMarker}"
 			else
-			    commands+=(${commands:+;} "${prefixCommand}$1")
+			    commands+="${commands:+ $BAGCONSUME_COMMAND_JOINER }${prefixCommand}$1"
 			fi
 			shift
 			;;
@@ -273,9 +274,9 @@ if [ $# -ne 0 ]; then
     # undo the effects of eval.
     printf -v quotedSimpleCommand '%q ' "$@"
     printf -v escapedOutputMarker %q "$outputMarker"
-    commands+=(${commands:+;} "${prefixCommand}${quotedSimpleCommand//"$escapedOutputMarker"/$outputMarker}")	# %q escapes {}, we don't want that to have it interpolated later.
+    commands+="${commands:+ $BAGCONSUME_COMMAND_JOINER }${prefixCommand}${quotedSimpleCommand//"$escapedOutputMarker"/$outputMarker}"	# %q escapes {}, we don't want that to have it interpolated later.
 fi
-if [ ! "$isPrint" ] && [ ${#commands[@]} -eq 0 ]; then
+if [ ! "$isPrint" ] && [ -z "$commands" ]; then
     echo 'ERROR: Need to pass either --print to show lines, or -c|--command to execute a command.'
     echo
     printUsage "$0"
@@ -479,7 +480,7 @@ executeTrigger()
     fi
     reportProgress "${lines[0]}"
 
-    if [ ${#commands[@]} -ge 1 ]; then
+    if [ -n "$commands" ]; then
 	[ "$rateLimit" ] && sleep "$rateLimit"
 	[ "$isParallel" ] && [ "$parallelLimit" ] && waitForParallelLimit
 	eval 'triggerCommand "${lines[@]}"' ${isParallel:+&}
@@ -492,20 +493,20 @@ executeTrigger()
 
 triggerCommand()
 {
-    if [ "${commands[*]}" = "eval $outputMarker" ]; then
+    if [ "$commands" = "eval $outputMarker" ]; then
 	# Optimization: Detect (non-bare) command from bag-execute and drop the
 	# eval so that the command looks natural in runWithPrompt.
-	typeset -a expandedCommands=("$@")
+	local expandedCommands="$*"
     else
 	local quotedLines; printf -v quotedLines '%q ' "$@"; quotedLines=${quotedLines% }
-	typeset -a expandedCommands=("${commands[@]//"$outputMarker"/$quotedLines}")
+	local expandedCommands="${commands//"$outputMarker"/$quotedLines}"
     fi
 
     unset BAGCONSUME_OUTPUT_MARKER
     if [ "$isBare" ]; then
-	eval "${expandedCommands[@]}"
+	eval "$expandedCommands"
     else
-	{ printf '%s ' "${expandedCommands[@]}"; printf '\n'; } | runWithPrompt --initial-status "${exitStatus:-0}" --no-trailing-prompt "${runWithPromptArgs[@]}" --comment "$totalCnt"
+	printf '%s\n' "$expandedCommands" | runWithPrompt --initial-status "${exitStatus:-0}" --no-trailing-prompt "${runWithPromptArgs[@]}" --comment "$totalCnt"
     fi
     exitStatus=$?
     if [ ! "$isWorstStatus" -o $exitStatus -gt ${overallExitStatus:-0} ]; then
