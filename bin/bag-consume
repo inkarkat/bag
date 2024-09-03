@@ -628,7 +628,7 @@ shutdown()
 trap "shutdown" SIGUSR1
 
 if [ -n "$pgid" ]; then
-    trap "markerDrop; kill -- -$pgid" EXIT  # If we're the leader, kill subshell processes when the script exits.
+    trap "markerDrop; trap '' SIGTERM; kill -- -$pgid" EXIT  # If we're the leader, kill subshell processes when the script exits. Don't kill ourselves when we kill the process group; this would print "Terminated" and change the exit status to 143. We're about to exit, anyway.
 else
     trap "markerDrop; jobs -p | xargs --no-run-if-empty kill --" EXIT  # Someone else is the leader; killing remaining jobs is all we can do here.
 fi
