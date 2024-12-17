@@ -12,7 +12,7 @@ printUsage()
 Collect output in a special file.
 HELPTEXT
     echo
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[set|--prepend|add|-a|--append] [-B|--no-backup] [-x|--transactional] [--] OUTPUT [...]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" 'set|--prepend|add|-a|--append [-B|--no-backup] [-x|--transactional] [--] OUTPUT [...]'
     printf 'Usage: %q %s\n' "$(basename "$1")" '[-B|--no-backup] [-x|--transactional] -- OUTPUT [...]'
     printf 'Usage: echo OUTPUT | %q %s\n' "$(basename "$1")" '[set|--prepend|add|-a|--append] [-x|--transactional] [-]'
 
