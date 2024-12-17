@@ -1,6 +1,8 @@
 #!/bin/bash
 shopt -qs extglob
 
+case ",${TRACE:-}," in *,bag,*) [ -z "$BATS_TEST_NAME" ] || BASH_XTRACEFD=3; set -x;; esac
+
 : ${BAG:="${HOME}/.bag"}
 backupFilespec="${BAG}.bak"
 
