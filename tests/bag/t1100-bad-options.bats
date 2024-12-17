@@ -3,6 +3,7 @@
 load fixture
 
 @test "missing -- when putting prints usage error" {
+    [ -t 0 ] || skip 'Not reading from terminal'
     run bag 'first entry'
     [ $status -eq 2 ]
     [ "${lines[2]%% *}" = 'Usage:' ]
