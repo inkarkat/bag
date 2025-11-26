@@ -23,7 +23,7 @@ hasProgressNotification=; type -t progressNotification >/dev/null && hasProgress
 
 printShortUsage()
 {
-    printf 'Usage: %q %s%s %s\n' "$(basename "$1")" '[-i|--interactive] [-x|--transactional] [--worst-status] [-a|--all|-n|--count N] [-l|--max-lines N] [-s|--stop-on PATTERN] [--print]' "${hasProgressNotification:+ [--progress SINK]}" "[[--bare [--exit-on-success|--exit-on-failure|--exit-on NUM|--exit-unless NUM]|[--no-capture-output] $(runWithPrompt --get-short-usage 2>/dev/null)] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--parallel-limit N] [--rate-limit NUMBER[SUFFIX]]] [--query|--query-on-success|--query-on-failure|--query-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before-each TEXT] [--prepend-after-each TEXT] [--prepend-before-once TEXT] [--prepend-after-once TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before-each TEXT] [--append-after-each TEXT] [--append-before-once TEXT] [--append-after-once TEXT]] -c|--command \"COMMANDLINE\" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]"
+    printf 'Usage: %q %s%s %s\n' "$(basename "$1")" '[-i|--interactive] [-x|--transactional] [--worst-status [--status-99-is-noop]] [-a|--all|-n|--count N] [-l|--max-lines N] [-s|--stop-on PATTERN] [--print]' "${hasProgressNotification:+ [--progress SINK]}" "[[--bare [--exit-on-success|--exit-on-failure|--exit-on NUM|--exit-unless NUM]|[--no-capture-output] $(runWithPrompt --get-short-usage 2>/dev/null)] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--parallel-limit N] [--rate-limit NUMBER[SUFFIX]]] [--query|--query-on-success|--query-on-failure|--query-on NUM] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before-each TEXT] [--prepend-after-each TEXT] [--prepend-before-once TEXT] [--prepend-after-once TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before-each TEXT] [--append-after-each TEXT] [--append-before-once TEXT] [--append-after-once TEXT]] -c|--command \"COMMANDLINE\" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]"
 }
 printUsage()
 {
@@ -200,6 +200,7 @@ progressSink=
 isPrint=
 isBare=
 isWorstStatus=
+additionalSuccessStatus=
 isCaptureOutput=t
 typeset -a runWithPromptArgs=()
 while [ $# -ne 0 ]
@@ -243,6 +244,8 @@ do
 	--no-capture-output)
 			shift; isCaptureOutput=;;
 	--worst-status)	shift; isWorstStatus=t;;
+	--status-99-is-noop)
+			shift; additionalSuccessStatus=99;;
 	--command|-c)	shift
 			if [ -n "$prefixCommandCommand" ]; then
 			    printf -v quotedCommand %q "$1"
@@ -509,7 +512,7 @@ triggerCommand()
 	printf '%s\n' "$expandedCommands" | runWithPrompt --initial-status "${exitStatus:-0}" --no-trailing-prompt "${runWithPromptArgs[@]}" --comment "$totalCnt"
     fi
     exitStatus=$?
-    if [ ! "$isWorstStatus" -o $exitStatus -gt ${overallExitStatus:-0} ]; then
+    if [ ! "$isWorstStatus" ] || [ $exitStatus -gt ${overallExitStatus:--1} -a $exitStatus -ne ${additionalSuccessStatus:--1} ]; then
 	overallExitStatus=$exitStatus
     fi
     if [ "$isParallel" ] && \
