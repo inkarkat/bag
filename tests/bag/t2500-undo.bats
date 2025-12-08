@@ -3,25 +3,22 @@
 load fixture
 
 @test "cannot undo when there is no backup" {
-    run bag --undo
-    [ $status -eq 1 ]
-    [ "$output" = "ERROR: Nothing to undo." ]
+    run -1 bag --undo
+    assert_output 'ERROR: Nothing to undo.'
 }
 
 @test "undo of an operation that creates the bag restores empty bag" {
     bag -- some values
-    run bag --undo
-    [ $status -eq 0 ]
-    [ "$output" = "" ]
+    run -0 bag --undo
+    assert_output ''
     assert_empty_bag
 }
 
 @test "undo of append restores to original contents" {
     make_bag
     bag --append and more
-    run bag --undo
-    [ $status -eq 0 ]
-    [ "$output" = "" ]
+    run -0 bag --undo
+    assert_output ''
     assert_bag "some stuff
  in
 here"
@@ -30,9 +27,8 @@ here"
 @test "undo of pop restores to original contents" {
     make_bag
     bag --pop
-    run bag --undo
-    [ $status -eq 0 ]
-    [ "$output" = "" ]
+    run -0 bag --undo
+    assert_output ''
     assert_bag "some stuff
  in
 here"
@@ -41,9 +37,8 @@ here"
 @test "undo of set restores to original contents" {
     make_bag
     bag -- something else
-    run bag --undo
-    [ $status -eq 0 ]
-    [ "$output" = "" ]
+    run -0 bag --undo
+    assert_output ''
     assert_bag "some stuff
  in
 here"
@@ -52,9 +47,8 @@ here"
 @test "undo of delete restores to original contents" {
     make_bag
     bag --delete
-    run bag --undo
-    [ $status -eq 0 ]
-    [ "$output" = "" ]
+    run -0 bag --undo
+    assert_output ''
     assert_bag "some stuff
  in
 here"
@@ -64,9 +58,8 @@ here"
     make_bag
     bag -- something else
     bag --undo
-    run bag --undo
-    [ $status -eq 0 ]
-    [ "$output" = "" ]
+    run -0 bag --undo
+    assert_output ''
     assert_bag "something
 else"
 }
@@ -76,9 +69,8 @@ else"
     bag -- something else
     bag --undo
     bag --undo
-    run bag --undo
-    [ $status -eq 0 ]
-    [ "$output" = "" ]
+    run -0 bag --undo
+    assert_output ''
     assert_bag "some stuff
  in
 here"
@@ -87,23 +79,26 @@ here"
 @test "undo with --print prints and restores to original contents" {
     make_bag
     bag -- something else
-    run bag --undo --print
-    [ $status -eq 0 ]
-    [ "$output" = "some stuff
+    run -0 bag --undo --print
+    assert_output - <<'EOF'
+some stuff
  in
-here" ]
+here
+EOF
     assert_bag "some stuff
  in
 here"
 }
+
 @test "undo --print of undo prints and restores to changed contents" {
     make_bag
     bag -- something else
     bag --undo
-    run bag --undo --print
-    [ $status -eq 0 ]
-    [ "$output" = "something
-else" ]
+    run -0 bag --undo --print
+    assert_output - <<'EOF'
+something
+else
+EOF
     assert_bag "something
 else"
 }

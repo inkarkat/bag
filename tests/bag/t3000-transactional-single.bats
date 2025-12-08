@@ -17,25 +17,26 @@ load fixture
 @test "print the bag transactionally" {
     make_bag
 
-    run bag --print --transactional
-    [ $status -eq 0 ]
-    [ "$output" = "some stuff
+    run -0 bag --print --transactional
+    assert_output - <<'EOF'
+some stuff
  in
-here" ]
+here
+EOF
 }
 
 @test "pop two lines transactionally" {
     make_bag
-    run bag --pop --transactional --lines 2
-    [ $status -eq 0 ]
-    [ "$output" = "some stuff
- in" ]
+    run -0 bag --pop --transactional --lines 2
+    assert_output - <<'EOF'
+some stuff
+ in
+EOF
 }
 
 @test "deleting all lines of the bag transactionally removes the bag" {
     make_bag
-    run bag --delete --transactional
-    [ $status -eq 0 ]
-    [ "$output" = "" ]
+    run -0 bag --delete --transactional
+    assert_output ''
     assert_no_bag
 }

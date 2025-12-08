@@ -16,52 +16,54 @@ here"
 @test "print the bag" {
     make_bag
 
-    run bag --print
-    [ $status -eq 0 ]
-    [ "$output" = "some stuff
+    run -0 bag --print
+    assert_output - <<'EOF'
+some stuff
  in
-here" ]
+here
+EOF
 }
 
 @test "print the bag again" {
     make_bag
     bag --print >/dev/null
 
-    run bag --print
-    [ $status -eq 0 ]
-    [ "$output" = "some stuff
+    run -0 bag --print
+    assert_output - <<'EOF'
+some stuff
  in
-here" ]
+here
+EOF
 }
 
 @test "print the bag with print action" {
     make_bag
 
-    run bag print
-    [ $status -eq 0 ]
-    [ "$output" = "some stuff
+    run -0 bag print
+    assert_output - <<'EOF'
+some stuff
  in
-here" ]
+here
+EOF
 }
 
 @test "print the bag with list action" {
     make_bag
 
-    run bag list
-    [ $status -eq 0 ]
-    [ "$output" = "some stuff
+    run -0 bag list
+    assert_output - <<'EOF'
+some stuff
  in
-here" ]
+here
+EOF
 }
 
 @test "attempting to print a non-existing bag prints an error and fails with 1" {
-    run bag --print
-    [ $status -eq 1 ]
-    [ "$output" = "$BAG does not exist" ]
+    run -1 bag --print
+    assert_output "$BAG does not exist"
 }
 
 @test "attempting to print a non-existing bag in quiet mode just fails with 1" {
-    run bag --print --quiet
-    [ $status -eq 1 ]
-    [ "$output" = "" ]
+    run -1 bag --print --quiet
+    assert_output ''
 }

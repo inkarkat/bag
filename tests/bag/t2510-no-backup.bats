@@ -6,9 +6,8 @@ load fixture
     make_bag
     bag --append inconsequential stuff
     bag --append --no-backup and some additions
-    run bag --undo
-    [ $status -eq 0 ]
-    [ "$output" = "" ]
+    run -0 bag --undo
+    assert_output ''
     assert_bag "some stuff
  in
 here"
@@ -18,9 +17,8 @@ here"
     make_bag
     bag --pop
     bag --pop --no-backup
-    run bag --undo
-    [ $status -eq 0 ]
-    [ "$output" = "" ]
+    run -0 bag --undo
+    assert_output ''
     assert_bag "some stuff
  in
 here"
@@ -30,9 +28,8 @@ here"
     make_bag
     bag -- inconsequential stuff
     bag --no-backup -- something else
-    run bag --undo
-    [ $status -eq 0 ]
-    [ "$output" = "" ]
+    run -0 bag --undo
+    assert_output ''
     assert_bag "some stuff
  in
 here"
@@ -43,9 +40,8 @@ here"
     bag -- something else
     bag --undo
     bag --undo --no-backup
-    run bag --undo
-    [ $status -eq 0 ]
-    [ "$output" = "" ]
+    run -0 bag --undo
+    assert_output ''
     assert_bag "something
 else"
 }

@@ -3,14 +3,12 @@
 load fixture
 
 @test "invalid option prints message and usage instructions" {
-  run bag --invalid-option
-    [ $status -eq 2 ]
-    [ "${lines[0]}" = 'ERROR: Unknown option "--invalid-option"!' ]
-    [ "${lines[2]%% *}" = 'Usage:' ]
+    run -2 bag --invalid-option
+    assert_line -n 0 'ERROR: Unknown option "--invalid-option"!'
+    assert_line -n 2 -e '^Usage:'
 }
 
 @test "-h prints long usage help" {
-  run bag -h
-    [ $status -eq 0 ]
-    [ "${lines[0]%% *}" != 'Usage:' ]
+    run -0 bag -h
+    refute_line -n 0 -e '^Usage:'
 }
