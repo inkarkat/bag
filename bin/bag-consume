@@ -237,15 +237,8 @@ do
 	--print)	shift; isPrint=t;;
 	--progress)	shift; progressSink="$1"; shift;;
 	--bare)		shift; isBare=t;;
-	--trailing-prompt|--no-trailing-prompt|--no-output-no-prompt|--no-output-no-error|--no-success-no-count|--emulate-prompt)
-			runWithPromptArgs+=("$1"); shift;;
-	--initial-status|--no-count-on|--comment|--summarize-failed|--summarize-failed-separator)
-			runWithPromptArgs+=("$1" "$2"); shift; shift;;
 	--no-capture-output)
 			shift; isCaptureOutput=;;
-	--worst-status)	shift; isWorstStatus=t;;
-	--status-99-is-noop)
-			shift; additionalSuccessStatus=99;;
 	--command|-c)	shift
 			if [ -n "$prefixCommandCommand" ]; then
 			    printf -v quotedCommand %q "$1"
@@ -267,8 +260,21 @@ do
 	--parallel-limit)
 			shift; parallelLimit="$1"; shift;;
 	--rate-limit)	shift; rateLimit="$1"; shift;;
+	--worst-status)	shift; isWorstStatus=t;;
+	--status-99-is-noop)
+			shift; additionalSuccessStatus=99;;
 	--)		shift; break;;
-	-*)		{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
+	-*)		if argCount=$(runWithPrompt --understands "$@"); then
+			    while ((argCount-- > 0))
+			    do
+				runWithPromptArgs+=("$1"); shift
+			    done
+			elif [ $? -eq 2 ]; then
+			    exit 2
+			else
+			    { echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2
+			fi
+			;;
 	*)		break;;
     esac
 done
