@@ -157,18 +157,6 @@ HELPTEXT
     printf '%q %s\n' "$(basename "$1")" '--bare --all -s STOP --append-on-failure --append-before-once STOP -- wget {}'
 }
 
-timeToSeconds()
-{
-    case "$1" in
-	+([0-9])?(s))   time="${1%s}";;
-	+([0-9])m)	time=$((${1%m} * 60));;
-	+([0-9])h)	time=$((${1%h} * 3600));;
-	+([0-9])d)	time=$((${1%d} * 86400));;
-	*)		printf >&2 "ERROR: Illegal ${2:-timeout}: %s\\n" "$1"; exit 2;;
-    esac
-    printf %s "$time"
-}
-
 isInteractive=
 typeset -a bagArgs=()
 isParallel=
