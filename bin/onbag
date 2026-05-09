@@ -40,7 +40,7 @@ fi
 
 printShortUsage()
 {
-    printf 'Usage: %q %s%s %s\n' "$(basename "$1")" '[-x|--transactional] [--ignore-existing] [-n|--count N|-1] [-i|--interval NUMBER[SUFFIX] [-l|--max-lines N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [-t|--stop-after TIMEOUT[SUFFIX]] [--print]' "${hasProgressNotification:+ [--progress SINK]}" "[[--bare [--exit-on-success|--exit-on-failure|--exit-on NUM|--exit-unless NUM]|[--no-capture-output] $(runWithPrompt --get-short-usage 2>/dev/null)] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--parallel-limit N] [--rate-limit NUMBER[SUFFIX]]] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before-each TEXT] [--prepend-after-each TEXT] [--prepend-before-once TEXT] [--prepend-after-once TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before-each TEXT] [--append-after-each TEXT] [--append-before-once TEXT] [--append-after-once TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]"
+    printf 'Usage: %q %s%s %s\n' "$(basename "$1")" '[-x|--transactional] [--ignore-existing] [-n|--count N|-1] [-i|--interval NUMBER[SUFFIX] [-l|--max-lines N] [-S|--stop-on-empty] [-s|--stop-on PATTERN] [-t|--stop-after TIMESPAN] [--print]' "${hasProgressNotification:+ [--progress SINK]}" "[[--bare [--exit-on-success|--exit-on-failure|--exit-on NUM|--exit-unless NUM]|[--no-capture-output] $(runWithPrompt --get-short-usage 2>/dev/null)] [--prefix-command PC] [--prefix-command-command PCC] [--parallel [--parallel-limit N] [--rate-limit NUMBER[SUFFIX]]] [--prepend-on-failure|--prepend-on NUM|--prepend-unless NUM [--prepend-before-each TEXT] [--prepend-after-each TEXT] [--prepend-before-once TEXT] [--prepend-after-once TEXT]] [--append-on-failure|--append-on NUM|--append-unless NUM [--append-before-each TEXT] [--append-after-each TEXT] [--append-before-once TEXT] [--append-after-once TEXT]] -c|--command "COMMANDLINE" | [--] SIMPLECOMMAND [...]] [-?|-h|--help]"
 }
 printUsage()
 {
@@ -76,6 +76,7 @@ HELPDESCRIPTION
 			the COMMAND.
 HELPTEXT
     runWithPrompt --get-long-usage 2>/dev/null
+    local timespanFormat="$(durationToSeconds --get-short-usage format 2>/dev/null)"
     cat <<HELPTEXT
     --no-capture-output	By default, no status line is printed if the COMMAND did
 			not have any output, and failing parallel invocations
@@ -121,10 +122,10 @@ HELPTEXT
 			before the match are still processed, and lines after
 			the match are put back into the special file. PATTERN is
 			a Bash-style extended regular expression.
-    --stop-after|-t TIMEOUT[SUFFIX]
+    --stop-after|-t ${timespanFormat:-TIMESPAN}
 			Stop observing if no lines have been added for
-			TIMEOUT[SUFFIX]. This includes the time spent processing
-			any existing line(s).
+			TIMEOUT. This includes the time spent processing any
+			existing line(s).
     --parallel		Instead of waiting for one COMMAND to finish before
 			executing the next, run each one the moment the change
 			is triggered. The default is sequential invocation.
@@ -184,18 +185,6 @@ EXIT STATUS:
 Example:
 HELPTEXT
     printf '%q %s\n' "$(basename "$1")" '--bare -l 5 -s STOP --append-on-failure -- wget {}'
-}
-
-timeToSeconds()
-{
-    case "$1" in
-	+([0-9])?(s))   time="${1%s}";;
-	+([0-9])m)	time=$((${1%m} * 60));;
-	+([0-9])h)	time=$((${1%h} * 3600));;
-	+([0-9])d)	time=$((${1%d} * 86400));;
-	*)		printf >&2 "ERROR: Illegal ${2:-timeout}: %s\\n" "$1"; exit 2;;
-    esac
-    printf %s "$time"
 }
 
 typeset -a allArgs=("$@")
@@ -289,7 +278,7 @@ do
 	--stop-on|-s)	shift; stopPattern="$1"; shift; onchangeExitOnArg=(--exit-on $EXIT_SIGNAL);;
 	--stop-after|-t)
 			onchangeArgs+=("$1" "$2"); shift
-			stopAfter="$(timeToSeconds "$1")" || exit $?; shift
+			stopAfter=$(durationToSeconds -- "${1:?}") || { printf >&2 'ERROR: Illegal TIMESPAN: %s\n' "$1"; exit 2; }; shift
 			;;
 	--parallel-limit)
 			shift; parallelLimit="$1"; shift;;
