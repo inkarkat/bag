@@ -615,7 +615,7 @@ else
 
 	# Therefore, we need another external store to persist the counter.
 	database --update "$$	${observedChanges:?}"
-	[ "${DEBUG:-}" ] || trap 'database --delete $$ 2>/dev/null' EXIT
+	! ${DEBUG:+debugenabled --invert-match --} ${DEBUG:-:} || trap 'database --delete $$ 2>/dev/null' EXIT
 
 	# As with the --stop-on options, the end of observation is signaled by
 	# the recursive invocation through $EXIT_SIGNAL.

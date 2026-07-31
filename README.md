@@ -10,6 +10,7 @@ _Commands for collecting lines / shell commands in a special file and then / con
 * [inkarkat/shell-basics](https://github.com/inkarkat/shell-basics)
 * [inkarkat/shell-filesystem](https://github.com/inkarkat/shell-filesystem)
 * [inkarkat/shell-tools](https://github.com/inkarkat/shell-tools)
+* [inkarkat/shell-debugging](https://github.com/inkarkat/shell-debugging) for debugging (optional)
 * automated testing is done with _bats - Bash Automated Testing System_ (https://github.com/bats-core/bats-core)
 
 ### Installation
