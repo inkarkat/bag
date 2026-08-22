@@ -353,8 +353,6 @@ if [ "$isParallel" ] && [ -n "$prependBeforeOnceText" -o -n "$prependAfterOnceTe
     # doesn't need to be transactional because the database is scoped to the PID
     # and we're still single-threaded here.
     marker --transactional --delete onceTextDoneFlag
-else
-    markerDrop() { :; }
 fi
 
 
@@ -589,6 +587,7 @@ if [ "$isOnChange" ]; then
 fi
 
 
+markerDrop() { :; }
 if [ -n "$pgid" ]; then
     trap "markerDrop; trap '' SIGTERM; kill -- -$pgid" EXIT  # If we're the leader, kill subshell processes when the script exits. Don't kill ourselves when we kill the process group; this would print "Terminated" and change the exit status to 143. We're about to exit, anyway.
 else
