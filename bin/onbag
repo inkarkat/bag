@@ -613,7 +613,7 @@ else
 
 	# Therefore, we need another external store to persist the counter.
 	database --update "$$	${observedChanges:?}"
-	! ${DEBUG:+debugenabled --invert-match --} ${DEBUG:-:} \
+	! ${DEBUG:+debugenabled --extension \! --description 'skip database cleanup' --invert-match --} ${DEBUG:-:} \
 	    ||	databaseCleanup() { database --delete $$ 2>/dev/null; }
 
 	# As with the --stop-on options, the end of observation is signaled by
