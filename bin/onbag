@@ -588,10 +588,11 @@ fi
 
 
 markerDrop() { :; }
+databaseCleanup() { :; }
 if [ -n "$pgid" ]; then
-    trap "markerDrop; trap '' SIGTERM; kill -- -$pgid" EXIT  # If we're the leader, kill subshell processes when the script exits. Don't kill ourselves when we kill the process group; this would print "Terminated" and change the exit status to 143. We're about to exit, anyway.
+    trap "markerDrop; databaseCleanup; trap '' SIGTERM; kill -- -$pgid" EXIT  # If we're the leader, kill subshell processes when the script exits. Don't kill ourselves when we kill the process group; this would print "Terminated" and change the exit status to 143. We're about to exit, anyway.
 else
-    trap "markerDrop; jobs -p | xargs --no-run-if-empty kill --" EXIT  # Someone else is the leader; killing remaining jobs is all we can do here.
+    trap "markerDrop; databaseCleanup; jobs -p | xargs --no-run-if-empty kill --" EXIT  # Someone else is the leader; killing remaining jobs is all we can do here.
 fi
 
 typeset -a runWithPromptPromptArgs=()
@@ -612,7 +613,8 @@ else
 
 	# Therefore, we need another external store to persist the counter.
 	database --update "$$	${observedChanges:?}"
-	! ${DEBUG:+debugenabled --invert-match --} ${DEBUG:-:} || trap 'database --delete $$ 2>/dev/null' EXIT
+	! ${DEBUG:+debugenabled --invert-match --} ${DEBUG:-:} \
+	    ||	databaseCleanup() { database --delete $$ 2>/dev/null; }
 
 	# As with the --stop-on options, the end of observation is signaled by
 	# the recursive invocation through $EXIT_SIGNAL.
